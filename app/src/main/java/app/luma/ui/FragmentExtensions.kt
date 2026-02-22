@@ -109,9 +109,22 @@ fun actionDisplayValue(
     section: StatusBarSectionType,
 ): String =
     when (action) {
-        Constants.Action.OpenApp -> stringResource(R.string.action_open_app_name, prefs.getSectionApp(section).appLabel)
-        Constants.Action.Disabled -> stringResource(R.string.action_disabled)
-        else -> action.displayName()
+        Constants.Action.OpenApp -> {
+            val appLabel = prefs.getSectionApp(section).appLabel
+            if (appLabel.isNotEmpty()) {
+                stringResource(R.string.action_open_app_name, appLabel)
+            } else {
+                stringResource(R.string.action_open_app)
+            }
+        }
+
+        Constants.Action.Disabled -> {
+            stringResource(R.string.action_disabled)
+        }
+
+        else -> {
+            action.displayName()
+        }
     }
 
 fun Modifier.noRippleClickable(
