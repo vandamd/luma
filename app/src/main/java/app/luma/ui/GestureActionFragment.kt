@@ -92,9 +92,23 @@ class GestureActionFragment : Fragment() {
                     for (action in Constants.Action.values()) {
                         val isSelected = getCurrentAction() == action
                         val buttonText =
-                            when (action) {
-                                Constants.Action.OpenApp -> stringResource(R.string.action_open_app_name, getAppLabel())
-                                else -> action.displayName()
+                            when {
+                                action == Constants.Action.OpenApp && isSelected -> {
+                                    val appLabel = getAppLabel()
+                                    if (appLabel.isNotEmpty()) {
+                                        stringResource(R.string.action_open_app_name, appLabel)
+                                    } else {
+                                        stringResource(R.string.action_open_app)
+                                    }
+                                }
+
+                                action == Constants.Action.OpenApp -> {
+                                    stringResource(R.string.action_open_app)
+                                }
+
+                                else -> {
+                                    action.displayName()
+                                }
                             }
                         SimpleTextButton(
                             title = buttonText,
@@ -123,7 +137,6 @@ class GestureActionFragment : Fragment() {
             ?: ""
 
     private fun handleActionSelection(action: Action) {
-        setCurrentAction(action)
         if (action == Action.OpenApp) {
             val viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
             viewModel.getAppList()
@@ -133,6 +146,7 @@ class GestureActionFragment : Fragment() {
                 bundleOf("flag" to displayInfo.appDrawerFlag.toString()),
             )
         } else {
+            setCurrentAction(action)
             goBack()
         }
     }

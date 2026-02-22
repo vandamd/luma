@@ -35,16 +35,53 @@ class MainViewModel(
         n: Int = 0,
     ) {
         when (flag) {
-            AppDrawerFlag.LaunchApp, AppDrawerFlag.HiddenApps -> launchApp(appModel)
-            AppDrawerFlag.SetHomeApp -> prefs.setHomeAppModel(n, appModel)
-            AppDrawerFlag.SetSwipeLeft -> prefs.setGestureApp(GestureType.SWIPE_LEFT, appModel)
-            AppDrawerFlag.SetSwipeRight -> prefs.setGestureApp(GestureType.SWIPE_RIGHT, appModel)
-            AppDrawerFlag.SetSwipeUp -> prefs.setGestureApp(GestureType.SWIPE_UP, appModel)
-            AppDrawerFlag.SetSwipeDown -> prefs.setGestureApp(GestureType.SWIPE_DOWN, appModel)
-            AppDrawerFlag.SetDoubleTap -> prefs.setGestureApp(GestureType.DOUBLE_TAP, appModel)
-            AppDrawerFlag.SetStatusBarCellular -> prefs.setSectionApp(StatusBarSectionType.CELLULAR, appModel)
-            AppDrawerFlag.SetStatusBarTime -> prefs.setSectionApp(StatusBarSectionType.TIME, appModel)
-            AppDrawerFlag.SetStatusBarBattery -> prefs.setSectionApp(StatusBarSectionType.BATTERY, appModel)
+            AppDrawerFlag.LaunchApp, AppDrawerFlag.HiddenApps -> {
+                launchApp(appModel)
+            }
+
+            AppDrawerFlag.SetHomeApp -> {
+                prefs.setHomeAppModel(n, appModel)
+            }
+
+            AppDrawerFlag.SetSwipeLeft -> {
+                prefs.setGestureAction(GestureType.SWIPE_LEFT, Constants.Action.OpenApp)
+                prefs.setGestureApp(GestureType.SWIPE_LEFT, appModel)
+            }
+
+            AppDrawerFlag.SetSwipeRight -> {
+                prefs.setGestureAction(GestureType.SWIPE_RIGHT, Constants.Action.OpenApp)
+                prefs.setGestureApp(GestureType.SWIPE_RIGHT, appModel)
+            }
+
+            AppDrawerFlag.SetSwipeUp -> {
+                prefs.setGestureAction(GestureType.SWIPE_UP, Constants.Action.OpenApp)
+                prefs.setGestureApp(GestureType.SWIPE_UP, appModel)
+            }
+
+            AppDrawerFlag.SetSwipeDown -> {
+                prefs.setGestureAction(GestureType.SWIPE_DOWN, Constants.Action.OpenApp)
+                prefs.setGestureApp(GestureType.SWIPE_DOWN, appModel)
+            }
+
+            AppDrawerFlag.SetDoubleTap -> {
+                prefs.setGestureAction(GestureType.DOUBLE_TAP, Constants.Action.OpenApp)
+                prefs.setGestureApp(GestureType.DOUBLE_TAP, appModel)
+            }
+
+            AppDrawerFlag.SetStatusBarCellular -> {
+                prefs.setSectionAction(StatusBarSectionType.CELLULAR, Constants.Action.OpenApp)
+                prefs.setSectionApp(StatusBarSectionType.CELLULAR, appModel)
+            }
+
+            AppDrawerFlag.SetStatusBarTime -> {
+                prefs.setSectionAction(StatusBarSectionType.TIME, Constants.Action.OpenApp)
+                prefs.setSectionApp(StatusBarSectionType.TIME, appModel)
+            }
+
+            AppDrawerFlag.SetStatusBarBattery -> {
+                prefs.setSectionAction(StatusBarSectionType.BATTERY, Constants.Action.OpenApp)
+                prefs.setSectionApp(StatusBarSectionType.BATTERY, appModel)
+            }
         }
     }
 
