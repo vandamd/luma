@@ -92,6 +92,7 @@ class AppDrawerFragment : Fragment() {
                         } else {
                             null
                         },
+                    showPinnedIcon = flag == AppDrawerFlag.LaunchApp,
                 ),
             )
 

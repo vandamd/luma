@@ -27,6 +27,7 @@ import app.luma.BuildConfig
 import app.luma.R
 import app.luma.data.AppModel
 import app.luma.data.Constants
+import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
 import app.luma.data.ShortcutEntry
 import kotlinx.coroutines.Dispatchers
@@ -146,13 +147,33 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
                 appList.add(shortcutModel)
             }
 
-            appList.sortBy {
+            val pinnedIndex = prefs.pinnedApps.withIndex().associate { it.value to it.index }
+            val pinnedModels = mutableListOf<Pair<Int, AppModel>>()
+            val unpinnedModels = mutableListOf<AppModel>()
+
+            for (appModel in appList) {
+                val serial = userManager.getSerialNumberForUser(appModel.user)
+                val entry = PinnedAppEntry(appModel.appPackage, appModel.appActivityName, serial)
+                val index = pinnedIndex[entry]
+                if (index != null) {
+                    pinnedModels.add(index to appModel)
+                } else {
+                    unpinnedModels.add(appModel)
+                }
+            }
+
+            pinnedModels.sortBy { it.first }
+            unpinnedModels.sortBy {
                 if (it.appAlias.isEmpty()) {
                     it.appLabel.lowercase()
                 } else {
                     it.appAlias.lowercase()
                 }
             }
+
+            appList.clear()
+            appList.addAll(pinnedModels.map { it.second })
+            appList.addAll(unpinnedModels)
 
             val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()
             appList.forEach { appModel ->

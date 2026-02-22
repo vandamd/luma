@@ -115,6 +115,8 @@
     <string name="app_actions_show">Show</string>
     <string name="app_actions_hide">Hide</string>
     <string name="app_actions_rename">Rename</string>
+    <string name="app_actions_pin">Pin</string>
+    <string name="app_actions_unpin">Unpin</string>
     <string name="app_actions_replace">Replace</string>
     <string name="app_actions_move_up">Move Up</string>
     <string name="app_actions_move_down">Move Down</string>

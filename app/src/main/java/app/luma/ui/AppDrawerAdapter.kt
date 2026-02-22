@@ -1,13 +1,16 @@
 package app.luma.ui
 
 import android.content.Context
+import android.os.UserManager
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Filter
 import android.widget.Filterable
 import android.widget.FrameLayout
 import androidx.recyclerview.widget.RecyclerView
+import app.luma.R
 import app.luma.data.AppModel
+import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
 import app.luma.databinding.AdapterAppDrawerBinding
 import app.luma.helper.performAppTapHapticFeedback
@@ -18,6 +21,7 @@ data class AppDrawerConfig(
     val gravity: Int,
     val clickListener: (AppModel) -> Unit,
     val appLongPressListener: ((AppModel) -> Unit)? = null,
+    val showPinnedIcon: Boolean = false,
 )
 
 class AppDrawerAdapter(
@@ -40,6 +44,9 @@ class AppDrawerAdapter(
     private var appsList: MutableList<AppModel> = mutableListOf()
     private var appFilteredList: MutableList<AppModel> = mutableListOf()
     private val normalizedNameCache = mutableMapOf<String, String>()
+    private val prefs = Prefs.getInstance(context)
+    private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
+    private var pinnedSet: Set<PinnedAppEntry> = emptySet()
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -53,13 +60,15 @@ class AppDrawerAdapter(
         holder: ViewHolder,
         position: Int,
     ) {
-        if (appFilteredList.size == 0) return
+        if (appFilteredList.isEmpty()) return
         val appModel = appFilteredList[holder.absoluteAdapterPosition]
         holder.bind(
             config.gravity,
             appModel,
             config.clickListener,
             config.appLongPressListener,
+            config.showPinnedIcon,
+            config.showPinnedIcon && isPinned(appModel),
         )
     }
 
@@ -123,7 +132,13 @@ class AppDrawerAdapter(
         normalizedNameCache.clear()
         this.appsList = appsList
         this.appFilteredList = this.appsList
+        pinnedSet = prefs.pinnedApps.toSet()
         notifyDataSetChanged()
+    }
+
+    private fun isPinned(appModel: AppModel): Boolean {
+        val serial = userManager.getSerialNumberForUser(appModel.user)
+        return pinnedSet.contains(PinnedAppEntry(appModel.appPackage, appModel.appActivityName, serial))
     }
 
     class ViewHolder(
@@ -134,9 +149,11 @@ class AppDrawerAdapter(
             appModel: AppModel,
             listener: (AppModel) -> Unit,
             appLongPressListener: ((AppModel) -> Unit)? = null,
+            showPinnedIcon: Boolean = false,
+            isPinned: Boolean = false,
         ) {
             val context = itemView.context
-            configureAppTitle(context, appModel, appLabelGravity)
+            configureAppTitle(context, appModel, appLabelGravity, showPinnedIcon, isPinned)
             setupClickListeners(context, appModel, listener, appLongPressListener)
         }
 
@@ -144,6 +161,8 @@ class AppDrawerAdapter(
             context: Context,
             appModel: AppModel,
             gravity: Int,
+            showPinnedIcon: Boolean,
+            isPinned: Boolean,
         ) {
             val appName = appModel.appAlias.ifEmpty { appModel.appLabel }
             val showIndicator = Prefs.getInstance(context).showNotificationIndicator && appModel.hasNotification
@@ -154,6 +173,9 @@ class AppDrawerAdapter(
             val params = binding.appTitle.layoutParams as FrameLayout.LayoutParams
             params.gravity = gravity
             binding.appTitle.layoutParams = params
+
+            val iconRes = if (showPinnedIcon && isPinned) R.drawable.pin_24px else 0
+            binding.appTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(iconRes, 0, 0, 0)
         }
 
         private fun setupClickListeners(

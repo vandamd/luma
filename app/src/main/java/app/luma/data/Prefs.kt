@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.UserManager
 import app.luma.style.FontSizeOption
+import org.json.JSONArray
+import org.json.JSONObject
 
 private const val PREFS_FILENAME = "app.luma"
 
@@ -16,6 +18,7 @@ private const val HIDDEN_SHORTCUT_IDS = "HIDDEN_SHORTCUT_IDS"
 private const val INVERT_COLOURS = "INVERT_COLOURS"
 private const val THEME_MODE = "theme_mode"
 private const val PINNED_SHORTCUTS = "PINNED_SHORTCUTS"
+private const val PINNED_APPS = "PINNED_APPS"
 
 data class ShortcutEntry(
     val packageName: String,
@@ -37,6 +40,12 @@ data class ShortcutEntry(
         }
     }
 }
+
+data class PinnedAppEntry(
+    val packageName: String,
+    val activityName: String,
+    val userSerial: Long,
+)
 
 private const val APP_NAME = "APP_NAME"
 private const val APP_PACKAGE = "APP_PACKAGE"
@@ -235,6 +244,125 @@ class Prefs(
                 .filterNot { entry ->
                     ShortcutEntry.parse(entry)?.payload == payload
                 }.toSet()
+    }
+
+    private fun normalizePinnedEntry(entry: PinnedAppEntry): PinnedAppEntry =
+        if (entry.userSerial < 0L) {
+            entry.copy(userSerial = mySerial)
+        } else {
+            entry
+        }
+
+    private fun isValidPinnedEntry(entry: PinnedAppEntry): Boolean = entry.packageName.isNotEmpty() && entry.activityName.isNotEmpty()
+
+    var pinnedApps: List<PinnedAppEntry>
+        get() {
+            val raw = prefs.getString(PINNED_APPS, null) ?: return emptyList()
+            return try {
+                val array = JSONArray(raw)
+                val list = mutableListOf<PinnedAppEntry>()
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val packageName = obj.optString("p", "")
+                    val activityName = obj.optString("a", "")
+                    val serialRaw = if (obj.has("u")) obj.optLong("u", -1L) else -1L
+                    val serial = if (serialRaw < 0L) mySerial else serialRaw
+                    if (packageName.isEmpty() || activityName.isEmpty()) continue
+                    list.add(PinnedAppEntry(packageName, activityName, serial))
+                }
+                list.distinct()
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        set(value) {
+            val normalized =
+                value
+                    .map(::normalizePinnedEntry)
+                    .filter(::isValidPinnedEntry)
+                    .distinct()
+
+            val array = JSONArray()
+            normalized.forEach { entry ->
+                val obj = JSONObject()
+                obj.put("p", entry.packageName)
+                obj.put("a", entry.activityName)
+                obj.put("u", entry.userSerial)
+                array.put(obj)
+            }
+
+            prefs.edit().putString(PINNED_APPS, array.toString()).apply()
+        }
+
+    fun isPinned(entry: PinnedAppEntry): Boolean {
+        val normalizedEntry = normalizePinnedEntry(entry)
+        if (!isValidPinnedEntry(normalizedEntry)) return false
+        return pinnedApps.contains(normalizedEntry)
+    }
+
+    fun pin(entry: PinnedAppEntry) {
+        val normalizedEntry = normalizePinnedEntry(entry)
+        if (!isValidPinnedEntry(normalizedEntry)) return
+        val current = pinnedApps.toMutableList()
+        if (current.contains(normalizedEntry)) return
+        current.add(normalizedEntry)
+        pinnedApps = current
+    }
+
+    fun unpin(entry: PinnedAppEntry) {
+        val normalizedEntry = normalizePinnedEntry(entry)
+        if (!isValidPinnedEntry(normalizedEntry)) return
+        val current = pinnedApps
+        val filtered = current.filterNot { it == normalizedEntry }
+        if (filtered.size == current.size) return
+        pinnedApps = filtered
+    }
+
+    fun movePinnedUp(entry: PinnedAppEntry) {
+        val normalizedEntry = normalizePinnedEntry(entry)
+        if (!isValidPinnedEntry(normalizedEntry)) return
+        val current = pinnedApps.toMutableList()
+        val index = current.indexOf(normalizedEntry)
+        if (index <= 0) return
+        val above = current[index - 1]
+        current[index - 1] = normalizedEntry
+        current[index] = above
+        pinnedApps = current
+    }
+
+    fun movePinnedDown(entry: PinnedAppEntry) {
+        val normalizedEntry = normalizePinnedEntry(entry)
+        if (!isValidPinnedEntry(normalizedEntry)) return
+        val current = pinnedApps.toMutableList()
+        val index = current.indexOf(normalizedEntry)
+        if (index < 0 || index >= current.lastIndex) return
+        val below = current[index + 1]
+        current[index + 1] = normalizedEntry
+        current[index] = below
+        pinnedApps = current
+    }
+
+    fun removePinnedForPackage(
+        packageName: String,
+        userSerial: Long,
+    ) {
+        val serial = if (userSerial < 0L) mySerial else userSerial
+        val current = pinnedApps
+        val filtered = current.filterNot { it.packageName == packageName && it.userSerial == serial }
+        if (filtered.size == current.size) return
+        pinnedApps = filtered
+    }
+
+    fun removePinnedShortcutsForPackage(packageName: String) {
+        val current = pinnedApps
+        val prefix = "$packageName|"
+        val filtered =
+            current.filterNot {
+                it.packageName == Constants.PINNED_SHORTCUT_PACKAGE &&
+                    it.activityName.startsWith(prefix)
+            }
+        if (filtered.size == current.size) return
+        pinnedApps = filtered
     }
 
     var hiddenShortcutIds: Set<String>

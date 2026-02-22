@@ -13,12 +13,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
+import app.luma.MainViewModel
 import app.luma.R
 import app.luma.data.AppModel
 import app.luma.data.Constants
 import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.HomeLayout
+import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
 import app.luma.helper.openAppInfo
 import app.luma.helper.uninstallApp
@@ -52,6 +55,12 @@ class AppActionsFragment : Fragment() {
 
     private val isPinnedShortcut: Boolean
         get() = appPackage == Constants.PINNED_SHORTCUT_PACKAGE
+
+    private val pinnedEntry: PinnedAppEntry
+        get() {
+            val effectiveUserSerial = if (userSerial >= 0L) userSerial else prefs.mySerial
+            return PinnedAppEntry(appPackage, appActivityName, effectiveUserSerial)
+        }
 
     private val isHomeApp: Boolean
         get() = homePosition >= 0
@@ -97,6 +106,7 @@ class AppActionsFragment : Fragment() {
                     val prefs = Prefs.getInstance(requireContext())
                     prefs.removePinnedShortcut(appActivityName)
                     prefs.unhideShortcut(appActivityName)
+                    prefs.unpin(pinnedEntry)
 
                     if (homePosition >= 0) {
                         val currentHomeApp = prefs.getHomeAppModel(homePosition)
@@ -130,6 +140,10 @@ class AppActionsFragment : Fragment() {
 
     @Composable
     private fun AppActionsScreen() {
+        val pinnedApps = prefs.pinnedApps
+        val pinnedIndex = pinnedApps.indexOf(pinnedEntry)
+        val isPinned = pinnedIndex >= 0
+
         Column {
             SettingsHeader(
                 title = displayName,
@@ -148,16 +162,65 @@ class AppActionsFragment : Fragment() {
                             ),
                         )
                     }
+                    if (!isAppHidden) {
+                        SimpleTextButton(
+                            stringResource(
+                                if (isPinned) {
+                                    R.string.app_actions_unpin
+                                } else {
+                                    R.string.app_actions_pin
+                                },
+                            ),
+                        ) {
+                            if (isPinned) {
+                                prefs.unpin(pinnedEntry)
+                            } else {
+                                prefs.pin(pinnedEntry)
+                            }
+                            ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                            if (isHomeApp) {
+                                findNavController().popBackStack(R.id.mainFragment, false)
+                            } else {
+                                findNavController().popBackStack(R.id.appListFragment, false)
+                            }
+                        }
+                        if (isPinned && !isHomeApp) {
+                            if (pinnedIndex > 0) {
+                                SimpleTextButton(stringResource(R.string.app_actions_move_up)) {
+                                    prefs.movePinnedUp(pinnedEntry)
+                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                                    findNavController().popBackStack(R.id.appListFragment, false)
+                                }
+                            }
+                            if (pinnedIndex >= 0 && pinnedIndex < pinnedApps.lastIndex) {
+                                SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
+                                    prefs.movePinnedDown(pinnedEntry)
+                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                                    findNavController().popBackStack(R.id.appListFragment, false)
+                                }
+                            }
+                        }
+                    }
                     if (!isHomeApp) {
                         val buttonText = if (isAppHidden) R.string.app_actions_show else R.string.app_actions_hide
                         SimpleTextButton(stringResource(buttonText)) {
                             val prefs = Prefs.getInstance(requireContext())
                             if (isPinnedShortcut) {
-                                if (isAppHidden) prefs.unhideShortcut(appActivityName) else prefs.hideShortcut(appActivityName)
+                                if (isAppHidden) {
+                                    prefs.unhideShortcut(appActivityName)
+                                } else {
+                                    prefs.hideShortcut(appActivityName)
+                                    prefs.unpin(pinnedEntry)
+                                }
                             } else {
                                 val key = prefs.getHiddenAppKey(appPackage, userSerial)
                                 val newSet = prefs.hiddenApps.toMutableSet()
-                                if (isAppHidden) newSet.remove(key) else newSet.add(key)
+                                if (isAppHidden) {
+                                    newSet.remove(key)
+                                } else {
+                                    newSet.add(key)
+                                    prefs.removePinnedForPackage(appPackage, userSerial)
+                                }
                                 prefs.hiddenApps = newSet
                             }
                             findNavController().popBackStack(R.id.mainFragment, false)

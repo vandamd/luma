@@ -67,6 +67,13 @@ object HomeCleanupHelper {
             needsAppListRefresh = true
         }
 
+        val pinnedAppsBefore = prefs.pinnedApps.size
+        prefs.removePinnedForPackage(packageName, userSerial)
+        prefs.removePinnedShortcutsForPackage(packageName)
+        if (prefs.pinnedApps.size != pinnedAppsBefore) {
+            needsAppListRefresh = true
+        }
+
         val hiddenShortcutIds = prefs.hiddenShortcutIds
         val filteredHiddenIds =
             hiddenShortcutIds
