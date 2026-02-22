@@ -224,6 +224,10 @@
             android:name="isHidden"
             app:argType="boolean"
             android:defaultValue="false" />
+        <argument
+            android:name="userSerial"
+            app:argType="long"
+            android:defaultValue="-1L" />
     </fragment>
     <fragment
         android:id="@+id/confirmFragment"
