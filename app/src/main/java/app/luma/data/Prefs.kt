@@ -353,18 +353,6 @@ class Prefs(
         pinnedApps = filtered
     }
 
-    fun removePinnedShortcutsForPackage(packageName: String) {
-        val current = pinnedApps
-        val prefix = "$packageName|"
-        val filtered =
-            current.filterNot {
-                it.packageName == Constants.PINNED_SHORTCUT_PACKAGE &&
-                    it.activityName.startsWith(prefix)
-            }
-        if (filtered.size == current.size) return
-        pinnedApps = filtered
-    }
-
     var hiddenShortcutIds: Set<String>
         get() = prefs.getStringSet(HIDDEN_SHORTCUT_IDS, emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet(HIDDEN_SHORTCUT_IDS, value).apply()
