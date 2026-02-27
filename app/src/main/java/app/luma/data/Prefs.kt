@@ -81,6 +81,7 @@ private const val SHOW_STATUS_BAR_NOTIFICATION_INDICATOR = "show_status_bar_noti
 private const val NOTIFICATION_INDICATOR_SECTION = "notification_indicator_section"
 private const val NOTIFICATION_INDICATOR_ALIGNMENT = "notification_indicator_alignment"
 private const val STATUS_BAR_ENABLED = "status_bar_enabled"
+private const val STATUS_BAR_MODE = "status_bar_mode"
 private const val TIME_ENABLED = "time_enabled"
 private const val TIME_FORMAT = "time_format"
 private const val SHOW_SECONDS = "show_seconds"
@@ -113,6 +114,8 @@ class Prefs(
     enum class TimeFormat { Standard, TwentyFourHour }
 
     enum class ThemeMode { Dark, Light, Automatic }
+
+    enum class StatusBarMode { Enabled, None, AndroidStatusBar }
 
     enum class PageIndicatorPosition { Left, Right, Hidden }
 
@@ -470,6 +473,15 @@ class Prefs(
     var statusBarEnabled: Boolean
         get() = prefs.getBoolean(STATUS_BAR_ENABLED, true)
         set(value) = prefs.edit().putBoolean(STATUS_BAR_ENABLED, value).apply()
+
+    var statusBarMode: StatusBarMode
+        get() {
+            if (prefs.contains(STATUS_BAR_MODE)) {
+                return enumPref(STATUS_BAR_MODE, StatusBarMode.Enabled)
+            }
+            return if (prefs.getBoolean(STATUS_BAR_ENABLED, true)) StatusBarMode.Enabled else StatusBarMode.None
+        }
+        set(value) = prefs.edit().putString(STATUS_BAR_MODE, value.name).apply()
 
     var timeEnabled: Boolean
         get() = prefs.getBoolean(TIME_ENABLED, true)

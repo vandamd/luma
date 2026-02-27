@@ -301,6 +301,17 @@ fun hideStatusBar(activity: Activity) {
     }
 }
 
+fun showStatusBar(activity: Activity) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        activity.window.insetsController?.show(WindowInsets.Type.statusBars())
+    } else {
+        @Suppress("DEPRECATION")
+        activity.window.decorView.apply {
+            systemUiVisibility = systemUiVisibility and View.SYSTEM_UI_FLAG_FULLSCREEN.inv()
+        }
+    }
+}
+
 fun uninstallApp(
     context: Context,
     appPackage: String,

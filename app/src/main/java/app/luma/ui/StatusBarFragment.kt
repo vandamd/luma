@@ -13,7 +13,7 @@ import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
 import app.luma.ui.compose.SettingsComposable.ContentContainer
-import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
+import app.luma.ui.compose.SettingsComposable.SelectorButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 import app.luma.ui.compose.SettingsItemSpacing
@@ -42,10 +42,14 @@ class StatusBarFragment : Fragment() {
 
             ContentContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
-                    PrefsToggleTextButton(
-                        title = stringResource(R.string.status_bar_enabled),
-                        initialValue = prefs.statusBarEnabled,
-                        onValueChange = { prefs.statusBarEnabled = it },
+                    SelectorButton(
+                        label = stringResource(R.string.settings_status_bar),
+                        value = when (prefs.statusBarMode) {
+                            Prefs.StatusBarMode.Enabled -> stringResource(R.string.status_bar_enabled)
+                            Prefs.StatusBarMode.None -> stringResource(R.string.status_bar_mode_none)
+                            Prefs.StatusBarMode.AndroidStatusBar -> stringResource(R.string.status_bar_mode_android)
+                        },
+                        onClick = { findNavController().navigate(R.id.action_statusBarFragment_to_statusBarModeFragment) },
                     )
                     SimpleTextButton(stringResource(R.string.status_bar_notification_indicator)) {
                         findNavController().navigate(R.id.action_statusBarFragment_to_statusBarNotificationIndicatorFragment)

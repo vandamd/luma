@@ -132,6 +132,9 @@
         android:name="app.luma.ui.StatusBarFragment"
         android:label="StatusBarFragment">
         <action
+            android:id="@+id/action_statusBarFragment_to_statusBarModeFragment"
+            app:destination="@id/statusBarModeFragment" />
+        <action
             android:id="@+id/action_statusBarFragment_to_statusBarTimeFragment"
             app:destination="@id/statusBarTimeFragment" />
         <action
@@ -144,6 +147,10 @@
             android:id="@+id/action_statusBarFragment_to_statusBarNotificationIndicatorFragment"
             app:destination="@id/statusBarNotificationIndicatorFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/statusBarModeFragment"
+        android:name="app.luma.ui.StatusBarModeFragment"
+        android:label="StatusBarModeFragment" />
     <fragment
         android:id="@+id/statusBarTimeFragment"
         android:name="app.luma.ui.StatusBarTimeFragment"

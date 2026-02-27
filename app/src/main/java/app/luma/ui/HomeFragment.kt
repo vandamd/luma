@@ -114,7 +114,11 @@ class HomeFragment :
 
     override fun onStart() {
         super.onStart()
-        hideStatusBar(requireActivity())
+        if (prefs.statusBarMode == Prefs.StatusBarMode.AndroidStatusBar) {
+            showStatusBar(requireActivity())
+        } else {
+            hideStatusBar(requireActivity())
+        }
     }
 
     override fun onResume() {
@@ -125,7 +129,7 @@ class HomeFragment :
         pageIndicatorLayout = null
         updatePageIndicator()
         refreshAppNames()
-        binding.statusBar.visibility = if (prefs.statusBarEnabled) View.VISIBLE else View.GONE
+        binding.statusBar.visibility = if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled) View.VISIBLE else View.GONE
         startBatteryMonitor()
         startConnectivityMonitors()
         startClock()
