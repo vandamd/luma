@@ -48,7 +48,7 @@ class AppCountFragment : Fragment() {
 
             ContentContainer {
                 CustomScrollView {
-                    if (prefs.statusBarEnabled && resources.configuration.fontScale >= 0.85f) {
+                    if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && resources.configuration.fontScale >= 0.85f) {
                         MessageText(
                             stringResource(R.string.app_count_status_bar_hint),
                             modifier = Modifier.padding(end = 30.dp),

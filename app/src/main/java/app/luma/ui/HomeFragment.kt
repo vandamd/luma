@@ -343,7 +343,7 @@ class HomeFragment :
     }
 
     private fun updateNotificationDot(hasNotifications: Boolean) {
-        val show = hasNotifications && prefs.statusBarEnabled && prefs.showStatusBarNotificationIndicator
+        val show = hasNotifications && prefs.statusBarMode == Prefs.StatusBarMode.Enabled && prefs.showStatusBarNotificationIndicator
         val dot = notificationDotView ?: createNotificationDot().also { notificationDotView = it }
         val oldParent = dot.parent as? ViewGroup
 
@@ -495,7 +495,7 @@ class HomeFragment :
         clockJob =
             viewLifecycleOwner.lifecycleScope.launch {
                 while (true) {
-                    if (prefs.statusBarEnabled && prefs.timeEnabled) {
+                    if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && prefs.timeEnabled) {
                         binding.statusClock.visibility = View.VISIBLE
                         val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
                         val showSec = prefs.showSeconds
@@ -560,7 +560,7 @@ class HomeFragment :
     }
 
     private fun startBatteryMonitor() {
-        if (!prefs.statusBarEnabled || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
+        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
             updateSectionBaseline(binding.statusBatteryLayout)
@@ -626,7 +626,7 @@ class HomeFragment :
     }
 
     private fun startConnectivityMonitors() {
-        if (!prefs.statusBarEnabled) {
+        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled) {
             binding.statusConnectivityLayout.visibility =
                 if (hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
             return
