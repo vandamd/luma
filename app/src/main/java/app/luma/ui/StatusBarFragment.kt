@@ -44,11 +44,12 @@ class StatusBarFragment : Fragment() {
                 Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
                     SelectorButton(
                         label = stringResource(R.string.settings_status_bar),
-                        value = when (prefs.statusBarMode) {
-                            Prefs.StatusBarMode.Enabled -> stringResource(R.string.status_bar_enabled)
-                            Prefs.StatusBarMode.None -> stringResource(R.string.status_bar_mode_none)
-                            Prefs.StatusBarMode.AndroidStatusBar -> stringResource(R.string.status_bar_mode_android)
-                        },
+                        value =
+                            when (prefs.statusBarMode) {
+                                Prefs.StatusBarMode.Enabled -> stringResource(R.string.status_bar_enabled)
+                                Prefs.StatusBarMode.None -> stringResource(R.string.status_bar_mode_none)
+                                Prefs.StatusBarMode.AndroidStatusBar -> stringResource(R.string.status_bar_mode_android)
+                            },
                         onClick = { findNavController().navigate(R.id.action_statusBarFragment_to_statusBarModeFragment) },
                     )
                     SimpleTextButton(stringResource(R.string.status_bar_notification_indicator)) {
