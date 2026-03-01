@@ -43,7 +43,7 @@ class StatusBarFragment : Fragment() {
             ContentContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
                     SelectorButton(
-                        label = stringResource(R.string.settings_status_bar),
+                        label = stringResource(R.string.status_bar_visibility),
                         value =
                             when (prefs.statusBarMode) {
                                 Prefs.StatusBarMode.Enabled -> stringResource(R.string.status_bar_enabled)

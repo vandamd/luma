@@ -71,9 +71,10 @@
 
     <!-- Status bar -->
     <string name="settings_status_bar">Status Bar</string>
+    <string name="status_bar_visibility">Visibility</string>
     <string name="status_bar_enabled">Enabled</string>
-    <string name="status_bar_mode_none">None</string>
-    <string name="status_bar_mode_android">Android Status Bar</string>
+    <string name="status_bar_mode_none">Disabled</string>
+    <string name="status_bar_mode_android">Enabled (Android)</string>
     <string name="status_bar_time">Time</string>
     <string name="status_bar_time_enabled">Enabled</string>
     <string name="status_bar_time_format">Time Format</string>

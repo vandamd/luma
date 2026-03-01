@@ -44,14 +44,14 @@ class StatusBarModeFragment : Fragment() {
                         onClick = { select(Prefs.StatusBarMode.Enabled) },
                     )
                     SimpleTextButton(
-                        title = stringResource(R.string.status_bar_mode_none),
-                        underline = prefs.statusBarMode == Prefs.StatusBarMode.None,
-                        onClick = { select(Prefs.StatusBarMode.None) },
-                    )
-                    SimpleTextButton(
                         title = stringResource(R.string.status_bar_mode_android),
                         underline = prefs.statusBarMode == Prefs.StatusBarMode.AndroidStatusBar,
                         onClick = { select(Prefs.StatusBarMode.AndroidStatusBar) },
+                    )
+                    SimpleTextButton(
+                        title = stringResource(R.string.status_bar_mode_none),
+                        underline = prefs.statusBarMode == Prefs.StatusBarMode.None,
+                        onClick = { select(Prefs.StatusBarMode.None) },
                     )
                 }
             }
