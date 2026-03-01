@@ -33,7 +33,7 @@ object Constants {
     }
 
     enum class Action(
-        @StringRes val displayNameRes: Int,
+        @field:StringRes val displayNameRes: Int,
     ) {
         Disabled(R.string.action_disabled),
         OpenApp(R.string.action_open_app),

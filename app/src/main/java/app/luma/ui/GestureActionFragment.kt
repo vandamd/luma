@@ -48,7 +48,7 @@ class GestureActionFragment : Fragment() {
     }
 
     private data class ActionDisplayInfo(
-        @StringRes val titleRes: Int,
+        @field:StringRes val titleRes: Int,
         val appDrawerFlag: AppDrawerFlag,
     )
 

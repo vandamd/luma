@@ -1,5 +1,4 @@
 apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 apply plugin: 'org.jlleitschuh.gradle.ktlint'
 
@@ -24,10 +23,6 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-
     if (localProps['storeFile']) {
         signingConfigs {
             release {
@@ -48,7 +43,7 @@ android {
     }
 
     buildFeatures {
-        compose true
+        compose = true
         viewBinding = true
         buildConfig = true
     }
@@ -59,7 +54,7 @@ android {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (localProps['storeFile']) {
-                signingConfig signingConfigs.release
+                signingConfig = signingConfigs.release
             }
         }
         debug {
@@ -71,9 +66,9 @@ android {
     }
 
     lint {
-        abortOnError false
+        abortOnError = false
     }
-    namespace 'app.luma'
+    namespace = 'app.luma'
 }
 
 dependencies {
