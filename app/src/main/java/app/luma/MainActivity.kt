@@ -19,6 +19,8 @@ import app.luma.data.Constants
 import app.luma.data.Prefs
 import app.luma.databinding.ActivityMainBinding
 import app.luma.helper.HomeCleanupHelper
+import app.luma.helper.hideStatusBar
+import app.luma.helper.showStatusBar
 import app.luma.helper.showToast
 import app.luma.style.DisplayDefaults.withDisplayDefaults
 
@@ -53,6 +55,10 @@ class MainActivity : AppCompatActivity() {
 
         navController = Navigation.findNavController(this, R.id.nav_host_fragment)
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            updateSystemStatusBarVisibility(destination.id)
+        }
+        updateSystemStatusBarVisibility(navController.currentDestination?.id)
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -165,5 +171,17 @@ class MainActivity : AppCompatActivity() {
         prefs.addPinnedShortcut(shortcutPackage, shortcutId, label)
 
         showToast(this, getString(R.string.toast_added_to_app_drawer))
+    }
+
+    private fun updateSystemStatusBarVisibility(destinationId: Int?) {
+        val shouldShowSystemStatusBar =
+            prefs.statusBarMode == Prefs.StatusBarMode.AndroidStatusBar &&
+                destinationId == R.id.mainFragment
+
+        if (shouldShowSystemStatusBar) {
+            showStatusBar(this)
+        } else {
+            hideStatusBar(this)
+        }
     }
 }

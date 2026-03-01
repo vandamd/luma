@@ -112,15 +112,6 @@ class HomeFragment :
         observeNotificationChanges()
     }
 
-    override fun onStart() {
-        super.onStart()
-        if (prefs.statusBarMode == Prefs.StatusBarMode.AndroidStatusBar) {
-            showStatusBar(requireActivity())
-        } else {
-            hideStatusBar(requireActivity())
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         HomeCleanupHelper.setOnHomeCleanupCallback { refreshAppNames() }
