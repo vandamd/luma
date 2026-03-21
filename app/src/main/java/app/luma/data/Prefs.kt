@@ -102,6 +102,7 @@ private const val HAPTICS_LONG_PRESS_ENABLED = "haptics_long_press_enabled"
 private const val HAPTICS_GESTURE_ACTIONS_ENABLED = "haptics_gesture_actions_enabled"
 private const val HAPTICS_STATUS_BAR_PRESS_ENABLED = "haptics_status_bar_press_enabled"
 private const val AUTO_ROTATE_ENABLED = "auto_rotate_enabled"
+private const val SHOW_VOLUME_INDICATOR = "show_volume_indicator"
 private const val SHOW_HIDDEN_APPS_IN_HOME_PICKER = "show_hidden_apps_in_home_picker"
 private const val SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
 private const val SHOW_APP_DRAWER_PIN_ICONS = "show_app_drawer_pin_icons"
@@ -592,6 +593,10 @@ class Prefs(
     var autoRotateEnabled: Boolean
         get() = prefs.getBoolean(AUTO_ROTATE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(AUTO_ROTATE_ENABLED, value).apply()
+
+    var showVolumeIndicator: Boolean
+        get() = prefs.getBoolean(SHOW_VOLUME_INDICATOR, false)
+        set(value) = prefs.edit().putBoolean(SHOW_VOLUME_INDICATOR, value).apply()
 
     var showAppDrawerToolIcons: Boolean
         get() = prefs.getBoolean(SHOW_APP_DRAWER_TOOL_ICONS, true)

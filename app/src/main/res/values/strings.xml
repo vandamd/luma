@@ -14,6 +14,7 @@
     <string name="settings_appearance">Appearance</string>
     <string name="settings_show_tool_icons">Show Tool Icons</string>
     <string name="settings_show_pin_icons">Show Pin Icons</string>
+    <string name="settings_show_volume_indicator">Show Volume Indicator</string>
     <string name="settings_tools">Tools</string>
     <string name="settings_auto_rotate">Auto-rotate</string>
     <string name="settings_pages">Pages</string>

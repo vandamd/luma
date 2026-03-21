@@ -203,13 +203,6 @@ class HomeFragment :
 
         viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
         currentPage = viewModel.getCurrentHomePage()
-        viewModel.observeCurrentHomePage().observe(viewLifecycleOwner) { page ->
-            val nextPage = page.coerceIn(0, (totalPages - 1).coerceAtLeast(0))
-            if (nextPage == currentPage) return@observe
-            currentPage = nextPage
-            refreshAppNames()
-            updatePageIndicator()
-        }
 
         initObservers()
         initPageNavigation()
@@ -443,6 +436,11 @@ class HomeFragment :
         }
     }
 
+    fun resetToFirstPage() {
+        if (currentPage == 0) return
+        switchToPage(0)
+    }
+
     private fun initObservers() {
         binding.homeAppsLayout.gravity = android.view.Gravity.CENTER
     }
@@ -634,6 +632,11 @@ class HomeFragment :
     }
 
     private fun showVolumeIndicator(state: VolumeIndicatorState) {
+        if (!prefs.showVolumeIndicator) {
+            hideVolumeIndicator()
+            return
+        }
+
         val wasVisible = binding.volumeIndicator.visibility == View.VISIBLE
         if (!wasVisible) {
             restoreFirstRunTipsAfterVolumeIndicator = binding.firstRunTips.visibility == View.VISIBLE

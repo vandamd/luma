@@ -93,14 +93,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         if (!isChangingConfigurations) {
-            backToHomeScreen()
-            viewModel.requestHomePageReset()
+            finish()
         }
         super.onStop()
     }
 
     override fun onUserLeaveHint() {
-        backToHomeScreen()
         super.onUserLeaveHint()
     }
 
@@ -108,10 +106,10 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handlePinShortcutRequest(intent)
-        if (isLauncherIntent(intent)) {
-            viewModel.requestHomePageReset()
-        }
         backToHomeScreen()
+        if (isLauncherIntent(intent)) {
+            resetHomePageImmediately()
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -163,6 +161,11 @@ class MainActivity : AppCompatActivity() {
         if (navController.currentDestination?.id != R.id.mainFragment) {
             navController.popBackStack(R.id.mainFragment, false)
         }
+    }
+
+    private fun resetHomePageImmediately() {
+        viewModel.resetHomePageNow()
+        getVisibleHomeFragment()?.resetToFirstPage()
     }
 
     private fun isLauncherIntent(intent: Intent): Boolean =

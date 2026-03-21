@@ -62,6 +62,11 @@ class AppearanceFragment : Fragment() {
                         onClick = { findNavController().navigate(R.id.action_appearanceFragment_to_themeModeFragment) },
                     )
                     PrefsToggleTextButton(
+                        title = stringResource(R.string.settings_show_volume_indicator),
+                        initialValue = prefs.showVolumeIndicator,
+                        onValueChange = { prefs.showVolumeIndicator = it },
+                    )
+                    PrefsToggleTextButton(
                         title = stringResource(R.string.settings_show_tool_icons),
                         initialValue = prefs.showAppDrawerToolIcons,
                         onValueChange = { prefs.showAppDrawerToolIcons = it },
