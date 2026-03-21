@@ -333,9 +333,11 @@ object SettingsComposable {
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         onClick: () -> Unit,
+        @DrawableRes labelIconRes: Int? = null,
         enabled: Boolean = true,
     ) {
         val context = LocalContext.current
+        val labelColor = if (enabled) SettingsTheme.typography.item.color else Color.Gray
         Row(
             modifier =
                 Modifier
@@ -352,18 +354,44 @@ object SettingsComposable {
                 onCheckedChange = if (enabled) onCheckedChange else { _ -> },
                 enabled = enabled,
             )
-            Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start,
             ) {
-                Text(
-                    label,
-                    style = SettingsTheme.typography.item,
-                    fontSize = 30.sp,
-                    color = if (enabled) Color.Unspecified else Color.Gray,
+                Row(
                     modifier = Modifier.padding(bottom = 4.dp),
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        label,
+                        style = SettingsTheme.typography.item,
+                        fontSize = 30.sp,
+                        color = labelColor,
+                    )
+                    if (labelIconRes != null) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "(",
+                            style = SettingsTheme.typography.item,
+                            fontSize = 30.sp,
+                            color = labelColor,
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Image(
+                            painter = painterResource(id = labelIconRes),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(labelColor),
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            ")",
+                            style = SettingsTheme.typography.item,
+                            fontSize = 30.sp,
+                            color = labelColor,
+                        )
+                    }
+                }
                 Text(
                     value,
                     style = SettingsTheme.typography.item,

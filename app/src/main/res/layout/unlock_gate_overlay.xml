@@ -2,17 +2,27 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp">
+    android:clickable="true"
+    android:focusable="true">
 
     <TextView
-        android:id="@+id/unlockGateMessage"
+        android:id="@+id/unlockGateClock"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="@font/publicsans_thin"
         android:gravity="center"
-        android:text="@string/unlock_gate_message"
+        android:includeFontPadding="false"
         android:textAlignment="center"
-        android:textSize="26sp" />
+        android:textSize="88sp" />
+
+    <View
+        android:id="@+id/unlockGateHomeButton"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="18dp"
+        android:clickable="true"
+        android:focusable="true" />
 
 </FrameLayout>

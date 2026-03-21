@@ -7,6 +7,7 @@ import android.os.UserManager
 import app.luma.style.FontSizeOption
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.Collator
 
 private const val PREFS_FILENAME = "app.luma"
 
@@ -106,6 +107,10 @@ private const val SHOW_VOLUME_INDICATOR = "show_volume_indicator"
 private const val SHOW_HIDDEN_APPS_IN_HOME_PICKER = "show_hidden_apps_in_home_picker"
 private const val SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
 private const val SHOW_APP_DRAWER_PIN_ICONS = "show_app_drawer_pin_icons"
+private const val LOCKSCREEN_GATE_ENABLED = "lockscreen_gate_enabled"
+private const val LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR = "lockscreen_clock_notification_indicator"
+private const val LOCKSCREEN_SHORTCUT_ACTION = "lockscreen_shortcut_action"
+private const val LOCKSCREEN_SHORTCUT_APP = "lockscreen_shortcut_app"
 
 class Prefs(
     val context: Context,
@@ -430,6 +435,42 @@ class Prefs(
         storeAction(type.actionKey, action)
     }
 
+    var lockscreenGateEnabled: Boolean
+        get() = prefs.getBoolean(LOCKSCREEN_GATE_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(LOCKSCREEN_GATE_ENABLED, value).apply()
+
+    var lockscreenClockNotificationIndicator: Boolean
+        get() = prefs.getBoolean(LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR, true)
+        set(value) = prefs.edit().putBoolean(LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR, value).apply()
+
+    fun getLockscreenShortcutAction(): Constants.Action {
+        val action = loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp)
+        return if (action == Constants.Action.Disabled || action == Constants.Action.LockScreen) Constants.Action.OpenApp else action
+    }
+
+    fun setLockscreenShortcutAction(action: Constants.Action) {
+        val resolvedAction =
+            if (action == Constants.Action.Disabled || action == Constants.Action.LockScreen) {
+                Constants.Action.OpenApp
+            } else {
+                action
+            }
+        storeAction(LOCKSCREEN_SHORTCUT_ACTION, resolvedAction)
+    }
+
+    fun getLockscreenShortcutApp(): AppModel {
+        val storedApp = loadApp(LOCKSCREEN_SHORTCUT_APP)
+        return if (storedApp.appPackage.isBlank()) {
+            defaultLockscreenShortcutApp()
+        } else {
+            storedApp
+        }
+    }
+
+    fun setLockscreenShortcutApp(appModel: AppModel) {
+        storeApp(LOCKSCREEN_SHORTCUT_APP, appModel)
+    }
+
     private fun loadApp(id: String): AppModel {
         val name = prefs.getString("${APP_NAME}_$id", "") ?: ""
         val pack = prefs.getString("${APP_PACKAGE}_$id", "") ?: ""
@@ -485,6 +526,13 @@ class Prefs(
             .putString("${APP_ENTRY_TYPE}_$id", appModel.entryType.name)
             .apply()
     }
+
+    private fun defaultLockscreenShortcutApp(): AppModel =
+        Tool.Phone.toAppModel(
+            context = context,
+            collator = Collator.getInstance(),
+            alias = getAppAlias(Tool.Phone.packageName),
+        )
 
     var fontSizeOption: FontSizeOption
         get() {

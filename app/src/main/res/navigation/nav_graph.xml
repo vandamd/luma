@@ -91,17 +91,21 @@
             android:name="section_type"
             app:argType="string"
             android:defaultValue="" />
+        <argument
+            android:name="lockscreen_shortcut"
+            app:argType="boolean"
+            android:defaultValue="false" />
     </fragment>
     <fragment
         android:id="@+id/settingsFragment"
         android:name="app.luma.ui.SettingsFragment"
         android:label="SettingsFragment">
         <action
-            android:id="@+id/action_settingsFragment_to_appearanceFragment"
-            app:destination="@id/appearanceFragment" />
-        <action
             android:id="@+id/action_settingsFragment_to_toolsFragment"
             app:destination="@id/toolsFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_homescreenFragment"
+            app:destination="@id/homescreenFragment" />
         <action
             android:id="@+id/action_settingsFragment_to_pagesFragment"
             app:destination="@id/pagesFragment" />
@@ -109,13 +113,49 @@
             android:id="@+id/action_settingsFragment_to_gesturesFragment"
             app:destination="@id/gesturesFragment" />
         <action
-            android:id="@+id/action_settingsFragment_to_notificationsFragment"
-            app:destination="@id/notificationsFragment" />
-        <action
             android:id="@+id/action_settingsFragment_to_statusBarFragment"
             app:destination="@id/statusBarFragment" />
         <action
-            android:id="@+id/action_settingsFragment_to_hapticsFragment"
+            android:id="@+id/action_settingsFragment_to_lockscreenFragment"
+            app:destination="@id/lockscreenFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_miscellaneousFragment"
+            app:destination="@id/miscellaneousFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/homescreenFragment"
+        android:name="app.luma.ui.HomescreenFragment"
+        android:label="HomescreenFragment">
+        <action
+            android:id="@+id/action_homescreenFragment_to_toolsFragment"
+            app:destination="@id/toolsFragment" />
+        <action
+            android:id="@+id/action_homescreenFragment_to_pagesFragment"
+            app:destination="@id/pagesFragment" />
+        <action
+            android:id="@+id/action_homescreenFragment_to_gesturesFragment"
+            app:destination="@id/gesturesFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/lockscreenFragment"
+        android:name="app.luma.ui.LockscreenFragment"
+        android:label="LockscreenFragment">
+        <action
+            android:id="@+id/action_lockscreenFragment_to_gestureActionFragment"
+            app:destination="@id/gestureActionFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/miscellaneousFragment"
+        android:name="app.luma.ui.MiscellaneousFragment"
+        android:label="MiscellaneousFragment">
+        <action
+            android:id="@+id/action_miscellaneousFragment_to_appearanceFragment"
+            app:destination="@id/appearanceFragment" />
+        <action
+            android:id="@+id/action_miscellaneousFragment_to_timeFragment"
+            app:destination="@id/timeFragment" />
+        <action
+            android:id="@+id/action_miscellaneousFragment_to_hapticsFragment"
             app:destination="@id/hapticsFragment" />
     </fragment>
     <fragment
@@ -125,6 +165,14 @@
         <action
             android:id="@+id/action_appearanceFragment_to_themeModeFragment"
             app:destination="@id/themeModeFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/timeFragment"
+        android:name="app.luma.ui.TimeFragment"
+        android:label="TimeFragment">
+        <action
+            android:id="@+id/action_timeFragment_to_timeFormatFragment"
+            app:destination="@id/timeFormatFragment" />
     </fragment>
     <fragment
         android:id="@+id/themeModeFragment"
@@ -138,10 +186,6 @@
         android:id="@+id/hapticsFragment"
         android:name="app.luma.ui.HapticsFragment"
         android:label="HapticsFragment" />
-    <fragment
-        android:id="@+id/notificationsFragment"
-        android:name="app.luma.ui.NotificationsFragment"
-        android:label="NotificationsFragment" />
     <fragment
         android:id="@+id/statusBarFragment"
         android:name="app.luma.ui.StatusBarFragment"
@@ -170,9 +214,6 @@
         android:id="@+id/statusBarTimeFragment"
         android:name="app.luma.ui.StatusBarTimeFragment"
         android:label="StatusBarTimeFragment">
-        <action
-            android:id="@+id/action_statusBarTimeFragment_to_timeFormatFragment"
-            app:destination="@id/timeFormatFragment" />
         <action
             android:id="@+id/action_statusBarTimeFragment_to_gestureActionFragment"
             app:destination="@id/gestureActionFragment" />

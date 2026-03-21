@@ -63,6 +63,7 @@ private const val TAG = "HomeFragment"
 private const val NETWORK_SHORTCUT_LIGHT_ROUTE = "networksettings"
 private const val NOTIFICATION_SETTINGS_LIGHT_ROUTE = "notificationsettings"
 private const val VOLUME_INDICATOR_HIDE_DELAY_MS = 1500L
+private const val STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS = 120L
 
 private data class VolumeIndicatorState(
     val labelRes: Int,
@@ -138,6 +139,7 @@ class HomeFragment :
     private var lastKnownVolumeState: VolumeState? = null
     private var pendingVolumeIndicatorState: VolumeIndicatorState? = null
     private var volumeApplyGeneration = 0L
+    private var hideClockForUnlockGate = false
     private val applyVolumeIndicatorRunnable =
         Runnable {
             val currentBinding = _binding ?: return@Runnable
@@ -185,6 +187,7 @@ class HomeFragment :
         volumeApplyGeneration = 0L
         _binding?.root?.removeCallbacks(applyVolumeIndicatorRunnable)
         notificationDotView = null
+        hideClockForUnlockGate = false
         _binding = null
     }
 
@@ -211,6 +214,8 @@ class HomeFragment :
         initStatusBarClickListeners()
         initVolumeIndicator()
         observeNotificationChanges()
+        observeUnlockGateClockVisibility()
+        binding.touchArea.post { syncUnlockGateHomeContentTop() }
     }
 
     override fun onResume() {
@@ -228,6 +233,7 @@ class HomeFragment :
         startConnectivityMonitors()
         startClock()
         syncRepeatedHomeGateEligibility()
+        syncUnlockGateHomeContentTop()
     }
 
     override fun onPause() {
@@ -238,6 +244,7 @@ class HomeFragment :
         stopBatteryMonitor()
         stopConnectivityMonitors()
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility(null)
+        ActionService.instance()?.setUnlockGateHomeContentTop(0)
     }
 
     override fun onClick(view: View) {
@@ -347,9 +354,13 @@ class HomeFragment :
         performStatusBarPressHaptic()
         if (action == Action.OpenApp) {
             val app = prefs.getSectionApp(section)
-            if (app.appPackage.isNotEmpty()) launchApp(app)
+            if (app.appPackage.isNotEmpty()) {
+                launchApp(app)
+                ActionService.instance()?.dismissUnlockGateForStatusBarAction(STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS)
+            }
         } else {
             handleOtherAction(action)
+            ActionService.instance()?.dismissUnlockGateForStatusBarAction()
         }
     }
 
@@ -449,6 +460,21 @@ class HomeFragment :
 
     private fun syncRepeatedHomeGateEligibility() {
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility()
+    }
+
+    private fun syncUnlockGateHomeContentTop() {
+        if (_binding == null) return
+        binding.touchArea.post {
+            if (_binding == null) return@post
+            val contentTop =
+                if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled) {
+                    binding.touchArea.top
+                } else {
+                    0
+                }
+            ActionService.instance()?.setUnlockGateHomeContentTop(contentTop)
+            updateClockDisplay()
+        }
     }
 
     private fun initObservers() {
@@ -709,6 +735,16 @@ class HomeFragment :
         }
     }
 
+    private fun observeUnlockGateClockVisibility() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            ActionService.unlockGateVisible.collect { shouldHideClock ->
+                if (_binding == null) return@collect
+                hideClockForUnlockGate = shouldHideClock
+                updateClockDisplay()
+            }
+        }
+    }
+
     private fun createNotificationDot(): TextView =
         TextView(requireContext()).apply {
             typeface = resources.getFont(R.font.public_sans)
@@ -907,38 +943,25 @@ class HomeFragment :
     }
 
     private fun updateClockDisplay() {
+        if (shouldHideClockForUnlockGate()) {
+            binding.statusClock.text = formatClockText(prefs)
+            binding.statusClockLayout.visibility = View.INVISIBLE
+            return
+        }
+
+        binding.statusClockLayout.visibility = View.VISIBLE
         if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && prefs.timeEnabled) {
             binding.statusClock.visibility = View.VISIBLE
-            val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
-            val showSec = prefs.showSeconds
-            val cal = Calendar.getInstance()
-            val hour =
-                if (is24Hour) {
-                    cal.get(Calendar.HOUR_OF_DAY)
-                } else {
-                    cal.get(Calendar.HOUR).let { if (it == 0) 12 else it }
-                }
-            val min = cal.get(Calendar.MINUTE)
-            val sec = cal.get(Calendar.SECOND)
-            val hStr =
-                if (is24Hour || prefs.leadingZero) {
-                    "%02d".format(hour)
-                } else {
-                    hour.toString()
-                }
-            val time =
-                buildString {
-                    append("$hStr:${"%02d".format(min)}")
-                    if (showSec) append(":${"%02d".format(sec)}")
-                    if (!is24Hour) append(if (cal.get(Calendar.AM_PM) == Calendar.AM) " AM" else " PM")
-                }
-            binding.statusClock.text = time
+            binding.statusClock.text = formatClockText(prefs)
             repositionClockDot()
         } else {
             binding.statusClock.text = clockPlaceholder()
             binding.statusClock.visibility = View.INVISIBLE
         }
     }
+
+    private fun shouldHideClockForUnlockGate(): Boolean =
+        hideClockForUnlockGate
 
     private fun clockPlaceholder(): String {
         val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
@@ -1363,51 +1386,21 @@ class HomeFragment :
         }
     }
 
-    @SuppressLint("NewApi")
     private fun handleOtherAction(action: Action) {
-        when (action) {
-            Action.NetworkShortcutLight -> {
-                launchLightOsRoute(requireActivity(), NETWORK_SHORTCUT_LIGHT_ROUTE)
-            }
-
-            Action.ShowNotification -> {
-                expandNotificationDrawer(requireContext())
-            }
-
-            Action.LockScreen -> {
-                lockPhone()
-            }
-
-            Action.ShowAppList -> {
-                showAppList(AppDrawerFlag.LaunchApp)
-            }
-
-            Action.OpenQuickSettings -> {
-                expandQuickSettings(requireContext())
-            }
-
-            Action.ShowRecents -> {
-                initActionService(requireContext())?.showRecents()
-            }
-
-            Action.ShowNotificationList -> {
-                try {
-                    findNavController().navigate(R.id.action_mainFragment_to_notificationListFragment)
-                } catch (_: Exception) {
-                }
-            }
-
-            Action.OpenApp, Action.Disabled -> {}
-        }
-    }
-
-    private fun lockPhone() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            ActionService.instance()?.lockScreen()
-                ?: openAccessibilitySettings(requireContext())
-        } else {
-            showToast(requireContext(), getString(R.string.toast_lock_requires_android_9), Toast.LENGTH_LONG)
-        }
+        executeSecondaryAction(
+            context = requireActivity(),
+            action = action,
+            callbacks =
+                ActionExecutionCallbacks(
+                    showAppList = { showAppList(AppDrawerFlag.LaunchApp) },
+                    showNotificationList = {
+                        try {
+                            findNavController().navigate(R.id.action_mainFragment_to_notificationListFragment)
+                        } catch (_: Exception) {
+                        }
+                    },
+                ),
+        )
     }
 
     private fun showLongPressToast() = showToast(requireContext(), getString(R.string.toast_long_press_to_select))

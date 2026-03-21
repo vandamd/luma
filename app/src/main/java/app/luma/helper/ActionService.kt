@@ -13,6 +13,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.util.Log
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -23,9 +24,13 @@ import android.view.accessibility.AccessibilityEvent
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import app.luma.MainActivity
 import app.luma.R
 import app.luma.data.Prefs
 import java.lang.ref.WeakReference
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class ActionService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -41,15 +46,20 @@ class ActionService : AccessibilityService() {
     private var unlockGateView: View? = null
     private var unlockGateShownAtUptimeMs: Long = 0L
     private var unlockGateDismissRunnable: Runnable? = null
+    private var unlockGateClockRunnable: Runnable? = null
     private var unlockGateReceiver: BroadcastReceiver? = null
     private var repeatedHomeGateEligible = false
     private var ignoreNextHomeUpForUnlockGate = false
     private var wakeUnlockGateArmed = false
+    private var unlockGateVisible = false
+    private var unlockGateHomeContentTopPx = 0
+    private var unlockGatePrefersHomeStatusBar = false
 
     override fun onServiceConnected() {
         configureServiceInfo()
         registerUnlockGateReceiver()
         instance = WeakReference(this)
+        publishUnlockGateState()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -98,6 +108,29 @@ class ActionService : AccessibilityService() {
         }
     }
 
+    fun setUnlockGateHomeContentTop(contentTopPx: Int) {
+        runOnMainThread {
+            unlockGateHomeContentTopPx = contentTopPx.coerceAtLeast(0)
+            if (shouldHoldUnlockGateInsetDuringDismiss()) {
+                publishUnlockGateState()
+                return@runOnMainThread
+            }
+            updateUnlockGateLayoutOnMain()
+            publishUnlockGateState()
+        }
+    }
+
+    fun dismissUnlockGateForStatusBarAction(delayMs: Long = 0L) {
+        runOnMainThread {
+            hideUnlockGateWhenReady(delayMs)
+        }
+    }
+
+    fun isUnlockGateShowingHomeStatusBar(): Boolean =
+        unlockGateVisible &&
+            unlockGatePrefersHomeStatusBar &&
+            currentAppliedUnlockGateTopInsetPx() > 0
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val event = event ?: return
         val packageName = event.packageName?.toString() ?: return
@@ -142,6 +175,7 @@ class ActionService : AccessibilityService() {
             return false
         }
 
+        if (!prefs.lockscreenGateEnabled) return false
         if (!repeatedHomeGateEligible) return false
         if (event.action != KeyEvent.ACTION_DOWN) return false
         if (event.repeatCount != 0) return true
@@ -166,7 +200,7 @@ class ActionService : AccessibilityService() {
 
         if (!view.isAttachedToWindow) {
             try {
-                windowManager.addView(view, createOverlayLayoutParams(TOOL_LAUNCH_MASK_WINDOW_TITLE))
+                windowManager.addView(view, createToolLaunchMaskLayoutParams(TOOL_LAUNCH_MASK_WINDOW_TITLE))
             } catch (exception: Exception) {
                 Log.e(TAG, "showToolLaunchMaskOnMain: addView failed", exception)
                 toolLaunchMaskView = null
@@ -204,8 +238,12 @@ class ActionService : AccessibilityService() {
     }
 
     private fun showUnlockGateOnMain() {
+        if (!prefs.lockscreenGateEnabled) return
+
         cancelUnlockGateCallbacks()
         unlockGateShownAtUptimeMs = SystemClock.uptimeMillis()
+        unlockGateVisible = true
+        unlockGatePrefersHomeStatusBar = true
 
         val isDark = prefs.isDarkTheme()
         val view =
@@ -214,18 +252,41 @@ class ActionService : AccessibilityService() {
             }
 
         view.setBackgroundColor(if (isDark) Color.BLACK else Color.WHITE)
-        view.findViewById<TextView>(R.id.unlockGateMessage).setTextColor(if (isDark) Color.WHITE else Color.BLACK)
+        view.findViewById<TextView>(R.id.unlockGateClock).setTextColor(if (isDark) Color.WHITE else Color.BLACK)
+        view.findViewById<View>(R.id.unlockGateHomeButton).apply {
+            background = createUnlockGateHomeButtonBackground(isDark)
+            setOnClickListener {
+                performAppTapHapticFeedback(this@ActionService)
+                dispatchLockscreenShortcut()
+                hideUnlockGateWhenReady(UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS)
+            }
+        }
+        updateUnlockGateClock(view)
+        updateUnlockGateContentLayout(view)
+        scheduleNextUnlockGateClockTick(view)
 
         if (!view.isAttachedToWindow) {
             try {
-                windowManager.addView(view, createOverlayLayoutParams(UNLOCK_GATE_WINDOW_TITLE))
+                windowManager.addView(
+                    view,
+                    createUnlockGateLayoutParams(
+                        title = UNLOCK_GATE_WINDOW_TITLE,
+                        topInsetPx = currentUnlockGateTopInsetPx(),
+                    ),
+                )
             } catch (exception: Exception) {
                 Log.e(TAG, "showUnlockGateOnMain: addView failed", exception)
                 unlockGateView = null
                 unlockGateShownAtUptimeMs = 0L
+                unlockGateVisible = false
+                unlockGatePrefersHomeStatusBar = false
+                publishUnlockGateState()
                 return
             }
+        } else {
+            updateUnlockGateLayoutOnMain()
         }
+        publishUnlockGateState()
     }
 
     private fun hideUnlockGateWhenReady(minDelayMs: Long = 0L) {
@@ -255,10 +316,13 @@ class ActionService : AccessibilityService() {
         cancelUnlockGateCallbacks()
         unlockGateShownAtUptimeMs = 0L
         ignoreNextHomeUpForUnlockGate = false
+        unlockGateVisible = false
+        unlockGatePrefersHomeStatusBar = false
 
         val view = unlockGateView ?: return
         if (!view.isAttachedToWindow) {
             unlockGateView = null
+            publishUnlockGateState()
             return
         }
 
@@ -268,6 +332,7 @@ class ActionService : AccessibilityService() {
             Log.e(TAG, "cancelUnlockGateOnMain: removeView failed", exception)
         } finally {
             unlockGateView = null
+            publishUnlockGateState()
         }
     }
 
@@ -313,7 +378,9 @@ class ActionService : AccessibilityService() {
 
     private fun cancelUnlockGateCallbacks() {
         unlockGateDismissRunnable?.let(mainHandler::removeCallbacks)
+        unlockGateClockRunnable?.let(mainHandler::removeCallbacks)
         unlockGateDismissRunnable = null
+        unlockGateClockRunnable = null
     }
 
     private fun registerUnlockGateReceiver() {
@@ -341,7 +408,9 @@ class ActionService : AccessibilityService() {
                             runOnMainThread {
                                 if (wakeUnlockGateArmed) {
                                     wakeUnlockGateArmed = false
-                                    showUnlockGateOnMain()
+                                    if (prefs.lockscreenGateEnabled) {
+                                        showUnlockGateOnMain()
+                                    }
                                 }
                             }
                     }
@@ -378,10 +447,15 @@ class ActionService : AccessibilityService() {
 
     private fun maybeShowUnlockGateOnWake() {
         if (!wakeUnlockGateArmed) return
+        if (!prefs.lockscreenGateEnabled) {
+            wakeUnlockGateArmed = false
+            return
+        }
         if (keyguardManager.isDeviceLocked) return
 
         wakeUnlockGateArmed = false
         showUnlockGateOnMain()
+        bringLumaToFrontUnderUnlockGate()
     }
 
     private inline fun runOnMainThread(crossinline action: () -> Unit) {
@@ -392,7 +466,7 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun createOverlayLayoutParams(title: String): WindowManager.LayoutParams =
+    private fun createToolLaunchMaskLayoutParams(title: String): WindowManager.LayoutParams =
         WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -407,6 +481,128 @@ class ActionService : AccessibilityService() {
             this.title = title
         }
 
+    private fun createUnlockGateLayoutParams(
+        title: String,
+        topInsetPx: Int,
+    ): WindowManager.LayoutParams =
+        WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            resolveUnlockGateHeightPx(topInsetPx),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.OPAQUE,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            y = topInsetPx
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            this.title = title
+        }
+
+    private fun updateUnlockGateLayoutOnMain() {
+        val view = unlockGateView ?: return
+        if (!view.isAttachedToWindow) return
+
+        try {
+            windowManager.updateViewLayout(
+                view,
+                createUnlockGateLayoutParams(
+                    title = UNLOCK_GATE_WINDOW_TITLE,
+                    topInsetPx = currentUnlockGateTopInsetPx(),
+                ),
+            )
+        } catch (exception: Exception) {
+            Log.e(TAG, "updateUnlockGateLayoutOnMain: updateViewLayout failed", exception)
+        }
+        updateUnlockGateContentLayout(view)
+        publishUnlockGateState()
+    }
+
+    private fun currentUnlockGateTopInsetPx(): Int =
+        if (unlockGatePrefersHomeStatusBar) unlockGateHomeContentTopPx.coerceAtLeast(0) else 0
+
+    private fun currentAppliedUnlockGateTopInsetPx(): Int {
+        val layoutParams = unlockGateView?.layoutParams as? WindowManager.LayoutParams
+        if (unlockGateView?.isAttachedToWindow == true && layoutParams != null) {
+            return layoutParams.y.coerceAtLeast(0)
+        }
+        return currentUnlockGateTopInsetPx()
+    }
+
+    private fun shouldHoldUnlockGateInsetDuringDismiss(): Boolean =
+        unlockGateView?.isAttachedToWindow == true &&
+            unlockGateDismissRunnable != null &&
+            unlockGatePrefersHomeStatusBar
+
+    private fun resolveUnlockGateHeightPx(topInsetPx: Int): Int {
+        val displayHeight =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                windowManager.currentWindowMetrics.bounds.height()
+            } else {
+                @Suppress("DEPRECATION")
+                resources.displayMetrics.heightPixels
+            }
+        return (displayHeight - topInsetPx).coerceAtLeast(1)
+    }
+
+    private fun bringLumaToFrontUnderUnlockGate() {
+        try {
+            startActivity(MainActivity.createUnlockGateHomeIntent(this))
+        } catch (exception: Exception) {
+            Log.e(TAG, "bringLumaToFrontUnderUnlockGate: startActivity failed", exception)
+        }
+    }
+
+    private fun dispatchLockscreenShortcut() {
+        try {
+            startActivity(MainActivity.createLockscreenShortcutIntent(this))
+        } catch (exception: Exception) {
+            Log.e(TAG, "dispatchLockscreenShortcut: startActivity failed", exception)
+        }
+    }
+
+    private fun publishUnlockGateState() {
+        _unlockGateVisible.value = unlockGateVisible
+        _unlockGateShowingHomeStatusBar.value = isUnlockGateShowingHomeStatusBar()
+    }
+
+    private fun updateUnlockGateClock(view: View) {
+        view.findViewById<TextView>(R.id.unlockGateClock).text =
+            formatClockText(
+                prefs = prefs,
+                appendNotificationIndicator = prefs.lockscreenClockNotificationIndicator,
+            )
+    }
+
+    private fun updateUnlockGateContentLayout(view: View) {
+        val donutOffsetPx = resources.displayMetrics.density * UNLOCK_GATE_HOME_BUTTON_SIZE_DP
+        view.findViewById<TextView>(R.id.unlockGateClock).translationY =
+            -(currentUnlockGateTopInsetPx() / 2f) - donutOffsetPx
+    }
+
+    private fun scheduleNextUnlockGateClockTick(view: View) {
+        unlockGateClockRunnable?.let(mainHandler::removeCallbacks)
+        unlockGateClockRunnable =
+            Runnable {
+                if (!view.isAttachedToWindow) {
+                    unlockGateClockRunnable = null
+                    return@Runnable
+                }
+                updateUnlockGateClock(view)
+                scheduleNextUnlockGateClockTick(view)
+            }.also { runnable ->
+                val now = System.currentTimeMillis()
+                mainHandler.postDelayed(runnable, 1000 - (now % 1000))
+            }
+    }
+
+    private fun createUnlockGateHomeButtonBackground(isDark: Boolean): GradientDrawable =
+        GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.TRANSPARENT)
+            setStroke(6, if (isDark) Color.WHITE else Color.BLACK)
+        }
+
     companion object {
         private const val TAG = "LumaActionService"
         private const val LIGHT_OS_PACKAGE = "com.lightos"
@@ -415,9 +611,15 @@ class ActionService : AccessibilityService() {
         private const val TOOL_LAUNCH_MASK_WINDOW_TITLE = "Luma Tool Launch Mask"
         private const val UNLOCK_GATE_MIN_VISIBILITY_MS = 150L
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
+        private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
+        private const val UNLOCK_GATE_HOME_BUTTON_SIZE_DP = 30f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
 
         private var instance: WeakReference<ActionService> = WeakReference(null)
+        private val _unlockGateVisible = MutableStateFlow(false)
+        val unlockGateVisible: StateFlow<Boolean> = _unlockGateVisible.asStateFlow()
+        private val _unlockGateShowingHomeStatusBar = MutableStateFlow(false)
+        val unlockGateShowingHomeStatusBar: StateFlow<Boolean> = _unlockGateShowingHomeStatusBar.asStateFlow()
 
         fun instance(): ActionService? = instance.get()
     }

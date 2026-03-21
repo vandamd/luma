@@ -14,13 +14,15 @@ import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
 import app.luma.ui.compose.SettingsComposable.ContentContainer
-import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
+import app.luma.ui.compose.SettingsComposable.ToggleSelectorButton
 import app.luma.ui.compose.SettingsItemSpacing
 
 class StatusBarNotificationIndicatorFragment : Fragment() {
     private lateinit var prefs: Prefs
+    private val hasNotificationPermission = mutableStateOf(false)
+    private val enabledState = mutableStateOf(true)
     private val sectionState = mutableStateOf(Prefs.NotificationIndicatorSection.Time)
     private val alignmentState = mutableStateOf(Prefs.NotificationIndicatorAlignment.After)
 
@@ -31,6 +33,8 @@ class StatusBarNotificationIndicatorFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        hasNotificationPermission.value = hasNotificationListenerPermission()
+        enabledState.value = prefs.showStatusBarNotificationIndicator
         sectionState.value = prefs.notificationIndicatorSection
         alignmentState.value = prefs.notificationIndicatorAlignment
     }
@@ -51,10 +55,31 @@ class StatusBarNotificationIndicatorFragment : Fragment() {
 
             ContentContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
-                    PrefsToggleTextButton(
-                        title = stringResource(R.string.status_bar_enabled),
-                        initialValue = prefs.showStatusBarNotificationIndicator,
-                        onValueChange = { prefs.showStatusBarNotificationIndicator = it },
+                    ToggleSelectorButton(
+                        label = stringResource(R.string.status_bar_enabled),
+                        value =
+                            if (hasNotificationPermission.value) {
+                                stringResource(if (enabledState.value) R.string.notifications_visible else R.string.notifications_not_visible)
+                            } else {
+                                stringResource(R.string.notifications_not_visible_permission_required)
+                            },
+                        checked = hasNotificationPermission.value && enabledState.value,
+                        onCheckedChange = {
+                            if (hasNotificationPermission.value) {
+                                enabledState.value = it
+                                prefs.showStatusBarNotificationIndicator = it
+                            } else {
+                                openNotificationListenerSettings()
+                            }
+                        },
+                        onClick = {
+                            if (hasNotificationPermission.value) {
+                                enabledState.value = !enabledState.value
+                                prefs.showStatusBarNotificationIndicator = enabledState.value
+                            } else {
+                                openNotificationListenerSettings()
+                            }
+                        },
                     )
                     SelectorButton(
                         label = stringResource(R.string.status_bar_notif_section),

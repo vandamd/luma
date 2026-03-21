@@ -1,5 +1,7 @@
 package app.luma.ui
 
+import android.content.Intent
+import android.provider.Settings
 import android.view.View
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -16,6 +18,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.Constants
@@ -102,17 +105,28 @@ fun Fragment.goBack() {
     requireActivity().onBackPressedDispatcher.onBackPressed()
 }
 
+fun Fragment.hasNotificationListenerPermission(): Boolean =
+    NotificationManagerCompat
+        .getEnabledListenerPackages(requireContext())
+        .contains(requireContext().packageName)
+
+fun Fragment.openNotificationListenerSettings() {
+    try {
+        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+    } catch (_: Exception) {
+        startActivity(Intent(Settings.ACTION_SETTINGS))
+    }
+}
+
 @Composable
 fun actionDisplayValue(
     action: Constants.Action,
-    prefs: Prefs,
-    section: StatusBarSectionType,
+    openAppLabel: String,
 ): String =
     when (action) {
         Constants.Action.OpenApp -> {
-            val appLabel = prefs.getSectionApp(section).displayName
-            if (appLabel.isNotEmpty()) {
-                stringResource(R.string.action_open_app_name, appLabel)
+            if (openAppLabel.isNotEmpty()) {
+                stringResource(R.string.action_open_app_name, openAppLabel)
             } else {
                 stringResource(R.string.action_open_app)
             }
@@ -126,6 +140,19 @@ fun actionDisplayValue(
             action.displayName()
         }
     }
+
+@Composable
+fun actionDisplayValue(
+    action: Constants.Action,
+    prefs: Prefs,
+    section: StatusBarSectionType,
+): String = actionDisplayValue(action, prefs.getSectionApp(section).displayName)
+
+@Composable
+fun lockscreenActionDisplayValue(
+    action: Constants.Action,
+    prefs: Prefs,
+): String = actionDisplayValue(action, prefs.getLockscreenShortcutApp().displayName)
 
 fun Modifier.noRippleClickable(
     enabled: Boolean = true,

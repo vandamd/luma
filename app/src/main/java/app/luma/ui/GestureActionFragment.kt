@@ -29,6 +29,7 @@ class GestureActionFragment : Fragment() {
     companion object {
         const val GESTURE_TYPE = "gesture_type"
         const val SECTION_TYPE = "section_type"
+        const val LOCKSCREEN_SHORTCUT = "lockscreen_shortcut"
 
         private val gestureDisplayInfo =
             mapOf(
@@ -55,6 +56,7 @@ class GestureActionFragment : Fragment() {
     private lateinit var prefs: Prefs
     private var gestureType: GestureType? = null
     private var sectionType: StatusBarSectionType? = null
+    private var lockscreenShortcut = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,6 +67,7 @@ class GestureActionFragment : Fragment() {
         arguments?.getString(SECTION_TYPE)?.takeIf { it.isNotEmpty() }?.let {
             sectionType = runCatching { StatusBarSectionType.valueOf(it) }.getOrNull()
         }
+        lockscreenShortcut = arguments?.getBoolean(LOCKSCREEN_SHORTCUT, false) == true
     }
 
     override fun onCreateView(
@@ -76,6 +79,11 @@ class GestureActionFragment : Fragment() {
     private fun getDisplayInfo(): ActionDisplayInfo =
         gestureType?.let { gestureDisplayInfo[it] }
             ?: sectionType?.let { sectionDisplayInfo[it] }
+            ?: if (lockscreenShortcut) {
+                ActionDisplayInfo(R.string.lockscreen_shortcut, AppDrawerFlag.SetLockscreenShortcut)
+            } else {
+                null
+            }
             ?: error("No gesture or section type provided")
 
     @Composable
@@ -89,7 +97,7 @@ class GestureActionFragment : Fragment() {
 
             ContentContainer {
                 CustomScrollView {
-                    for (action in Constants.Action.values()) {
+                    for (action in availableActions()) {
                         val isSelected = getCurrentAction() == action
                         val buttonText =
                             when {
@@ -124,17 +132,39 @@ class GestureActionFragment : Fragment() {
     private fun getCurrentAction(): Action =
         gestureType?.let { prefs.getGestureAction(it) }
             ?: sectionType?.let { prefs.getSectionAction(it) }
+            ?: if (lockscreenShortcut) {
+                prefs.getLockscreenShortcutAction()
+            } else {
+                null
+            }
             ?: Action.Disabled
 
     private fun setCurrentAction(action: Action) {
         gestureType?.let { prefs.setGestureAction(it, action) }
             ?: sectionType?.let { prefs.setSectionAction(it, action) }
+            ?: if (lockscreenShortcut) {
+                prefs.setLockscreenShortcutAction(action)
+            } else {
+                null
+            }
     }
 
     private fun getAppLabel(): String =
         gestureType?.let { prefs.getGestureApp(it).displayName }
             ?: sectionType?.let { prefs.getSectionApp(it).displayName }
+            ?: if (lockscreenShortcut) {
+                prefs.getLockscreenShortcutApp().displayName
+            } else {
+                null
+            }
             ?: ""
+
+    private fun availableActions(): Array<Action> =
+        if (lockscreenShortcut) {
+            Constants.Action.values().filterNot { it == Action.Disabled || it == Action.LockScreen }.toTypedArray()
+        } else {
+            Constants.Action.values()
+        }
 
     private fun handleActionSelection(action: Action) {
         if (action == Action.OpenApp) {

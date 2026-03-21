@@ -23,7 +23,6 @@ import app.luma.ui.compose.SettingsComposable.SettingsHeader
 
 class StatusBarTimeFragment : Fragment() {
     private lateinit var prefs: Prefs
-    private val formatState = mutableStateOf(Prefs.TimeFormat.TwentyFourHour)
     private val actionState = mutableStateOf(Constants.Action.ShowNotificationList)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +32,6 @@ class StatusBarTimeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        formatState.value = prefs.timeFormat
         actionState.value = prefs.getSectionAction(StatusBarSectionType.TIME)
     }
 
@@ -58,29 +56,13 @@ class StatusBarTimeFragment : Fragment() {
                         initialValue = prefs.timeEnabled,
                         onValueChange = { prefs.timeEnabled = it },
                     )
-                    SelectorButton(
-                        label = stringResource(R.string.status_bar_time_format),
-                        value =
-                            when (formatState.value) {
-                                Prefs.TimeFormat.Standard -> stringResource(R.string.status_bar_time_standard)
-                                Prefs.TimeFormat.TwentyFourHour -> stringResource(R.string.status_bar_time_24h)
-                            },
-                        onClick = {
-                            findNavController().navigate(R.id.action_statusBarTimeFragment_to_timeFormatFragment)
-                        },
-                    )
-                    if (formatState.value == Prefs.TimeFormat.Standard) {
+                    if (prefs.timeFormat == Prefs.TimeFormat.Standard) {
                         PrefsToggleTextButton(
                             title = stringResource(R.string.status_bar_leading_zero),
                             initialValue = prefs.leadingZero,
                             onValueChange = { prefs.leadingZero = it },
                         )
                     }
-                    PrefsToggleTextButton(
-                        title = stringResource(R.string.status_bar_show_seconds),
-                        initialValue = prefs.showSeconds,
-                        onValueChange = { prefs.showSeconds = it },
-                    )
                     SelectorButton(
                         label = stringResource(R.string.status_bar_on_press),
                         value = actionDisplayValue(actionState.value, prefs, StatusBarSectionType.TIME),

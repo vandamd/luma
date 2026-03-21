@@ -75,6 +75,10 @@ class AppDrawerFragment : Fragment() {
         val viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
         val prefs = Prefs.getInstance(requireContext())
 
+        if (shouldAllowHiddenAppsToggle()) {
+            viewModel.getAppList(includeHidden = true)
+        }
+
         appAdapter =
             AppDrawerAdapter(
                 requireContext(),
@@ -144,7 +148,7 @@ class AppDrawerFragment : Fragment() {
                     title = headerTitle,
                     onBack = { findNavController().popBackStack() },
                     trailingContent =
-                        if (flag == AppDrawerFlag.SetHomeApp) {
+                        if (shouldAllowHiddenAppsToggle()) {
                             {
                                 HeaderIconButton(
                                     iconRes = if (showHiddenApps) R.drawable.visibility else R.drawable.visibility_off,
@@ -175,7 +179,7 @@ class AppDrawerFragment : Fragment() {
     private fun updateDisplayedApps() {
         if (flag == AppDrawerFlag.HiddenApps) return
         val displayedApps =
-            if (flag == AppDrawerFlag.SetHomeApp && showHiddenApps) {
+            if (shouldAllowHiddenAppsToggle() && showHiddenApps) {
                 allApps
             } else {
                 filterHiddenApps(allApps)
@@ -205,6 +209,25 @@ class AppDrawerFragment : Fragment() {
         appAdapter.setAppList(apps.toMutableList())
         appAdapter.updateNotifications(LumaNotificationListener.getActiveNotificationPackages())
     }
+
+    private fun shouldAllowHiddenAppsToggle(): Boolean =
+        when (flag) {
+            AppDrawerFlag.SetHomeApp,
+            AppDrawerFlag.SetSwipeLeft,
+            AppDrawerFlag.SetSwipeRight,
+            AppDrawerFlag.SetSwipeUp,
+            AppDrawerFlag.SetSwipeDown,
+            AppDrawerFlag.SetDoubleTap,
+            AppDrawerFlag.SetStatusBarCellular,
+            AppDrawerFlag.SetStatusBarTime,
+            AppDrawerFlag.SetStatusBarBattery,
+            AppDrawerFlag.SetLockscreenShortcut,
+            -> true
+
+            AppDrawerFlag.LaunchApp,
+            AppDrawerFlag.HiddenApps,
+            -> false
+        }
 
     private fun appClickListener(
         viewModel: MainViewModel,

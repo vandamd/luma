@@ -104,6 +104,12 @@ class MainViewModel(
                 prefs.setSectionApp(StatusBarSectionType.BATTERY, appModel)
                 true
             }
+
+            AppDrawerFlag.SetLockscreenShortcut -> {
+                prefs.setLockscreenShortcutAction(Constants.Action.OpenApp)
+                prefs.setLockscreenShortcutApp(appModel)
+                true
+            }
         }
 
     private fun launchApp(

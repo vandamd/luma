@@ -19,7 +19,7 @@ import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 
-class AppearanceFragment : Fragment() {
+class TimeFragment : Fragment() {
     private lateinit var prefs: Prefs
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,29 +37,25 @@ class AppearanceFragment : Fragment() {
     private fun Screen() {
         Column {
             SettingsHeader(
-                title = stringResource(R.string.settings_appearance),
+                title = stringResource(R.string.settings_time),
                 onBack = ::goBack,
             )
 
             ContentContainer {
                 CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
                     SelectorButton(
-                        label = stringResource(R.string.settings_invert_colours),
+                        label = stringResource(R.string.status_bar_time_format),
                         value =
-                            when (prefs.themeMode) {
-                                Prefs.ThemeMode.Dark -> stringResource(R.string.settings_theme_dark)
-                                Prefs.ThemeMode.Light -> stringResource(R.string.settings_theme_light)
-                                Prefs.ThemeMode.Automatic -> stringResource(R.string.settings_theme_automatic)
+                            when (prefs.timeFormat) {
+                                Prefs.TimeFormat.Standard -> stringResource(R.string.status_bar_time_standard)
+                                Prefs.TimeFormat.TwentyFourHour -> stringResource(R.string.status_bar_time_24h)
                             },
-                        onClick = { findNavController().navigate(R.id.action_appearanceFragment_to_themeModeFragment) },
+                        onClick = { findNavController().navigate(R.id.action_timeFragment_to_timeFormatFragment) },
                     )
                     PrefsToggleTextButton(
-                        title = stringResource(R.string.settings_auto_rotate),
-                        initialValue = prefs.autoRotateEnabled,
-                        onValueChange = {
-                            prefs.autoRotateEnabled = it
-                            requireActivity().recreate()
-                        },
+                        title = stringResource(R.string.status_bar_show_seconds),
+                        initialValue = prefs.showSeconds,
+                        onValueChange = { prefs.showSeconds = it },
                     )
                 }
             }

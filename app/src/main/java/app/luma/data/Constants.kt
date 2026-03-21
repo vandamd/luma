@@ -30,6 +30,7 @@ object Constants {
         SetStatusBarCellular,
         SetStatusBarTime,
         SetStatusBarBattery,
+        SetLockscreenShortcut,
     }
 
     enum class Action(

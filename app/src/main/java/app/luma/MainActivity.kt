@@ -13,15 +13,20 @@ import android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.bundleOf
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.NavHostFragment
 import app.luma.data.Constants
+import app.luma.data.Constants.Action
+import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.Prefs
 import app.luma.databinding.ActivityMainBinding
+import app.luma.helper.ActionExecutionCallbacks
 import app.luma.helper.ActionService
 import app.luma.helper.HomeCleanupHelper
+import app.luma.helper.executeSecondaryAction
 import app.luma.helper.hideStatusBar
 import app.luma.helper.showStatusBar
 import app.luma.helper.showToast
@@ -89,6 +94,7 @@ class MainActivity : AppCompatActivity() {
 
         handlePinShortcutRequest(intent)
         notifyUnlockGateLauncherIntent(intent)
+        handleLockscreenShortcutIntent(intent)
     }
 
     override fun onDestroy() {
@@ -132,6 +138,7 @@ class MainActivity : AppCompatActivity() {
             resetHomePageImmediately()
         }
         notifyUnlockGateLauncherIntent(intent)
+        handleLockscreenShortcutIntent(intent)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
@@ -199,6 +206,7 @@ class MainActivity : AppCompatActivity() {
             )
 
     private fun notifyUnlockGateLauncherIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, false) == true) return
         if (intent == null || !isLauncherIntent(intent)) return
         ActionService.instance()?.handleLauncherIntent()
     }
@@ -267,5 +275,66 @@ class MainActivity : AppCompatActivity() {
     private fun getVisibleHomeFragment(): HomeFragment? {
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment ?: return null
         return navHostFragment.childFragmentManager.primaryNavigationFragment as? HomeFragment
+    }
+
+    private fun handleLockscreenShortcutIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, false) != true) return
+        intent.removeExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT)
+
+        val action = prefs.getLockscreenShortcutAction()
+        if (action == Action.OpenApp) {
+            viewModel.selectedApp(
+                prefs.getLockscreenShortcutApp(),
+                AppDrawerFlag.LaunchApp,
+                launchContext = this,
+            )
+            return
+        }
+
+        executeSecondaryAction(
+            context = this,
+            action = action,
+            callbacks =
+                ActionExecutionCallbacks(
+                    showAppList = ::showAppList,
+                    showNotificationList = ::showNotificationList,
+                ),
+        )
+    }
+
+    private fun showAppList() {
+        viewModel.getAppList()
+        try {
+            navController.navigate(
+                R.id.appListFragment,
+                bundleOf("flag" to AppDrawerFlag.LaunchApp.toString()),
+            )
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun showNotificationList() {
+        try {
+            navController.navigate(R.id.action_mainFragment_to_notificationListFragment)
+        } catch (_: Exception) {
+        }
+    }
+
+    companion object {
+        const val EXTRA_UNLOCK_GATE_HOME_LAUNCH = "app.luma.extra.UNLOCK_GATE_HOME_LAUNCH"
+        const val EXTRA_RUN_LOCKSCREEN_SHORTCUT = "app.luma.extra.RUN_LOCKSCREEN_SHORTCUT"
+
+        fun createUnlockGateHomeIntent(context: Context): Intent =
+            Intent(Intent.ACTION_MAIN).apply {
+                setClass(context, MainActivity::class.java)
+                addCategory(Intent.CATEGORY_HOME)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, true)
+            }
+
+        fun createLockscreenShortcutIntent(context: Context): Intent =
+            createUnlockGateHomeIntent(context).apply {
+                putExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, true)
+            }
     }
 }
