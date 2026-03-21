@@ -168,4 +168,49 @@
             android:text="@string/tip_long_press" />
 
     </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/volumeIndicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="14dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/volumeIndicatorLabel"
+            style="@style/TextSmall"
+            android:layout_width="84dp"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/volume_indicator_ringer" />
+
+        <FrameLayout
+            android:id="@+id/volumeIndicatorTrack"
+            android:layout_width="0dp"
+            android:layout_height="4.5dp"
+            android:layout_weight="1">
+
+            <View
+                android:id="@+id/volumeIndicatorTrackLine"
+                android:layout_width="match_parent"
+                android:layout_height="0.8dp"
+                android:layout_gravity="center_vertical" />
+
+            <View
+                android:id="@+id/volumeIndicatorFill"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_vertical" />
+
+        </FrameLayout>
+
+    </LinearLayout>
 </FrameLayout>

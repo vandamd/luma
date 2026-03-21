@@ -337,6 +337,23 @@ fun openAccessibilitySettings(context: Context) {
     context.startActivity(intent)
 }
 
+fun openNotificationPolicyAccessSettings(context: Context) {
+    val intent =
+        Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+            if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+    try {
+        context.startActivity(intent)
+    } catch (_: Exception) {
+        val fallback =
+            Intent(Settings.ACTION_SETTINGS).apply {
+                if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        context.startActivity(fallback)
+    }
+}
+
 fun hideStatusBar(activity: Activity) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         activity.window.insetsController?.hide(WindowInsets.Type.statusBars())

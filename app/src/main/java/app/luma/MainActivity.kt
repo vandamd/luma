@@ -8,6 +8,7 @@ import android.content.pm.LauncherApps
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +16,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
+import androidx.navigation.fragment.NavHostFragment
 import app.luma.data.Constants
 import app.luma.data.Prefs
 import app.luma.databinding.ActivityMainBinding
@@ -23,12 +25,14 @@ import app.luma.helper.hideStatusBar
 import app.luma.helper.showStatusBar
 import app.luma.helper.showToast
 import app.luma.style.DisplayDefaults.withDisplayDefaults
+import app.luma.ui.HomeFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
     private lateinit var navController: NavController
     private lateinit var viewModel: MainViewModel
     private lateinit var binding: ActivityMainBinding
+    private var consumeHandledVolumeKeyUp = false
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(newBase.withDisplayDefaults())
@@ -115,6 +119,30 @@ class MainActivity : AppCompatActivity() {
         recreate()
     }
 
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode != KeyEvent.KEYCODE_VOLUME_UP && event.keyCode != KeyEvent.KEYCODE_VOLUME_DOWN) {
+            return super.dispatchKeyEvent(event)
+        }
+
+        if (event.action == KeyEvent.ACTION_UP && consumeHandledVolumeKeyUp) {
+            consumeHandledVolumeKeyUp = false
+            return true
+        }
+
+        if (event.action != KeyEvent.ACTION_DOWN || navController.currentDestination?.id != R.id.mainFragment) {
+            return super.dispatchKeyEvent(event)
+        }
+
+        val homeFragment = getVisibleHomeFragment() ?: return super.dispatchKeyEvent(event)
+        val handled = homeFragment.handleHardwareVolumeKey(event.keyCode)
+        if (handled) {
+            consumeHandledVolumeKeyUp = true
+            return true
+        }
+
+        return super.dispatchKeyEvent(event)
+    }
+
     private fun initObservers(viewModel: MainViewModel) {
     }
 
@@ -196,5 +224,10 @@ class MainActivity : AppCompatActivity() {
         } else {
             hideStatusBar(this)
         }
+    }
+
+    private fun getVisibleHomeFragment(): HomeFragment? {
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment ?: return null
+        return navHostFragment.childFragmentManager.primaryNavigationFragment as? HomeFragment
     }
 }

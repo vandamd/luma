@@ -154,6 +154,10 @@
     <!-- Home screen tips -->
     <string name="tip_swipe_left">Swipe left for all apps</string>
     <string name="tip_long_press">Long press anywhere for settings</string>
+    <string name="volume_indicator_media">Media</string>
+    <string name="volume_indicator_ringer">Ringer</string>
+    <string name="volume_indicator_vibrate">Vibrate</string>
+    <string name="volume_indicator_silent">Silent</string>
 
     <!-- Toast messages -->
     <string name="toast_app_not_found">App not found</string>
@@ -166,6 +170,7 @@
     <string name="toast_long_press_to_select">Long press to select app</string>
     <string name="toast_unable_to_add_shortcut">Unable to add shortcut</string>
     <string name="toast_added_to_app_drawer">Added to app drawer</string>
+    <string name="toast_volume_silent_requires_permission">Allow Do Not Disturb access to use Silent mode</string>
 
     <!-- Misc -->
     <string name="app_count_status_bar_hint">You have the status bar enabled, I recommend using a maximum of 5 apps for it to look good :)</string>
