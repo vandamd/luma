@@ -47,7 +47,6 @@ fun formatLockscreenDateText(
         when (format) {
             Prefs.LockscreenDateFormat.ShortWeekday -> "EEE MMM d"
             Prefs.LockscreenDateFormat.LongWeekday -> "EEEE MMMM d"
-            Prefs.LockscreenDateFormat.Numeric -> "Md"
         }
     val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
     return SimpleDateFormat(pattern, locale).format(calendar.time)

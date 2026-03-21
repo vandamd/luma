@@ -147,7 +147,7 @@ class Prefs(
 
     enum class NotificationIndicatorAlignment { Before, After }
 
-    enum class LockscreenDateFormat { ShortWeekday, LongWeekday, Numeric }
+    enum class LockscreenDateFormat { ShortWeekday, LongWeekday }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_FILENAME, 0)
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
