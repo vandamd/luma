@@ -105,6 +105,14 @@ class HomeFragment :
         super.onViewCreated(view, savedInstanceState)
 
         viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
+        currentPage = viewModel.getCurrentHomePage()
+        viewModel.observeCurrentHomePage().observe(viewLifecycleOwner) { page ->
+            val nextPage = page.coerceIn(0, (totalPages - 1).coerceAtLeast(0))
+            if (nextPage == currentPage) return@observe
+            currentPage = nextPage
+            refreshAppNames()
+            updatePageIndicator()
+        }
 
         initObservers()
         initPageNavigation()
@@ -117,7 +125,9 @@ class HomeFragment :
         super.onResume()
         HomeCleanupHelper.setOnHomeCleanupCallback { refreshAppNames() }
         totalPages = prefs.homePages
+        currentPage = viewModel.getCurrentHomePage()
         if (currentPage >= totalPages) currentPage = totalPages - 1
+        viewModel.setCurrentHomePage(currentPage)
         pageIndicatorLayout = null
         updatePageIndicator()
         refreshAppNames()
@@ -281,6 +291,7 @@ class HomeFragment :
     private fun switchToPage(page: Int) {
         if (page >= 0 && page < totalPages) {
             currentPage = page
+            viewModel.setCurrentHomePage(currentPage)
             refreshAppNames()
             updatePageIndicator()
         }

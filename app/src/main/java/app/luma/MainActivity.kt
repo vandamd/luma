@@ -88,7 +88,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        if (!isChangingConfigurations) backToHomeScreen()
+        if (!isChangingConfigurations) {
+            backToHomeScreen()
+            viewModel.requestHomePageReset()
+        }
         super.onStop()
     }
 
@@ -101,6 +104,9 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handlePinShortcutRequest(intent)
+        if (isLauncherIntent(intent)) {
+            viewModel.requestHomePageReset()
+        }
         backToHomeScreen()
     }
 
@@ -130,6 +136,13 @@ class MainActivity : AppCompatActivity() {
             navController.popBackStack(R.id.mainFragment, false)
         }
     }
+
+    private fun isLauncherIntent(intent: Intent): Boolean =
+        intent.action == Intent.ACTION_MAIN &&
+            (
+                intent.hasCategory(Intent.CATEGORY_HOME) ||
+                    intent.hasCategory(Intent.CATEGORY_LAUNCHER)
+            )
 
     private fun handlePinShortcutRequest(intent: Intent?) {
         if (intent == null) return

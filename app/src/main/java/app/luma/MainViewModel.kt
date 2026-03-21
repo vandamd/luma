@@ -28,9 +28,22 @@ class MainViewModel(
 ) : AndroidViewModel(application) {
     private val appContext by lazy { application.applicationContext }
     private val prefs = Prefs.getInstance(appContext)
+    private val currentHomePage = MutableLiveData(0)
 
     val appList = MutableLiveData<List<AppModel>?>()
     val hiddenApps = MutableLiveData<List<AppModel>?>()
+
+    fun requestHomePageReset() {
+        setCurrentHomePage(0)
+    }
+
+    fun observeCurrentHomePage() = currentHomePage
+
+    fun getCurrentHomePage(): Int = currentHomePage.value ?: 0
+
+    fun setCurrentHomePage(page: Int) {
+        currentHomePage.value = page
+    }
 
     fun selectedApp(
         appModel: AppModel,
