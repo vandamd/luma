@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: MainViewModel
     private lateinit var binding: ActivityMainBinding
     private var consumeHandledVolumeKeyUp = false
+    private var shouldFinishOnStop = false
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(newBase.withDisplayDefaults())
@@ -92,13 +93,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        if (!isChangingConfigurations) {
+        val finishAfterStop = shouldFinishOnStop && !isChangingConfigurations
+        shouldFinishOnStop = false
+        if (finishAfterStop) {
             finish()
         }
         super.onStop()
     }
 
     override fun onUserLeaveHint() {
+        shouldFinishOnStop = true
         super.onUserLeaveHint()
     }
 
