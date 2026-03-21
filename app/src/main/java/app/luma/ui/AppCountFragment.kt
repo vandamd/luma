@@ -46,20 +46,20 @@ class AppCountFragment : Fragment() {
             )
 
             ContentContainer {
-                    if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && resources.configuration.fontScale >= 0.85f) {
-                        MessageText(
-                            stringResource(R.string.app_count_status_bar_hint),
-                            modifier = Modifier.padding(end = 30.dp),
-                        )
-                    }
-                    for (i in HomeLayout.MIN_APPS_PER_PAGE..HomeLayout.APPS_PER_PAGE) {
-                        val isSelected = prefs.getAppsPerPage(pageNumber) == i
-                        SimpleTextButton(
-                            title = resources.getQuantityString(R.plurals.apps_count, i, i),
-                            underline = isSelected,
-                            onClick = { updateAppsPerPage(pageNumber, i) },
-                        )
-                    }
+                if (prefs.showsLumaStatusBarOnHomescreen() && resources.configuration.fontScale >= 0.85f) {
+                    MessageText(
+                        stringResource(R.string.app_count_status_bar_hint),
+                        modifier = Modifier.padding(end = 30.dp),
+                    )
+                }
+                for (i in HomeLayout.MIN_APPS_PER_PAGE..HomeLayout.APPS_PER_PAGE) {
+                    val isSelected = prefs.getAppsPerPage(pageNumber) == i
+                    SimpleTextButton(
+                        title = resources.getQuantityString(R.plurals.apps_count, i, i),
+                        underline = isSelected,
+                        onClick = { updateAppsPerPage(pageNumber, i) },
+                    )
+                }
             }
         }
     }

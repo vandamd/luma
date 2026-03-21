@@ -14,6 +14,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.bundleOf
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
@@ -33,6 +34,7 @@ import app.luma.helper.showStatusBar
 import app.luma.helper.showToast
 import app.luma.style.DisplayDefaults.withDisplayDefaults
 import app.luma.ui.HomeFragment
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
@@ -85,7 +87,7 @@ class MainActivity : AppCompatActivity() {
             },
         )
 
-        initObservers(viewModel)
+        initObservers()
         viewModel.getAppList()
         setupOrientation()
 
@@ -107,6 +109,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        updateSystemStatusBarVisibility(navController.currentDestination?.id)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
@@ -174,7 +177,12 @@ class MainActivity : AppCompatActivity() {
         return super.dispatchKeyEvent(event)
     }
 
-    private fun initObservers(viewModel: MainViewModel) {
+    private fun initObservers() {
+        lifecycleScope.launch {
+            ActionService.unlockGateVisible.collect {
+                updateSystemStatusBarVisibility(navController.currentDestination?.id)
+            }
+        }
     }
 
     @SuppressLint("SourceLockedOrientationActivity")
@@ -264,9 +272,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateSystemStatusBarVisibility(destinationId: Int?) {
+        val unlockGateVisible = ActionService.unlockGateVisible.value
         val shouldShowSystemStatusBar =
-            prefs.statusBarMode == Prefs.StatusBarMode.AndroidStatusBar &&
-                destinationId == R.id.mainFragment
+            destinationId == R.id.mainFragment &&
+                if (unlockGateVisible) {
+                    prefs.showsAndroidStatusBarOnLockscreen()
+                } else {
+                    prefs.showsAndroidStatusBarOnHomescreen()
+                }
 
         if (shouldShowSystemStatusBar) {
             showStatusBar(this)

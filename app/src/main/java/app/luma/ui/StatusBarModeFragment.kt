@@ -32,31 +32,36 @@ class StatusBarModeFragment : Fragment() {
     fun Screen() {
         Column {
             SettingsHeader(
-                title = stringResource(R.string.settings_status_bar),
+                title = stringResource(R.string.status_bar_visibility),
                 onBack = ::goBack,
             )
             ContentContainer {
-                    SimpleTextButton(
-                        title = stringResource(R.string.status_bar_enabled),
-                        underline = prefs.statusBarMode == Prefs.StatusBarMode.Enabled,
-                        onClick = { select(Prefs.StatusBarMode.Enabled) },
-                    )
-                    SimpleTextButton(
-                        title = stringResource(R.string.status_bar_mode_android),
-                        underline = prefs.statusBarMode == Prefs.StatusBarMode.AndroidStatusBar,
-                        onClick = { select(Prefs.StatusBarMode.AndroidStatusBar) },
-                    )
-                    SimpleTextButton(
-                        title = stringResource(R.string.status_bar_mode_none),
-                        underline = prefs.statusBarMode == Prefs.StatusBarMode.None,
-                        onClick = { select(Prefs.StatusBarMode.None) },
-                    )
+                SimpleTextButton(
+                    title = stringResource(R.string.status_bar_visibility_disabled),
+                    underline = prefs.statusBarVisibility == Prefs.StatusBarVisibility.Disabled,
+                    onClick = { select(Prefs.StatusBarVisibility.Disabled) },
+                )
+                SimpleTextButton(
+                    title = stringResource(R.string.status_bar_visibility_both),
+                    underline = prefs.statusBarVisibility == Prefs.StatusBarVisibility.Both,
+                    onClick = { select(Prefs.StatusBarVisibility.Both) },
+                )
+                SimpleTextButton(
+                    title = stringResource(R.string.status_bar_visibility_homescreen),
+                    underline = prefs.statusBarVisibility == Prefs.StatusBarVisibility.Homescreen,
+                    onClick = { select(Prefs.StatusBarVisibility.Homescreen) },
+                )
+                SimpleTextButton(
+                    title = stringResource(R.string.status_bar_visibility_lockscreen),
+                    underline = prefs.statusBarVisibility == Prefs.StatusBarVisibility.Lockscreen,
+                    onClick = { select(Prefs.StatusBarVisibility.Lockscreen) },
+                )
             }
         }
     }
 
-    private fun select(mode: Prefs.StatusBarMode) {
-        prefs.statusBarMode = mode
+    private fun select(mode: Prefs.StatusBarVisibility) {
+        prefs.statusBarVisibility = mode
         goBack()
     }
 }

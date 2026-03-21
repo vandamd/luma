@@ -106,6 +106,13 @@
     <!-- Status bar -->
     <string name="settings_status_bar">Status Bar</string>
     <string name="status_bar_visibility">Visibility</string>
+    <string name="status_bar_visibility_disabled">Disabled</string>
+    <string name="status_bar_visibility_both">Enabled (Both)</string>
+    <string name="status_bar_visibility_homescreen">Enabled (Homescreen)</string>
+    <string name="status_bar_visibility_lockscreen">Enabled (Lockscreen)</string>
+    <string name="status_bar_type">Type</string>
+    <string name="status_bar_type_luma">Luma</string>
+    <string name="status_bar_type_android">Android</string>
     <string name="status_bar_enabled">Enabled</string>
     <string name="status_bar_mode_none">Disabled</string>
     <string name="status_bar_mode_android">Enabled (Android)</string>

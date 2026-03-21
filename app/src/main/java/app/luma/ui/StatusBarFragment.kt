@@ -45,12 +45,22 @@ class StatusBarFragment : Fragment() {
                     SelectorButton(
                         label = stringResource(R.string.status_bar_visibility),
                         value =
-                            when (prefs.statusBarMode) {
-                                Prefs.StatusBarMode.Enabled -> stringResource(R.string.status_bar_enabled)
-                                Prefs.StatusBarMode.None -> stringResource(R.string.status_bar_mode_none)
-                                Prefs.StatusBarMode.AndroidStatusBar -> stringResource(R.string.status_bar_mode_android)
+                            when (prefs.statusBarVisibility) {
+                                Prefs.StatusBarVisibility.Disabled -> stringResource(R.string.status_bar_visibility_disabled)
+                                Prefs.StatusBarVisibility.Both -> stringResource(R.string.status_bar_visibility_both)
+                                Prefs.StatusBarVisibility.Homescreen -> stringResource(R.string.status_bar_visibility_homescreen)
+                                Prefs.StatusBarVisibility.Lockscreen -> stringResource(R.string.status_bar_visibility_lockscreen)
                             },
                         onClick = { findNavController().navigate(R.id.action_statusBarFragment_to_statusBarModeFragment) },
+                    )
+                    SelectorButton(
+                        label = stringResource(R.string.status_bar_type),
+                        value =
+                            when (prefs.statusBarType) {
+                                Prefs.StatusBarType.Luma -> stringResource(R.string.status_bar_type_luma)
+                                Prefs.StatusBarType.Android -> stringResource(R.string.status_bar_type_android)
+                            },
+                        onClick = { findNavController().navigate(R.id.action_statusBarFragment_to_statusBarTypeFragment) },
                     )
                     SimpleTextButton(stringResource(R.string.status_bar_notification_indicator)) {
                         findNavController().navigate(R.id.action_statusBarFragment_to_statusBarNotificationIndicatorFragment)

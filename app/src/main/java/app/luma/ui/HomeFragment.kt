@@ -35,6 +35,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -139,7 +141,7 @@ class HomeFragment :
     private var lastKnownVolumeState: VolumeState? = null
     private var pendingVolumeIndicatorState: VolumeIndicatorState? = null
     private var volumeApplyGeneration = 0L
-    private var hideClockForUnlockGate = false
+    private var isUnlockGateVisible = false
     private val applyVolumeIndicatorRunnable =
         Runnable {
             val currentBinding = _binding ?: return@Runnable
@@ -187,7 +189,7 @@ class HomeFragment :
         volumeApplyGeneration = 0L
         _binding?.root?.removeCallbacks(applyVolumeIndicatorRunnable)
         notificationDotView = null
-        hideClockForUnlockGate = false
+        isUnlockGateVisible = false
         _binding = null
     }
 
@@ -228,7 +230,7 @@ class HomeFragment :
         pageIndicatorLayout = null
         updatePageIndicator()
         refreshAppNames()
-        binding.statusBar.visibility = if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled) View.VISIBLE else View.GONE
+        applyStatusBarVisibility()
         startBatteryMonitor()
         startConnectivityMonitors()
         startClock()
@@ -462,13 +464,44 @@ class HomeFragment :
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility()
     }
 
+    private fun shouldShowLumaStatusBarNow(): Boolean =
+        if (isUnlockGateVisible) {
+            prefs.showsLumaStatusBarOnLockscreen()
+        } else {
+            prefs.showsLumaStatusBarOnHomescreen()
+        }
+
+    private fun lockscreenStatusBarInsetPx(): Int =
+        when (prefs.statusBarType) {
+            Prefs.StatusBarType.Luma -> binding.touchArea.top
+            Prefs.StatusBarType.Android -> systemStatusBarInsetPx()
+        }
+
+    private fun systemStatusBarInsetPx(): Int {
+        val insets =
+            ViewCompat.getRootWindowInsets(binding.root)
+                ?.getInsets(WindowInsetsCompat.Type.statusBars())
+                ?.top
+        if (insets != null && insets > 0) {
+            return insets
+        }
+
+        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
+    }
+
+    private fun applyStatusBarVisibility() {
+        binding.statusBar.visibility = if (shouldShowLumaStatusBarNow()) View.VISIBLE else View.GONE
+        updateNotificationDot(LumaNotificationListener.getActiveNotificationPackages().isNotEmpty())
+    }
+
     private fun syncUnlockGateHomeContentTop() {
         if (_binding == null) return
         binding.touchArea.post {
             if (_binding == null) return@post
             val contentTop =
-                if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled) {
-                    binding.touchArea.top
+                if (prefs.isStatusBarVisibleOnLockscreen()) {
+                    lockscreenStatusBarInsetPx()
                 } else {
                     0
                 }
@@ -739,7 +772,8 @@ class HomeFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             ActionService.unlockGateVisible.collect { shouldHideClock ->
                 if (_binding == null) return@collect
-                hideClockForUnlockGate = shouldHideClock
+                isUnlockGateVisible = shouldHideClock
+                applyStatusBarVisibility()
                 updateClockDisplay()
             }
         }
@@ -776,7 +810,7 @@ class HomeFragment :
     }
 
     private fun updateNotificationDot(hasNotifications: Boolean) {
-        val show = hasNotifications && prefs.statusBarMode == Prefs.StatusBarMode.Enabled && prefs.showStatusBarNotificationIndicator
+        val show = hasNotifications && shouldShowLumaStatusBarNow() && prefs.showStatusBarNotificationIndicator
         val dot = notificationDotView ?: createNotificationDot().also { notificationDotView = it }
         val oldParent = dot.parent as? ViewGroup
 
@@ -925,7 +959,7 @@ class HomeFragment :
     }
 
     private fun primeStatusBar() {
-        binding.statusBar.visibility = if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled) View.VISIBLE else View.GONE
+        applyStatusBarVisibility()
         updateClockDisplay()
         primeBatteryState()
         primeConnectivityState()
@@ -950,7 +984,7 @@ class HomeFragment :
         }
 
         binding.statusClockLayout.visibility = View.VISIBLE
-        if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && prefs.timeEnabled) {
+        if (shouldShowLumaStatusBarNow() && prefs.timeEnabled) {
             binding.statusClock.visibility = View.VISIBLE
             binding.statusClock.text = formatClockText(prefs)
             repositionClockDot()
@@ -961,7 +995,7 @@ class HomeFragment :
     }
 
     private fun shouldHideClockForUnlockGate(): Boolean =
-        hideClockForUnlockGate
+        isUnlockGateVisible
 
     private fun clockPlaceholder(): String {
         val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
@@ -991,7 +1025,7 @@ class HomeFragment :
     }
 
     private fun primeBatteryState() {
-        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
+        if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
             updateSectionBaseline(binding.statusBatteryLayout)
@@ -1007,7 +1041,7 @@ class HomeFragment :
     }
 
     private fun startBatteryMonitor() {
-        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
+        if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
             updateSectionBaseline(binding.statusBatteryLayout)
@@ -1074,7 +1108,7 @@ class HomeFragment :
 
     private fun startConnectivityMonitors() {
         primeConnectivityState()
-        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled) {
+        if (!prefs.showsLumaStatusBarAnywhere()) {
             return
         }
         if (prefs.cellularEnabled) startCellularMonitor() else hideCellular()
@@ -1090,7 +1124,7 @@ class HomeFragment :
     }
 
     private fun primeConnectivityState() {
-        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled) {
+        if (!prefs.showsLumaStatusBarAnywhere()) {
             binding.statusConnectivityLayout.visibility =
                 if (hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
             return

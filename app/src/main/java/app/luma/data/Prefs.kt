@@ -85,6 +85,8 @@ private const val NOTIFICATION_INDICATOR_SECTION = "notification_indicator_secti
 private const val NOTIFICATION_INDICATOR_ALIGNMENT = "notification_indicator_alignment"
 private const val STATUS_BAR_ENABLED = "status_bar_enabled"
 private const val STATUS_BAR_MODE = "status_bar_mode"
+private const val STATUS_BAR_VISIBILITY_MODE = "status_bar_visibility_mode"
+private const val STATUS_BAR_TYPE = "status_bar_type"
 private const val TIME_ENABLED = "time_enabled"
 private const val TIME_FORMAT = "time_format"
 private const val SHOW_SECONDS = "show_seconds"
@@ -132,7 +134,12 @@ class Prefs(
 
     enum class ThemeMode { Dark, Light, Automatic }
 
+    // Legacy combined setting kept for preference migration.
     enum class StatusBarMode { Enabled, None, AndroidStatusBar }
+
+    enum class StatusBarVisibility { Disabled, Both, Homescreen, Lockscreen }
+
+    enum class StatusBarType { Luma, Android }
 
     enum class PageIndicatorPosition { Left, Right, Hidden }
 
@@ -589,17 +596,108 @@ class Prefs(
         set(value) = prefs.edit().putString(NOTIFICATION_INDICATOR_ALIGNMENT, value.name).apply()
 
     var statusBarEnabled: Boolean
-        get() = prefs.getBoolean(STATUS_BAR_ENABLED, true)
-        set(value) = prefs.edit().putBoolean(STATUS_BAR_ENABLED, value).apply()
+        get() = statusBarVisibility != StatusBarVisibility.Disabled
+        set(value) {
+            statusBarVisibility = if (value) StatusBarVisibility.Both else StatusBarVisibility.Disabled
+        }
+
+    private fun legacyStatusBarMode(): StatusBarMode =
+        if (prefs.contains(STATUS_BAR_MODE)) {
+            enumPref(STATUS_BAR_MODE, StatusBarMode.Enabled)
+        } else if (prefs.getBoolean(STATUS_BAR_ENABLED, true)) {
+            StatusBarMode.Enabled
+        } else {
+            StatusBarMode.None
+        }
+
+    var statusBarVisibility: StatusBarVisibility
+        get() {
+            if (prefs.contains(STATUS_BAR_VISIBILITY_MODE)) {
+                return enumPref(STATUS_BAR_VISIBILITY_MODE, StatusBarVisibility.Both)
+            }
+            return when (legacyStatusBarMode()) {
+                StatusBarMode.Enabled,
+                StatusBarMode.AndroidStatusBar,
+                -> StatusBarVisibility.Both
+                StatusBarMode.None -> StatusBarVisibility.Disabled
+            }
+        }
+        set(value) = prefs.edit().putString(STATUS_BAR_VISIBILITY_MODE, value.name).apply()
+
+    var statusBarType: StatusBarType
+        get() {
+            if (prefs.contains(STATUS_BAR_TYPE)) {
+                return enumPref(STATUS_BAR_TYPE, StatusBarType.Luma)
+            }
+            return when (legacyStatusBarMode()) {
+                StatusBarMode.AndroidStatusBar -> StatusBarType.Android
+                StatusBarMode.Enabled,
+                StatusBarMode.None,
+                -> StatusBarType.Luma
+            }
+        }
+        set(value) = prefs.edit().putString(STATUS_BAR_TYPE, value.name).apply()
 
     var statusBarMode: StatusBarMode
-        get() {
-            if (prefs.contains(STATUS_BAR_MODE)) {
-                return enumPref(STATUS_BAR_MODE, StatusBarMode.Enabled)
+        get() =
+            when {
+                statusBarVisibility == StatusBarVisibility.Disabled -> StatusBarMode.None
+                statusBarType == StatusBarType.Android -> StatusBarMode.AndroidStatusBar
+                else -> StatusBarMode.Enabled
             }
-            return if (prefs.getBoolean(STATUS_BAR_ENABLED, true)) StatusBarMode.Enabled else StatusBarMode.None
+        set(value) {
+            when (value) {
+                StatusBarMode.Enabled -> {
+                    statusBarVisibility = StatusBarVisibility.Both
+                    statusBarType = StatusBarType.Luma
+                }
+
+                StatusBarMode.None -> {
+                    statusBarVisibility = StatusBarVisibility.Disabled
+                    statusBarType = StatusBarType.Luma
+                }
+
+                StatusBarMode.AndroidStatusBar -> {
+                    statusBarVisibility = StatusBarVisibility.Both
+                    statusBarType = StatusBarType.Android
+                }
+            }
         }
-        set(value) = prefs.edit().putString(STATUS_BAR_MODE, value.name).apply()
+
+    fun isStatusBarVisibleOnHomescreen(): Boolean =
+        when (statusBarVisibility) {
+            StatusBarVisibility.Both,
+            StatusBarVisibility.Homescreen,
+            -> true
+            StatusBarVisibility.Disabled,
+            StatusBarVisibility.Lockscreen,
+            -> false
+        }
+
+    fun isStatusBarVisibleOnLockscreen(): Boolean =
+        when (statusBarVisibility) {
+            StatusBarVisibility.Both,
+            StatusBarVisibility.Lockscreen,
+            -> true
+            StatusBarVisibility.Disabled,
+            StatusBarVisibility.Homescreen,
+            -> false
+        }
+
+    fun showsLumaStatusBarOnHomescreen(): Boolean =
+        statusBarType == StatusBarType.Luma && isStatusBarVisibleOnHomescreen()
+
+    fun showsLumaStatusBarOnLockscreen(): Boolean =
+        statusBarType == StatusBarType.Luma && isStatusBarVisibleOnLockscreen()
+
+    fun showsLumaStatusBarAnywhere(): Boolean =
+        statusBarType == StatusBarType.Luma && statusBarVisibility != StatusBarVisibility.Disabled
+
+    fun showsAndroidStatusBarOnHomescreen(): Boolean =
+        statusBarType == StatusBarType.Android && isStatusBarVisibleOnHomescreen()
+
+    fun showsAndroidStatusBarOnLockscreen(): Boolean =
+        statusBarType == StatusBarType.Android && isStatusBarVisibleOnLockscreen()
 
     var timeEnabled: Boolean
         get() = prefs.getBoolean(TIME_ENABLED, true)
