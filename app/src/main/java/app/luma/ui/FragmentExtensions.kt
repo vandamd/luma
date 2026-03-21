@@ -110,7 +110,7 @@ fun actionDisplayValue(
 ): String =
     when (action) {
         Constants.Action.OpenApp -> {
-            val appLabel = prefs.getSectionApp(section).appLabel
+            val appLabel = prefs.getSectionApp(section).displayName
             if (appLabel.isNotEmpty()) {
                 stringResource(R.string.action_open_app_name, appLabel)
             } else {

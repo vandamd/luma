@@ -826,7 +826,7 @@ class HomeFragment :
     }
 
     private fun launchApp(appModel: AppModel) {
-        viewModel.selectedApp(appModel, AppDrawerFlag.LaunchApp)
+        viewModel.selectedApp(appModel, AppDrawerFlag.LaunchApp, launchContext = requireActivity())
     }
 
     private fun showAppList(

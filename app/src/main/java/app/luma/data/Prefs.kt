@@ -2,6 +2,7 @@ package app.luma.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.os.UserManager
 import app.luma.style.FontSizeOption
 import org.json.JSONArray
@@ -52,6 +53,8 @@ private const val APP_PACKAGE = "APP_PACKAGE"
 private const val APP_ALIAS = "APP_ALIAS"
 private const val APP_ACTIVITY = "APP_ACTIVITY"
 private const val APP_USER_SERIAL = "APP_USER_SERIAL"
+private const val APP_ENTRY_TYPE = "APP_ENTRY_TYPE"
+private const val TOOL_ORDER = "TOOL_ORDER"
 
 enum class GestureType(
     val actionKey: String,
@@ -208,6 +211,13 @@ class Prefs(
             return if (prefs.getBoolean(INVERT_COLOURS, false)) ThemeMode.Light else ThemeMode.Dark
         }
         set(value) = prefs.edit().putString(THEME_MODE, value.name).apply()
+
+    fun isDarkTheme(configuration: Configuration = context.resources.configuration): Boolean =
+        when (themeMode) {
+            ThemeMode.Dark -> true
+            ThemeMode.Light -> false
+            ThemeMode.Automatic -> (configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        }
 
     var invertColours: Boolean
         get() = themeMode == ThemeMode.Light
@@ -386,6 +396,57 @@ class Prefs(
         storeAction(type.actionKey, action)
     }
 
+    var toolOrder: List<Tool>
+        get() {
+            val raw = prefs.getString(TOOL_ORDER, null) ?: return Tool.entries.toList()
+            val parsed =
+                try {
+                    val array = JSONArray(raw)
+                    buildList {
+                        for (i in 0 until array.length()) {
+                            val tool = runCatching { enumValueOf<Tool>(array.optString(i)) }.getOrNull()
+                            if (tool != null) add(tool)
+                        }
+                    }
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            return normalizeToolOrder(parsed)
+        }
+        set(value) {
+            val normalized = normalizeToolOrder(value)
+            val array = JSONArray()
+            normalized.forEach { array.put(it.name) }
+            prefs.edit().putString(TOOL_ORDER, array.toString()).apply()
+        }
+
+    fun isToolEnabled(tool: Tool): Boolean = prefs.getBoolean(tool.prefKey, false)
+
+    fun setToolEnabled(
+        tool: Tool,
+        enabled: Boolean,
+    ) {
+        prefs.edit().putBoolean(tool.prefKey, enabled).apply()
+    }
+
+    fun getOrderedTools(): List<Tool> = toolOrder
+
+    fun getVisibleTools(): List<Tool> = toolOrder.filter { isToolEnabled(it) && !isToolHidden(it) }
+
+    fun getVisibleUnpinnedTools(): List<Tool> = getVisibleTools().filterNot(::isToolPinned)
+
+    fun isToolPinned(tool: Tool): Boolean = isPinned(tool.toPinnedEntry(mySerial))
+
+    fun isToolHidden(tool: Tool): Boolean = isAppHidden(tool.packageName, mySerial)
+
+    fun moveToolUp(tool: Tool) {
+        moveTool(tool = tool, offset = -1)
+    }
+
+    fun moveToolDown(tool: Tool) {
+        moveTool(tool = tool, offset = 1)
+    }
+
     fun getSectionApp(type: StatusBarSectionType): AppModel = loadApp(type.appKey)
 
     fun setSectionApp(
@@ -410,6 +471,14 @@ class Prefs(
         val alias = prefs.getString("${APP_ALIAS}_$id", "") ?: ""
         val activity = prefs.getString("${APP_ACTIVITY}_$id", "") ?: ""
         val serial = prefs.getLong("${APP_USER_SERIAL}_$id", -1L)
+        val storedType = enumPref("${APP_ENTRY_TYPE}_$id", AppEntryType.LauncherApp)
+        val tool = Tool.fromPackageName(pack)
+        val entryType =
+            when {
+                tool != null -> AppEntryType.Tool
+                pack == Constants.PINNED_SHORTCUT_PACKAGE -> AppEntryType.PinnedShortcut
+                else -> storedType
+            }
         val myHandle = android.os.Process.myUserHandle()
         val userHandle =
             if (serial >= 0) {
@@ -417,14 +486,22 @@ class Prefs(
             } else {
                 myHandle
             }
+        val resolvedName = tool?.defaultLabel(context) ?: name
+        val resolvedAlias =
+            if (entryType == AppEntryType.Tool && pack.isNotEmpty()) {
+                getAppAlias(pack)
+            } else {
+                alias
+            }
 
         return AppModel(
-            appLabel = name,
+            appLabel = resolvedName,
             appPackage = pack,
-            appAlias = alias,
+            appAlias = resolvedAlias,
             appActivityName = activity,
             user = userHandle,
             key = null,
+            entryType = entryType,
         )
     }
 
@@ -440,6 +517,7 @@ class Prefs(
             .putString("${APP_ACTIVITY}_$id", appModel.appActivityName)
             .putString("${APP_ALIAS}_$id", appModel.appAlias)
             .putLong("${APP_USER_SERIAL}_$id", serial)
+            .putString("${APP_ENTRY_TYPE}_$id", appModel.entryType.name)
             .apply()
     }
 
@@ -567,6 +645,31 @@ class Prefs(
         appAlias: String,
     ) {
         prefs.edit().putString(appPackage, appAlias).apply()
+    }
+
+    private fun normalizeToolOrder(order: List<Tool>): List<Tool> {
+        val normalized = order.distinct().toMutableList()
+        Tool.entries.filterNot(normalized::contains).forEach(normalized::add)
+        return normalized
+    }
+
+    private fun moveTool(
+        tool: Tool,
+        offset: Int,
+    ) {
+        val visibleTools = getVisibleUnpinnedTools()
+        val visibleIndex = visibleTools.indexOf(tool)
+        if (visibleIndex < 0) return
+        val swapTool = visibleTools.getOrNull(visibleIndex + offset) ?: return
+
+        val currentOrder = toolOrder.toMutableList()
+        val currentIndex = currentOrder.indexOf(tool)
+        val swapIndex = currentOrder.indexOf(swapTool)
+        if (currentIndex < 0 || swapIndex < 0) return
+
+        currentOrder[currentIndex] = swapTool
+        currentOrder[swapIndex] = tool
+        toolOrder = currentOrder
     }
 
     private fun firstTrueFalseAfter(key: String): Boolean {

@@ -92,7 +92,7 @@ class AppDrawerFragment : Fragment() {
                         } else {
                             null
                         },
-                    showPinnedIcon = flag == AppDrawerFlag.LaunchApp,
+                    showPinnedIcon = flag != AppDrawerFlag.HiddenApps,
                 ),
             )
 
@@ -126,15 +126,11 @@ class AppDrawerFragment : Fragment() {
         viewModel.appList.observe(viewLifecycleOwner) {
             if (flag == AppDrawerFlag.HiddenApps) return@observe
             it?.let { appList ->
+                val prefs = Prefs.getInstance(requireContext())
+                val um = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
                 val filteredList =
-                    if (flag == AppDrawerFlag.SetHomeApp) {
-                        appList
-                    } else {
-                        val prefs = Prefs.getInstance(requireContext())
-                        val um = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
-                        appList.filter { app ->
-                            !prefs.isAppHidden(app.appPackage, um.getSerialNumberForUser(app.user))
-                        }
+                    appList.filter { app ->
+                        !prefs.isAppHidden(app.appPackage, um.getSerialNumberForUser(app.user))
                     }
 
                 binding.listEmptyHint.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
@@ -157,11 +153,13 @@ class AppDrawerFragment : Fragment() {
         n: Int = 0,
     ): (appModel: AppModel) -> Unit =
         { appModel ->
-            viewModel.selectedApp(appModel, flag, n)
-            if (flag == AppDrawerFlag.LaunchApp || flag == AppDrawerFlag.SetHomeApp) {
-                findNavController().popBackStack(R.id.mainFragment, false)
-            } else {
-                findNavController().popBackStack()
+            val handled = viewModel.selectedApp(appModel, flag, n, requireActivity())
+            if (handled) {
+                if (flag == AppDrawerFlag.LaunchApp || flag == AppDrawerFlag.SetHomeApp) {
+                    findNavController().popBackStack(R.id.mainFragment, false)
+                } else {
+                    findNavController().popBackStack()
+                }
             }
         }
 

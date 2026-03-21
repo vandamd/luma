@@ -23,6 +23,7 @@ import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.HomeLayout
 import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
+import app.luma.data.Tool
 import app.luma.helper.openAppInfo
 import app.luma.helper.uninstallApp
 import app.luma.ui.compose.CustomScrollView
@@ -55,6 +56,11 @@ class AppActionsFragment : Fragment() {
 
     private val isPinnedShortcut: Boolean
         get() = appPackage == Constants.PINNED_SHORTCUT_PACKAGE
+
+    private val tool: Tool? by lazy { Tool.fromPackageName(appPackage) }
+
+    private val isTool: Boolean
+        get() = tool != null
 
     private val pinnedEntry: PinnedAppEntry
         get() {
@@ -143,6 +149,8 @@ class AppActionsFragment : Fragment() {
         val pinnedApps = prefs.pinnedApps
         val pinnedIndex = pinnedApps.indexOf(pinnedEntry)
         val isPinned = pinnedIndex >= 0
+        val visibleTools = prefs.getVisibleUnpinnedTools()
+        val toolIndex = tool?.let { visibleTools.indexOf(it) } ?: -1
 
         Column {
             SettingsHeader(
@@ -195,6 +203,22 @@ class AppActionsFragment : Fragment() {
                             if (pinnedIndex >= 0 && pinnedIndex < pinnedApps.lastIndex) {
                                 SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
                                     prefs.movePinnedDown(pinnedEntry)
+                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                                    findNavController().popBackStack(R.id.appListFragment, false)
+                                }
+                            }
+                        }
+                        if (isTool && !isPinned && !isHomeApp) {
+                            if (toolIndex > 0) {
+                                SimpleTextButton(stringResource(R.string.app_actions_move_up)) {
+                                    tool?.let { prefs.moveToolUp(it) }
+                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                                    findNavController().popBackStack(R.id.appListFragment, false)
+                                }
+                            }
+                            if (toolIndex >= 0 && toolIndex < visibleTools.lastIndex) {
+                                SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
+                                    tool?.let { prefs.moveToolDown(it) }
                                     ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
                                     findNavController().popBackStack(R.id.appListFragment, false)
                                 }
@@ -267,7 +291,7 @@ class AppActionsFragment : Fragment() {
                                 ),
                             )
                         }
-                    } else {
+                    } else if (!isTool) {
                         SimpleTextButton(stringResource(R.string.app_actions_app_info)) {
                             openAppInfo(
                                 requireContext(),

@@ -65,7 +65,7 @@ class GesturesFragment : Fragment() {
         val value =
             when (action) {
                 Constants.Action.OpenApp -> {
-                    val appLabel = prefs.getGestureApp(type).appLabel
+                    val appLabel = prefs.getGestureApp(type).displayName
                     if (appLabel.isNotEmpty()) {
                         stringResource(R.string.action_open_app_name, appLabel)
                     } else {

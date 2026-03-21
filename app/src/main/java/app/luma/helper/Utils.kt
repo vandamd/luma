@@ -26,10 +26,12 @@ import android.widget.Toast
 import app.luma.BuildConfig
 import app.luma.R
 import app.luma.data.AppModel
+import app.luma.data.AppEntryType
 import app.luma.data.Constants
 import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
 import app.luma.data.ShortcutEntry
+import app.luma.data.Tool
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.Collator
@@ -120,6 +122,7 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
                             profile,
                             appAlias,
                             false,
+                            AppEntryType.LauncherApp,
                         )
 
                     appList.add(appModel)
@@ -143,13 +146,22 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
                         user = userHandle,
                         appAlias = "",
                         hasNotification = false,
+                        entryType = AppEntryType.PinnedShortcut,
                     )
                 appList.add(shortcutModel)
             }
 
+            for (tool in prefs.getOrderedTools()) {
+                if (!prefs.isToolEnabled(tool) || prefs.isToolHidden(tool)) continue
+                val alias = prefs.getAppAlias(tool.packageName)
+                appList.add(tool.toAppModel(context, collator, alias))
+            }
+
             val pinnedIndex = prefs.pinnedApps.withIndex().associate { it.value to it.index }
             val pinnedModels = mutableListOf<Pair<Int, AppModel>>()
+            val unpinnedToolModels = mutableListOf<Pair<Int, AppModel>>()
             val unpinnedModels = mutableListOf<AppModel>()
+            val toolOrderIndex = prefs.getOrderedTools().withIndex().associate { it.value to it.index }
 
             for (appModel in appList) {
                 val serial = userManager.getSerialNumberForUser(appModel.user)
@@ -157,22 +169,23 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
                 val index = pinnedIndex[entry]
                 if (index != null) {
                     pinnedModels.add(index to appModel)
+                } else if (appModel.entryType == AppEntryType.Tool) {
+                    val tool = Tool.fromPackageName(appModel.appPackage) ?: continue
+                    unpinnedToolModels.add((toolOrderIndex[tool] ?: Int.MAX_VALUE) to appModel)
                 } else {
                     unpinnedModels.add(appModel)
                 }
             }
 
             pinnedModels.sortBy { it.first }
+            unpinnedToolModels.sortBy { it.first }
             unpinnedModels.sortBy {
-                if (it.appAlias.isEmpty()) {
-                    it.appLabel.lowercase()
-                } else {
-                    it.appAlias.lowercase()
-                }
+                it.displayName.lowercase()
             }
 
             appList.clear()
             appList.addAll(pinnedModels.map { it.second })
+            appList.addAll(unpinnedToolModels.map { it.second })
             appList.addAll(unpinnedModels)
 
             val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()
@@ -204,13 +217,21 @@ suspend fun getHiddenAppsList(context: Context): MutableList<AppModel> =
             val parts = entry.split("|")
             val packageName = parts[0]
             val serial = if (parts.size == 2) parts[1].toLongOrNull() ?: mySerial else mySerial
+            val tool = Tool.fromPackageName(packageName)
+            if (tool != null) {
+                if (!prefs.isToolEnabled(tool)) continue
+                val alias = prefs.getAppAlias(packageName)
+                appList.add(tool.toAppModel(context, collator, alias))
+                continue
+            }
             val userHandle = userManager.getUserForSerialNumber(serial) ?: continue
             val activities = launcherApps.getActivityList(packageName, userHandle)
             if (activities.isEmpty()) continue
             val app = activities[0]
             val appName = app.label.toString()
             val appKey = collator.getCollationKey(appName)
-            appList.add(AppModel(appName, appKey, packageName, "", userHandle, prefs.getAppAlias(appName), false))
+            val alias = prefs.getAppAlias(packageName).ifEmpty { prefs.getAppAlias(appName) }
+            appList.add(AppModel(appName, appKey, packageName, "", userHandle, alias, false, AppEntryType.LauncherApp))
         }
 
         for (entry in prefs.pinnedShortcuts) {
@@ -227,6 +248,7 @@ suspend fun getHiddenAppsList(context: Context): MutableList<AppModel> =
                     user = myHandle,
                     appAlias = "",
                     hasNotification = false,
+                    entryType = AppEntryType.PinnedShortcut,
                 )
             appList.add(shortcutModel)
         }

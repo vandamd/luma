@@ -9,6 +9,7 @@ import android.widget.Filterable
 import android.widget.FrameLayout
 import androidx.recyclerview.widget.RecyclerView
 import app.luma.R
+import app.luma.data.AppEntryType
 import app.luma.data.AppModel
 import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
@@ -27,7 +28,7 @@ data class AppDrawerConfig(
 class AppDrawerAdapter(
     private val context: Context,
     private val config: AppDrawerConfig,
-) : RecyclerView.Adapter<AppDrawerAdapter.ViewHolder>(),
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>(),
     Filterable {
     companion object {
         private val DIACRITICAL_REGEX = Regex("\\p{InCombiningDiacriticalMarks}+")
@@ -42,7 +43,7 @@ class AppDrawerAdapter(
 
     private var appFilter = createAppFilter()
     private var appsList: MutableList<AppModel> = mutableListOf()
-    private var appFilteredList: MutableList<AppModel> = mutableListOf()
+    private var filteredApps: MutableList<AppModel> = mutableListOf()
     private val normalizedNameCache = mutableMapOf<String, String>()
     private val prefs = Prefs.getInstance(context)
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
@@ -51,18 +52,17 @@ class AppDrawerAdapter(
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int,
-    ): ViewHolder {
+    ): RecyclerView.ViewHolder {
         val binding = AdapterAppDrawerBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return ViewHolder(binding)
+        return AppViewHolder(binding)
     }
 
     override fun onBindViewHolder(
-        holder: ViewHolder,
+        holder: RecyclerView.ViewHolder,
         position: Int,
     ) {
-        if (appFilteredList.isEmpty()) return
-        val appModel = appFilteredList[holder.absoluteAdapterPosition]
-        holder.bind(
+        val appModel = filteredApps[holder.absoluteAdapterPosition]
+        (holder as AppViewHolder).bind(
             config.gravity,
             appModel,
             config.clickListener,
@@ -72,12 +72,12 @@ class AppDrawerAdapter(
         )
     }
 
-    override fun getItemCount(): Int = appFilteredList.size
+    override fun getItemCount(): Int = filteredApps.size
 
     override fun getFilter(): Filter = this.appFilter
 
-    private fun createAppFilter(): Filter {
-        return object : Filter() {
+    private fun createAppFilter(): Filter =
+        object : Filter() {
             override fun performFiltering(constraint: CharSequence?): FilterResults {
                 val searchChars = constraint.toString()
                 val appFilteredList =
@@ -85,14 +85,13 @@ class AppDrawerAdapter(
                         appsList
                     } else {
                         appsList.filter { app ->
-                            val displayName = app.appAlias.ifEmpty { app.appLabel }
-                            appLabelMatches(displayName, searchChars)
+                            appLabelMatches(app.displayName, searchChars)
                         }
                     }
 
-                val filterResults = FilterResults()
-                filterResults.values = appFilteredList
-                return filterResults
+                return FilterResults().apply {
+                    values = appFilteredList
+                }
             }
 
             @Suppress("UNCHECKED_CAST")
@@ -100,11 +99,10 @@ class AppDrawerAdapter(
                 constraint: CharSequence?,
                 results: FilterResults?,
             ) {
-                appFilteredList = (results?.values as? List<AppModel>)?.toMutableList() ?: mutableListOf()
+                filteredApps = (results?.values as? List<AppModel>)?.toMutableList() ?: mutableListOf()
                 notifyDataSetChanged()
             }
         }
-    }
 
     private fun appLabelMatches(
         appLabel: String,
@@ -116,22 +114,16 @@ class AppDrawerAdapter(
     }
 
     fun updateNotifications(packages: Set<String>) {
-        appFilteredList.forEachIndexed { i, app ->
-            val had = app.hasNotification
-            app.hasNotification = packages.contains(app.appPackage)
-            if (had != app.hasNotification) notifyItemChanged(i)
-        }
         appsList.forEach { app ->
-            if (appFilteredList.none { it === app }) {
-                app.hasNotification = packages.contains(app.appPackage)
-            }
+            app.hasNotification = packages.contains(app.appPackage)
         }
+        notifyDataSetChanged()
     }
 
     fun setAppList(appsList: MutableList<AppModel>) {
         normalizedNameCache.clear()
         this.appsList = appsList
-        this.appFilteredList = this.appsList
+        filteredApps = appsList.toMutableList()
         pinnedSet = prefs.pinnedApps.toSet()
         notifyDataSetChanged()
     }
@@ -141,8 +133,8 @@ class AppDrawerAdapter(
         return pinnedSet.contains(PinnedAppEntry(appModel.appPackage, appModel.appActivityName, serial))
     }
 
-    class ViewHolder(
-        val binding: AdapterAppDrawerBinding,
+    class AppViewHolder(
+        private val binding: AdapterAppDrawerBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(
             appLabelGravity: Int,
@@ -164,9 +156,8 @@ class AppDrawerAdapter(
             showPinnedIcon: Boolean,
             isPinned: Boolean,
         ) {
-            val appName = appModel.appAlias.ifEmpty { appModel.appLabel }
             val showIndicator = Prefs.getInstance(context).showNotificationIndicator && appModel.hasNotification
-            val displayName = if (showIndicator) "$appName*" else appName
+            val displayName = if (showIndicator) "${appModel.displayName}*" else appModel.displayName
 
             binding.appTitle.text = displayName
 
@@ -174,8 +165,19 @@ class AppDrawerAdapter(
             params.gravity = gravity
             binding.appTitle.layoutParams = params
 
-            val iconRes = if (showPinnedIcon && isPinned) R.drawable.pin_24px else 0
-            binding.appTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(iconRes, 0, 0, 0)
+            val startIconRes =
+                when {
+                    appModel.entryType == AppEntryType.Tool -> R.drawable.tool_bulb_24px
+                    showPinnedIcon && isPinned -> R.drawable.pin_24px
+                    else -> 0
+                }
+            val endIconRes =
+                if (appModel.entryType == AppEntryType.Tool && showPinnedIcon && isPinned) {
+                    R.drawable.pin_24px
+                } else {
+                    0
+                }
+            binding.appTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(startIconRes, 0, endIconRes, 0)
         }
 
         private fun setupClickListeners(

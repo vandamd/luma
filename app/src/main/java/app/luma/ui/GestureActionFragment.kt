@@ -132,8 +132,8 @@ class GestureActionFragment : Fragment() {
     }
 
     private fun getAppLabel(): String =
-        gestureType?.let { prefs.getGestureApp(it).appLabel }
-            ?: sectionType?.let { prefs.getSectionApp(it).appLabel }
+        gestureType?.let { prefs.getGestureApp(it).displayName }
+            ?: sectionType?.let { prefs.getSectionApp(it).displayName }
             ?: ""
 
     private fun handleActionSelection(action: Action) {

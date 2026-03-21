@@ -38,6 +38,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
+import app.luma.data.Tool
 import app.luma.helper.performAppTapHapticFeedback
 import app.luma.style.SettingsTheme
 import app.luma.ui.compose.SettingsComposable.ContentContainer
@@ -83,7 +84,11 @@ class RenameFragment : Fragment() {
             val newAlias = if (trimmedName.isEmpty() || trimmedName == appLabel) "" else trimmedName
 
             if (homePosition >= 0) {
-                val updatedAppModel = prefs.getHomeAppModel(homePosition).copy(appAlias = newAlias)
+                val currentApp = prefs.getHomeAppModel(homePosition)
+                if (Tool.fromPackageName(currentApp.appPackage) != null) {
+                    prefs.setAppAlias(currentApp.appPackage, newAlias)
+                }
+                val updatedAppModel = currentApp.copy(appAlias = newAlias)
                 prefs.setHomeAppModel(homePosition, updatedAppModel)
             } else {
                 prefs.setAppAlias(appPackage, newAlias)

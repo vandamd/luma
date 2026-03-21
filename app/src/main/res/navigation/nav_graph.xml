@@ -100,6 +100,9 @@
             android:id="@+id/action_settingsFragment_to_themeModeFragment"
             app:destination="@id/themeModeFragment" />
         <action
+            android:id="@+id/action_settingsFragment_to_toolsFragment"
+            app:destination="@id/toolsFragment" />
+        <action
             android:id="@+id/action_settingsFragment_to_pagesFragment"
             app:destination="@id/pagesFragment" />
         <action
@@ -119,6 +122,10 @@
         android:id="@+id/themeModeFragment"
         android:name="app.luma.ui.ThemeModeFragment"
         android:label="ThemeModeFragment" />
+    <fragment
+        android:id="@+id/toolsFragment"
+        android:name="app.luma.ui.ToolsFragment"
+        android:label="ToolsFragment" />
     <fragment
         android:id="@+id/hapticsFragment"
         android:name="app.luma.ui.HapticsFragment"

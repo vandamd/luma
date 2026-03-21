@@ -71,6 +71,9 @@ class SettingsFragment : Fragment() {
                             },
                         onClick = { findNavController().navigate(R.id.action_settingsFragment_to_themeModeFragment) },
                     )
+                    SimpleTextButton(stringResource(R.string.settings_tools)) {
+                        findNavController().navigate(R.id.action_settingsFragment_to_toolsFragment)
+                    }
                     SimpleTextButton(
                         stringResource(R.string.settings_pages),
                     ) { findNavController().navigate(R.id.action_settingsFragment_to_pagesFragment) }
