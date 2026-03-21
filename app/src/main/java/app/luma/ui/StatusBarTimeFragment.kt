@@ -15,7 +15,6 @@ import app.luma.R
 import app.luma.data.Constants
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
@@ -50,7 +49,6 @@ class StatusBarTimeFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     PrefsToggleTextButton(
                         title = stringResource(R.string.status_bar_time_enabled),
                         initialValue = prefs.timeEnabled,
@@ -73,7 +71,6 @@ class StatusBarTimeFragment : Fragment() {
                             )
                         },
                     )
-                }
             }
         }
     }

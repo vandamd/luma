@@ -12,7 +12,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.ToggleTextButton
@@ -46,7 +45,6 @@ class HapticsFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     ToggleTextButton(
                         title = stringResource(R.string.haptics_enabled),
                         checked = globalEnabled.value,
@@ -111,7 +109,6 @@ class HapticsFragment : Fragment() {
                         },
                         enabled = globalEnabled.value,
                     )
-                }
             }
         }
     }

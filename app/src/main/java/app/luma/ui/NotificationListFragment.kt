@@ -45,7 +45,6 @@ import app.luma.R
 import app.luma.helper.LumaNotificationListener
 import app.luma.helper.performAppTapHapticFeedback
 import app.luma.style.SettingsTheme
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.MessageText
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
@@ -153,8 +152,7 @@ class NotificationListFragment : Fragment() {
                     MessageText(stringResource(R.string.notification_list_empty))
                 }
             } else {
-                ContentContainer {
-                    CustomScrollView(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                ContentContainer(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         notifications.forEach { item ->
                             NotificationRow(
                                 item = item,
@@ -199,7 +197,6 @@ class NotificationListFragment : Fragment() {
                                 },
                             )
                         }
-                    }
                 }
             }
         }

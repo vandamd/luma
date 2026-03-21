@@ -11,7 +11,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
@@ -41,7 +40,6 @@ class SettingsFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     SimpleTextButton(stringResource(R.string.settings_miscellaneous)) {
                         findNavController().navigate(R.id.action_settingsFragment_to_miscellaneousFragment)
                     }
@@ -59,7 +57,6 @@ class SettingsFragment : Fragment() {
                         initialValue = prefs.showVolumeIndicator,
                         onValueChange = { prefs.showVolumeIndicator = it },
                     )
-                }
             }
         }
     }

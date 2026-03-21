@@ -16,7 +16,6 @@ import app.luma.R
 import app.luma.data.Constants
 import app.luma.data.GestureType
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
@@ -45,13 +44,11 @@ class GesturesFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
                     GestureButton(stringResource(R.string.gesture_swipe_left), GestureType.SWIPE_LEFT)
                     GestureButton(stringResource(R.string.gesture_swipe_right), GestureType.SWIPE_RIGHT)
                     GestureButton(stringResource(R.string.gesture_swipe_down), GestureType.SWIPE_DOWN)
                     GestureButton(stringResource(R.string.gesture_swipe_up), GestureType.SWIPE_UP)
                     GestureButton(stringResource(R.string.gesture_double_tap), GestureType.DOUBLE_TAP)
-                }
             }
         }
     }

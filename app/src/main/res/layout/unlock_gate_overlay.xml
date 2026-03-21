@@ -6,6 +6,18 @@
     android:focusable="true">
 
     <TextView
+        android:id="@+id/unlockGateDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:fontFamily="@font/publicsans_regular"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:textAlignment="center"
+        android:textSize="24sp"
+        android:visibility="gone" />
+
+    <TextView
         android:id="@+id/unlockGateClock"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

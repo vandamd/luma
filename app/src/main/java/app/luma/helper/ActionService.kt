@@ -26,6 +26,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import app.luma.MainActivity
 import app.luma.R
+import app.luma.data.Constants.Action
 import app.luma.data.Prefs
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -252,7 +253,13 @@ class ActionService : AccessibilityService() {
             }
 
         view.setBackgroundColor(if (isDark) Color.BLACK else Color.WHITE)
-        view.findViewById<TextView>(R.id.unlockGateClock).setTextColor(if (isDark) Color.WHITE else Color.BLACK)
+        updateUnlockGateTextAppearance(view, isDark)
+        view.findViewById<TextView>(R.id.unlockGateDate).setOnClickListener {
+            performAppTapHapticFeedback(this@ActionService)
+            if (dispatchLockscreenDateTap()) {
+                hideUnlockGateWhenReady(UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS)
+            }
+        }
         view.findViewById<View>(R.id.unlockGateHomeButton).apply {
             background = createUnlockGateHomeButtonBackground(isDark)
             setOnClickListener {
@@ -261,7 +268,7 @@ class ActionService : AccessibilityService() {
                 hideUnlockGateWhenReady(UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS)
             }
         }
-        updateUnlockGateClock(view)
+        updateUnlockGateText(view)
         updateUnlockGateContentLayout(view)
         scheduleNextUnlockGateClockTick(view)
 
@@ -561,23 +568,60 @@ class ActionService : AccessibilityService() {
         }
     }
 
+    private fun dispatchLockscreenDateTap(): Boolean {
+        if (prefs.getLockscreenDateTapAction() == Action.Disabled) return false
+        return try {
+            startActivity(MainActivity.createLockscreenDateTapIntent(this))
+            true
+        } catch (exception: Exception) {
+            Log.e(TAG, "dispatchLockscreenDateTap: startActivity failed", exception)
+            false
+        }
+    }
+
     private fun publishUnlockGateState() {
         _unlockGateVisible.value = unlockGateVisible
         _unlockGateShowingHomeStatusBar.value = isUnlockGateShowingHomeStatusBar()
     }
 
-    private fun updateUnlockGateClock(view: View) {
+    private fun updateUnlockGateTextAppearance(
+        view: View,
+        isDark: Boolean,
+    ) {
+        val textColor = if (isDark) Color.WHITE else Color.BLACK
+        view.findViewById<TextView>(R.id.unlockGateClock).setTextColor(textColor)
+        view.findViewById<TextView>(R.id.unlockGateDate).setTextColor(textColor)
+    }
+
+    private fun updateUnlockGateText(view: View) {
         view.findViewById<TextView>(R.id.unlockGateClock).text =
             formatClockText(
                 prefs = prefs,
                 appendNotificationIndicator = prefs.lockscreenClockNotificationIndicator,
             )
+        view.findViewById<TextView>(R.id.unlockGateDate).apply {
+            if (prefs.lockscreenDateEnabled) {
+                text = formatLockscreenDateText(prefs.lockscreenDateFormat)
+                visibility = View.VISIBLE
+                isClickable = prefs.getLockscreenDateTapAction() != Action.Disabled
+                isFocusable = isClickable
+            } else {
+                visibility = View.GONE
+                isClickable = false
+                isFocusable = false
+            }
+        }
     }
 
     private fun updateUnlockGateContentLayout(view: View) {
+        val clockView = view.findViewById<TextView>(R.id.unlockGateClock)
+        val dateView = view.findViewById<TextView>(R.id.unlockGateDate)
         val donutOffsetPx = resources.displayMetrics.density * UNLOCK_GATE_HOME_BUTTON_SIZE_DP
-        view.findViewById<TextView>(R.id.unlockGateClock).translationY =
-            -(currentUnlockGateTopInsetPx() / 2f) - donutOffsetPx
+        val baseTranslationY = -(currentUnlockGateTopInsetPx() / 2f) - donutOffsetPx
+        val dateGapPx = resources.displayMetrics.density * UNLOCK_GATE_DATE_GAP_DP
+        val dateCenterOffsetPx = ((clockView.lineHeight + dateView.lineHeight) / 2f) + dateGapPx
+        clockView.translationY = baseTranslationY
+        dateView.translationY = baseTranslationY - dateCenterOffsetPx
     }
 
     private fun scheduleNextUnlockGateClockTick(view: View) {
@@ -588,7 +632,7 @@ class ActionService : AccessibilityService() {
                     unlockGateClockRunnable = null
                     return@Runnable
                 }
-                updateUnlockGateClock(view)
+                updateUnlockGateText(view)
                 scheduleNextUnlockGateClockTick(view)
             }.also { runnable ->
                 val now = System.currentTimeMillis()
@@ -613,6 +657,7 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
         private const val UNLOCK_GATE_HOME_BUTTON_SIZE_DP = 30f
+        private const val UNLOCK_GATE_DATE_GAP_DP = 30f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
 
         private var instance: WeakReference<ActionService> = WeakReference(null)

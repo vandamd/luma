@@ -222,6 +222,7 @@ class AppDrawerFragment : Fragment() {
             AppDrawerFlag.SetStatusBarTime,
             AppDrawerFlag.SetStatusBarBattery,
             AppDrawerFlag.SetLockscreenShortcut,
+            AppDrawerFlag.SetLockscreenDateTap,
             -> true
 
             AppDrawerFlag.LaunchApp,

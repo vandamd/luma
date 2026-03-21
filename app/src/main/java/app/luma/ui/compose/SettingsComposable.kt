@@ -229,17 +229,28 @@ object SettingsComposable {
 
     @Composable
     fun ContentContainer(
-        verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+        verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(SettingsItemSpacing),
+        scrollable: Boolean = true,
         content: @Composable ColumnScope.() -> Unit,
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 0.dp, bottom = 28.dp, start = 26.dp, end = 0.dp),
-            verticalArrangement = verticalArrangement,
-        ) {
-            content()
+        val modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 0.dp, bottom = 28.dp, start = 26.dp, end = 0.dp)
+
+        if (scrollable) {
+            CustomScrollView(
+                modifier = modifier,
+                verticalArrangement = verticalArrangement,
+                content = content,
+            )
+        } else {
+            Column(
+                modifier = modifier,
+                verticalArrangement = verticalArrangement,
+            ) {
+                content()
+            }
         }
     }
 

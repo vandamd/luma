@@ -6,17 +6,16 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import app.luma.R
-import app.luma.data.HomeLayout
 import app.luma.data.Prefs
+import app.luma.helper.formatLockscreenDateText
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 
-class PageCountFragment : Fragment() {
+class LockscreenDateFormatFragment : Fragment() {
     private lateinit var prefs: Prefs
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,32 +27,30 @@ class PageCountFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View = composeView(onSwipeBack = ::goBack) { PageCountScreen() }
+    ): View = composeView(onSwipeBack = ::goBack) { Screen() }
 
     @Composable
-    fun PageCountScreen() {
-        val resources = LocalContext.current.resources
+    fun Screen() {
         Column {
             SettingsHeader(
-                title = stringResource(R.string.pages_number_of_pages),
+                title = stringResource(R.string.lockscreen_date_format),
                 onBack = ::goBack,
             )
 
             ContentContainer {
-                    for (i in HomeLayout.MIN_PAGES..HomeLayout.MAX_PAGES) {
-                        val isSelected = prefs.homePages == i
+                    for (format in Prefs.LockscreenDateFormat.values()) {
                         SimpleTextButton(
-                            title = resources.getQuantityString(R.plurals.pages_count, i, i),
-                            underline = isSelected,
-                            onClick = { updateHomePages(i) },
+                            title = formatLockscreenDateText(format),
+                            underline = prefs.lockscreenDateFormat == format,
+                            onClick = { select(format) },
                         )
                     }
             }
         }
     }
 
-    private fun updateHomePages(homePages: Int) {
-        prefs.homePages = homePages
+    private fun select(format: Prefs.LockscreenDateFormat) {
+        prefs.lockscreenDateFormat = format
         goBack()
     }
 }

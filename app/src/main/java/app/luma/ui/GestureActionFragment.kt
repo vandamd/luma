@@ -20,7 +20,6 @@ import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
@@ -30,6 +29,7 @@ class GestureActionFragment : Fragment() {
         const val GESTURE_TYPE = "gesture_type"
         const val SECTION_TYPE = "section_type"
         const val LOCKSCREEN_SHORTCUT = "lockscreen_shortcut"
+        const val LOCKSCREEN_DATE_TAP = "lockscreen_date_tap"
 
         private val gestureDisplayInfo =
             mapOf(
@@ -57,6 +57,7 @@ class GestureActionFragment : Fragment() {
     private var gestureType: GestureType? = null
     private var sectionType: StatusBarSectionType? = null
     private var lockscreenShortcut = false
+    private var lockscreenDateTap = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +69,7 @@ class GestureActionFragment : Fragment() {
             sectionType = runCatching { StatusBarSectionType.valueOf(it) }.getOrNull()
         }
         lockscreenShortcut = arguments?.getBoolean(LOCKSCREEN_SHORTCUT, false) == true
+        lockscreenDateTap = arguments?.getBoolean(LOCKSCREEN_DATE_TAP, false) == true
     }
 
     override fun onCreateView(
@@ -81,6 +83,8 @@ class GestureActionFragment : Fragment() {
             ?: sectionType?.let { sectionDisplayInfo[it] }
             ?: if (lockscreenShortcut) {
                 ActionDisplayInfo(R.string.lockscreen_shortcut, AppDrawerFlag.SetLockscreenShortcut)
+            } else if (lockscreenDateTap) {
+                ActionDisplayInfo(R.string.lockscreen_date_tap, AppDrawerFlag.SetLockscreenDateTap)
             } else {
                 null
             }
@@ -96,7 +100,6 @@ class GestureActionFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     for (action in availableActions()) {
                         val isSelected = getCurrentAction() == action
                         val buttonText =
@@ -124,7 +127,6 @@ class GestureActionFragment : Fragment() {
                             onClick = { handleActionSelection(action) },
                         )
                     }
-                }
             }
         }
     }
@@ -134,6 +136,8 @@ class GestureActionFragment : Fragment() {
             ?: sectionType?.let { prefs.getSectionAction(it) }
             ?: if (lockscreenShortcut) {
                 prefs.getLockscreenShortcutAction()
+            } else if (lockscreenDateTap) {
+                prefs.getLockscreenDateTapAction()
             } else {
                 null
             }
@@ -144,6 +148,8 @@ class GestureActionFragment : Fragment() {
             ?: sectionType?.let { prefs.setSectionAction(it, action) }
             ?: if (lockscreenShortcut) {
                 prefs.setLockscreenShortcutAction(action)
+            } else if (lockscreenDateTap) {
+                prefs.setLockscreenDateTapAction(action)
             } else {
                 null
             }
@@ -154,6 +160,8 @@ class GestureActionFragment : Fragment() {
             ?: sectionType?.let { prefs.getSectionApp(it).displayName }
             ?: if (lockscreenShortcut) {
                 prefs.getLockscreenShortcutApp().displayName
+            } else if (lockscreenDateTap) {
+                prefs.getLockscreenDateTapApp().displayName
             } else {
                 null
             }
@@ -162,6 +170,8 @@ class GestureActionFragment : Fragment() {
     private fun availableActions(): Array<Action> =
         if (lockscreenShortcut) {
             Constants.Action.values().filterNot { it == Action.Disabled || it == Action.LockScreen }.toTypedArray()
+        } else if (lockscreenDateTap) {
+            Constants.Action.values().filterNot { it == Action.LockScreen }.toTypedArray()
         } else {
             Constants.Action.values()
         }

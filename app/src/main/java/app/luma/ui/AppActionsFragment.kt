@@ -26,7 +26,6 @@ import app.luma.data.Prefs
 import app.luma.data.Tool
 import app.luma.helper.openAppInfo
 import app.luma.helper.uninstallApp
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
@@ -156,7 +155,6 @@ class AppActionsFragment : Fragment() {
                 onBack = ::goBack,
             )
             ContentContainer {
-                CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
                     SimpleTextButton(stringResource(R.string.app_actions_rename)) {
                         findNavController().navigate(
                             R.id.renameFragment,
@@ -291,10 +289,9 @@ class AppActionsFragment : Fragment() {
                                     "action" to "uninstallApp",
                                 ),
                             )
+                            }
                         }
                     }
-                }
             }
-        }
     }
 }

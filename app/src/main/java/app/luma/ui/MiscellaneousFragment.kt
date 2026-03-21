@@ -16,7 +16,6 @@ import androidx.navigation.fragment.findNavController
 import app.luma.MainViewModel
 import app.luma.R
 import app.luma.data.Constants.AppDrawerFlag
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
@@ -44,7 +43,6 @@ class MiscellaneousFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     SimpleTextButton(stringResource(R.string.settings_appearance)) {
                         findNavController().navigate(R.id.action_miscellaneousFragment_to_appearanceFragment)
                     }
@@ -56,7 +54,6 @@ class MiscellaneousFragment : Fragment() {
                     }
                     SimpleTextButton(stringResource(R.string.settings_hidden_apps)) { showHiddenApps() }
                     SimpleTextButton(stringResource(R.string.settings_default_launcher)) { openDefaultLauncherSettings() }
-                }
             }
         }
     }

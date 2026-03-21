@@ -12,7 +12,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
@@ -53,7 +52,6 @@ class HomescreenFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     SimpleTextButton(stringResource(R.string.settings_tools)) {
                         findNavController().navigate(R.id.action_homescreenFragment_to_toolsFragment)
                     }
@@ -121,7 +119,6 @@ class HomescreenFragment : Fragment() {
                             prefs.showAppDrawerPinIcons = pinIconState.value
                         },
                     )
-                }
             }
         }
     }

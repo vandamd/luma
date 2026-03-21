@@ -10,7 +10,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
@@ -37,7 +36,6 @@ class PageIndicatorPositionFragment : Fragment() {
                 onBack = ::goBack,
             )
             ContentContainer {
-                CustomScrollView {
                     SimpleTextButton(
                         title = stringResource(R.string.position_left),
                         underline = prefs.pageIndicatorPosition == Prefs.PageIndicatorPosition.Left,
@@ -53,7 +51,6 @@ class PageIndicatorPositionFragment : Fragment() {
                         underline = prefs.pageIndicatorPosition == Prefs.PageIndicatorPosition.Hidden,
                         onClick = { selectPosition(Prefs.PageIndicatorPosition.Hidden) },
                     )
-                }
             }
         }
     }

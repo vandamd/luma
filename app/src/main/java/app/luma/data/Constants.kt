@@ -31,6 +31,7 @@ object Constants {
         SetStatusBarTime,
         SetStatusBarBattery,
         SetLockscreenShortcut,
+        SetLockscreenDateTap,
     }
 
     enum class Action(

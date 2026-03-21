@@ -10,7 +10,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
@@ -37,7 +36,6 @@ class NotificationIndicatorSectionFragment : Fragment() {
                 onBack = ::goBack,
             )
             ContentContainer {
-                CustomScrollView {
                     SimpleTextButton(
                         title = stringResource(R.string.status_bar_notif_section_cellular),
                         underline = prefs.notificationIndicatorSection == Prefs.NotificationIndicatorSection.Connectivity,
@@ -53,7 +51,6 @@ class NotificationIndicatorSectionFragment : Fragment() {
                         underline = prefs.notificationIndicatorSection == Prefs.NotificationIndicatorSection.Battery,
                         onClick = { select(Prefs.NotificationIndicatorSection.Battery) },
                     )
-                }
             }
         }
     }

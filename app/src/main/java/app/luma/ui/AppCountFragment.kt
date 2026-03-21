@@ -15,7 +15,6 @@ import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.HomeLayout
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.MessageText
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
@@ -47,7 +46,6 @@ class AppCountFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && resources.configuration.fontScale >= 0.85f) {
                         MessageText(
                             stringResource(R.string.app_count_status_bar_hint),
@@ -62,7 +60,6 @@ class AppCountFragment : Fragment() {
                             onClick = { updateAppsPerPage(pageNumber, i) },
                         )
                     }
-                }
             }
         }
     }

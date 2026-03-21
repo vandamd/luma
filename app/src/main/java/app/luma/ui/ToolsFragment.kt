@@ -12,7 +12,6 @@ import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.Prefs
 import app.luma.data.Tool
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
@@ -63,7 +62,6 @@ class ToolsFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView {
                     toolToggleOptions.forEach { option ->
                         PrefsToggleTextButton(
                             title = stringResource(option.titleRes),
@@ -71,7 +69,6 @@ class ToolsFragment : Fragment() {
                             onValueChange = { prefs.setToolEnabled(option.tool, it) },
                         )
                     }
-                }
             }
         }
     }

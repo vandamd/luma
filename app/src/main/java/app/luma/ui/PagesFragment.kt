@@ -16,7 +16,6 @@ import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.HomeLayout
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SelectorButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
@@ -46,7 +45,6 @@ class PagesFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
                     SelectorButton(
                         label = stringResource(R.string.pages_page_indicator_position),
                         value =
@@ -75,7 +73,6 @@ class PagesFragment : Fragment() {
                             },
                         )
                     }
-                }
             }
         }
     }

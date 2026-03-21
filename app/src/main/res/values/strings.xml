@@ -29,6 +29,9 @@
     <string name="settings_default_launcher">Default Launcher</string>
     <string name="unlock_gate_message">Press Home for Luma</string>
     <string name="lockscreen_enabled">Enabled</string>
+    <string name="lockscreen_show_date">Show Date</string>
+    <string name="lockscreen_date_format">Date Format</string>
+    <string name="lockscreen_date_tap">On Date Tap</string>
     <string name="lockscreen_shortcut">Shortcut</string>
 
     <!-- Tools screen -->

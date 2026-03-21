@@ -108,6 +108,10 @@ private const val SHOW_HIDDEN_APPS_IN_HOME_PICKER = "show_hidden_apps_in_home_pi
 private const val SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
 private const val SHOW_APP_DRAWER_PIN_ICONS = "show_app_drawer_pin_icons"
 private const val LOCKSCREEN_GATE_ENABLED = "lockscreen_gate_enabled"
+private const val LOCKSCREEN_DATE_ENABLED = "lockscreen_date_enabled"
+private const val LOCKSCREEN_DATE_FORMAT = "lockscreen_date_format"
+private const val LOCKSCREEN_DATE_TAP_ACTION = "lockscreen_date_tap_action"
+private const val LOCKSCREEN_DATE_TAP_APP = "lockscreen_date_tap_app"
 private const val LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR = "lockscreen_clock_notification_indicator"
 private const val LOCKSCREEN_SHORTCUT_ACTION = "lockscreen_shortcut_action"
 private const val LOCKSCREEN_SHORTCUT_APP = "lockscreen_shortcut_app"
@@ -135,6 +139,8 @@ class Prefs(
     enum class NotificationIndicatorSection { Connectivity, Time, Battery }
 
     enum class NotificationIndicatorAlignment { Before, After }
+
+    enum class LockscreenDateFormat { ShortWeekday, LongWeekday, Numeric }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_FILENAME, 0)
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
@@ -438,6 +444,27 @@ class Prefs(
     var lockscreenGateEnabled: Boolean
         get() = prefs.getBoolean(LOCKSCREEN_GATE_ENABLED, true)
         set(value) = prefs.edit().putBoolean(LOCKSCREEN_GATE_ENABLED, value).apply()
+
+    var lockscreenDateEnabled: Boolean
+        get() = prefs.getBoolean(LOCKSCREEN_DATE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(LOCKSCREEN_DATE_ENABLED, value).apply()
+
+    var lockscreenDateFormat: LockscreenDateFormat
+        get() = enumPref(LOCKSCREEN_DATE_FORMAT, LockscreenDateFormat.ShortWeekday)
+        set(value) = prefs.edit().putString(LOCKSCREEN_DATE_FORMAT, value.name).apply()
+
+    fun getLockscreenDateTapAction(): Constants.Action = loadAction(LOCKSCREEN_DATE_TAP_ACTION, Constants.Action.Disabled)
+
+    fun setLockscreenDateTapAction(action: Constants.Action) {
+        val resolvedAction = if (action == Constants.Action.LockScreen) Constants.Action.Disabled else action
+        storeAction(LOCKSCREEN_DATE_TAP_ACTION, resolvedAction)
+    }
+
+    fun getLockscreenDateTapApp(): AppModel = loadApp(LOCKSCREEN_DATE_TAP_APP)
+
+    fun setLockscreenDateTapApp(appModel: AppModel) {
+        storeApp(LOCKSCREEN_DATE_TAP_APP, appModel)
+    }
 
     var lockscreenClockNotificationIndicator: Boolean
         get() = prefs.getBoolean(LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR, true)

@@ -15,6 +15,7 @@ import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Constants
 import app.luma.data.Prefs
+import app.luma.helper.formatLockscreenDateText
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
@@ -25,8 +26,10 @@ import app.luma.ui.compose.SettingsItemSpacing
 class LockscreenFragment : Fragment() {
     private lateinit var prefs: Prefs
     private val actionState = mutableStateOf(Constants.Action.OpenApp)
+    private val dateTapActionState = mutableStateOf(Constants.Action.Disabled)
     private val hasNotificationPermission = mutableStateOf(false)
     private val notificationIndicatorState = mutableStateOf(true)
+    private val dateFormatState = mutableStateOf(Prefs.LockscreenDateFormat.ShortWeekday)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,7 +40,9 @@ class LockscreenFragment : Fragment() {
         super.onResume()
         hasNotificationPermission.value = hasNotificationListenerPermission()
         actionState.value = prefs.getLockscreenShortcutAction()
+        dateTapActionState.value = prefs.getLockscreenDateTapAction()
         notificationIndicatorState.value = prefs.lockscreenClockNotificationIndicator
+        dateFormatState.value = prefs.lockscreenDateFormat
     }
 
     override fun onCreateView(
@@ -89,6 +94,28 @@ class LockscreenFragment : Fragment() {
                             } else {
                                 openNotificationListenerSettings()
                             }
+                        },
+                    )
+                    PrefsToggleTextButton(
+                        title = stringResource(R.string.lockscreen_show_date),
+                        initialValue = prefs.lockscreenDateEnabled,
+                        onValueChange = { prefs.lockscreenDateEnabled = it },
+                    )
+                    SelectorButton(
+                        label = stringResource(R.string.lockscreen_date_format),
+                        value = formatLockscreenDateText(dateFormatState.value),
+                        onClick = {
+                            findNavController().navigate(R.id.action_lockscreenFragment_to_lockscreenDateFormatFragment)
+                        },
+                    )
+                    SelectorButton(
+                        label = stringResource(R.string.lockscreen_date_tap),
+                        value = lockscreenDateTapActionDisplayValue(dateTapActionState.value, prefs),
+                        onClick = {
+                            findNavController().navigate(
+                                R.id.action_lockscreenFragment_to_gestureActionFragment,
+                                bundleOf(GestureActionFragment.LOCKSCREEN_DATE_TAP to true),
+                            )
                         },
                     )
                     SelectorButton(

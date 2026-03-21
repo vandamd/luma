@@ -95,6 +95,10 @@
             android:name="lockscreen_shortcut"
             app:argType="boolean"
             android:defaultValue="false" />
+        <argument
+            android:name="lockscreen_date_tap"
+            app:argType="boolean"
+            android:defaultValue="false" />
     </fragment>
     <fragment
         android:id="@+id/settingsFragment"
@@ -143,7 +147,14 @@
         <action
             android:id="@+id/action_lockscreenFragment_to_gestureActionFragment"
             app:destination="@id/gestureActionFragment" />
+        <action
+            android:id="@+id/action_lockscreenFragment_to_lockscreenDateFormatFragment"
+            app:destination="@id/lockscreenDateFormatFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/lockscreenDateFormatFragment"
+        android:name="app.luma.ui.LockscreenDateFormatFragment"
+        android:label="LockscreenDateFormatFragment" />
     <fragment
         android:id="@+id/miscellaneousFragment"
         android:name="app.luma.ui.MiscellaneousFragment"

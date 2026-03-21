@@ -29,7 +29,7 @@ val SettingsItemSpacing = 33.5.dp
 fun CustomScrollView(
     modifier: Modifier = Modifier,
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(SettingsItemSpacing),
-    content: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     var contentHeightPx by remember { mutableStateOf(0) }
     var scrollViewHeightPx by remember { mutableStateOf(0) }

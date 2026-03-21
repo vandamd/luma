@@ -10,7 +10,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
@@ -37,7 +36,6 @@ class ThemeModeFragment : Fragment() {
                 onBack = ::goBack,
             )
             ContentContainer {
-                CustomScrollView {
                     SimpleTextButton(
                         title = stringResource(R.string.settings_theme_dark),
                         underline = prefs.themeMode == Prefs.ThemeMode.Dark,
@@ -53,7 +51,6 @@ class ThemeModeFragment : Fragment() {
                         underline = prefs.themeMode == Prefs.ThemeMode.Automatic,
                         onClick = { select(Prefs.ThemeMode.Automatic) },
                     )
-                }
             }
         }
     }

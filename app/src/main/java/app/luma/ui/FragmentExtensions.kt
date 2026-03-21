@@ -154,6 +154,12 @@ fun lockscreenActionDisplayValue(
     prefs: Prefs,
 ): String = actionDisplayValue(action, prefs.getLockscreenShortcutApp().displayName)
 
+@Composable
+fun lockscreenDateTapActionDisplayValue(
+    action: Constants.Action,
+    prefs: Prefs,
+): String = actionDisplayValue(action, prefs.getLockscreenDateTapApp().displayName)
+
 fun Modifier.noRippleClickable(
     enabled: Boolean = true,
     onClick: () -> Unit,

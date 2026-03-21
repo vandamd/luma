@@ -18,6 +18,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.NavHostFragment
+import app.luma.data.AppModel
 import app.luma.data.Constants
 import app.luma.data.Constants.Action
 import app.luma.data.Constants.AppDrawerFlag
@@ -95,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         handlePinShortcutRequest(intent)
         notifyUnlockGateLauncherIntent(intent)
         handleLockscreenShortcutIntent(intent)
+        handleLockscreenDateTapIntent(intent)
     }
 
     override fun onDestroy() {
@@ -139,6 +141,7 @@ class MainActivity : AppCompatActivity() {
         }
         notifyUnlockGateLauncherIntent(intent)
         handleLockscreenShortcutIntent(intent)
+        handleLockscreenDateTapIntent(intent)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
@@ -278,13 +281,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleLockscreenShortcutIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, false) != true) return
-        intent.removeExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT)
+        handleLockscreenActionIntent(
+            intent = intent,
+            extraName = EXTRA_RUN_LOCKSCREEN_SHORTCUT,
+            action = prefs.getLockscreenShortcutAction(),
+            appModel = prefs.getLockscreenShortcutApp(),
+        )
+    }
 
-        val action = prefs.getLockscreenShortcutAction()
+    private fun handleLockscreenDateTapIntent(intent: Intent?) {
+        handleLockscreenActionIntent(
+            intent = intent,
+            extraName = EXTRA_RUN_LOCKSCREEN_DATE_TAP,
+            action = prefs.getLockscreenDateTapAction(),
+            appModel = prefs.getLockscreenDateTapApp(),
+        )
+    }
+
+    private fun handleLockscreenActionIntent(
+        intent: Intent?,
+        extraName: String,
+        action: Action,
+        appModel: AppModel,
+    ) {
+        if (intent?.getBooleanExtra(extraName, false) != true) return
+        intent.removeExtra(extraName)
+
         if (action == Action.OpenApp) {
             viewModel.selectedApp(
-                prefs.getLockscreenShortcutApp(),
+                appModel,
                 AppDrawerFlag.LaunchApp,
                 launchContext = this,
             )
@@ -323,6 +348,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_UNLOCK_GATE_HOME_LAUNCH = "app.luma.extra.UNLOCK_GATE_HOME_LAUNCH"
         const val EXTRA_RUN_LOCKSCREEN_SHORTCUT = "app.luma.extra.RUN_LOCKSCREEN_SHORTCUT"
+        const val EXTRA_RUN_LOCKSCREEN_DATE_TAP = "app.luma.extra.RUN_LOCKSCREEN_DATE_TAP"
 
         fun createUnlockGateHomeIntent(context: Context): Intent =
             Intent(Intent.ACTION_MAIN).apply {
@@ -335,6 +361,11 @@ class MainActivity : AppCompatActivity() {
         fun createLockscreenShortcutIntent(context: Context): Intent =
             createUnlockGateHomeIntent(context).apply {
                 putExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, true)
+            }
+
+        fun createLockscreenDateTapIntent(context: Context): Intent =
+            createUnlockGateHomeIntent(context).apply {
+                putExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP, true)
             }
     }
 }

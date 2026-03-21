@@ -13,7 +13,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
@@ -42,7 +41,6 @@ class TimeFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
                     SelectorButton(
                         label = stringResource(R.string.status_bar_time_format),
                         value =
@@ -57,7 +55,6 @@ class TimeFragment : Fragment() {
                         initialValue = prefs.showSeconds,
                         onValueChange = { prefs.showSeconds = it },
                     )
-                }
             }
         }
     }

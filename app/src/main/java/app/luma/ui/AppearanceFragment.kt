@@ -13,7 +13,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
-import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
@@ -42,7 +41,6 @@ class AppearanceFragment : Fragment() {
             )
 
             ContentContainer {
-                CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
                     SelectorButton(
                         label = stringResource(R.string.settings_invert_colours),
                         value =
@@ -61,7 +59,6 @@ class AppearanceFragment : Fragment() {
                             requireActivity().recreate()
                         },
                     )
-                }
             }
         }
     }

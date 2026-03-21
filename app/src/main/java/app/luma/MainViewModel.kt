@@ -110,6 +110,12 @@ class MainViewModel(
                 prefs.setLockscreenShortcutApp(appModel)
                 true
             }
+
+            AppDrawerFlag.SetLockscreenDateTap -> {
+                prefs.setLockscreenDateTapAction(Constants.Action.OpenApp)
+                prefs.setLockscreenDateTapApp(appModel)
+                true
+            }
         }
 
     private fun launchApp(

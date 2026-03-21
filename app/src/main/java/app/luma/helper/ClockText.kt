@@ -1,7 +1,10 @@
 package app.luma.helper
 
+import android.text.format.DateFormat
 import app.luma.data.Prefs
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 fun formatClockText(
     prefs: Prefs,
@@ -33,4 +36,19 @@ fun formatClockText(
             append("*")
         }
     }
+}
+
+fun formatLockscreenDateText(
+    format: Prefs.LockscreenDateFormat,
+    calendar: Calendar = Calendar.getInstance(),
+    locale: Locale = Locale.getDefault(),
+): String {
+    val skeleton =
+        when (format) {
+            Prefs.LockscreenDateFormat.ShortWeekday -> "EEE MMM d"
+            Prefs.LockscreenDateFormat.LongWeekday -> "EEEE MMMM d"
+            Prefs.LockscreenDateFormat.Numeric -> "Md"
+        }
+    val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
+    return SimpleDateFormat(pattern, locale).format(calendar.time)
 }
