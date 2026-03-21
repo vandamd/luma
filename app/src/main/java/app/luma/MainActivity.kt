@@ -20,6 +20,7 @@ import androidx.navigation.fragment.NavHostFragment
 import app.luma.data.Constants
 import app.luma.data.Prefs
 import app.luma.databinding.ActivityMainBinding
+import app.luma.helper.ActionService
 import app.luma.helper.HomeCleanupHelper
 import app.luma.helper.hideStatusBar
 import app.luma.helper.showStatusBar
@@ -62,8 +63,10 @@ class MainActivity : AppCompatActivity() {
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         navController.addOnDestinationChangedListener { _, destination, _ ->
             updateSystemStatusBarVisibility(destination.id)
+            syncRepeatedHomeGateEligibility(destination.id)
         }
         updateSystemStatusBarVisibility(navController.currentDestination?.id)
+        syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -85,11 +88,23 @@ class MainActivity : AppCompatActivity() {
         HomeCleanupHelper.setOnAppListCleanupCallback { viewModel.getAppList() }
 
         handlePinShortcutRequest(intent)
+        notifyUnlockGateLauncherIntent(intent)
     }
 
     override fun onDestroy() {
+        ActionService.instance()?.setRepeatedHomeGateEligible(false)
         HomeCleanupHelper.setOnAppListCleanupCallback(null)
         super.onDestroy()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
+    }
+
+    override fun onPause() {
+        ActionService.instance()?.setRepeatedHomeGateEligible(false)
+        super.onPause()
     }
 
     override fun onStop() {
@@ -110,10 +125,14 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handlePinShortcutRequest(intent)
+        val launcherIntent = isLauncherIntent(intent)
+
         backToHomeScreen()
-        if (isLauncherIntent(intent)) {
+        if (launcherIntent) {
             resetHomePageImmediately()
         }
+        notifyUnlockGateLauncherIntent(intent)
+        syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -178,6 +197,18 @@ class MainActivity : AppCompatActivity() {
                 intent.hasCategory(Intent.CATEGORY_HOME) ||
                     intent.hasCategory(Intent.CATEGORY_LAUNCHER)
             )
+
+    private fun notifyUnlockGateLauncherIntent(intent: Intent?) {
+        if (intent == null || !isLauncherIntent(intent)) return
+        ActionService.instance()?.handleLauncherIntent()
+    }
+
+    fun syncRepeatedHomeGateEligibility(destinationId: Int? = navController.currentDestination?.id) {
+        val isEligible =
+            destinationId == R.id.mainFragment &&
+                (getVisibleHomeFragment()?.isOnFirstPage() ?: (viewModel.getCurrentHomePage() == 0))
+        ActionService.instance()?.setRepeatedHomeGateEligible(isEligible)
+    }
 
     private fun handlePinShortcutRequest(intent: Intent?) {
         if (intent == null) return

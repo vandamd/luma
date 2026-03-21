@@ -40,6 +40,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import app.luma.MainActivity
 import app.luma.MainViewModel
 import app.luma.R
 import app.luma.data.AppModel
@@ -226,6 +227,7 @@ class HomeFragment :
         startBatteryMonitor()
         startConnectivityMonitors()
         startClock()
+        syncRepeatedHomeGateEligibility()
     }
 
     override fun onPause() {
@@ -235,6 +237,7 @@ class HomeFragment :
         stopClock()
         stopBatteryMonitor()
         stopConnectivityMonitors()
+        (activity as? MainActivity)?.syncRepeatedHomeGateEligibility(null)
     }
 
     override fun onClick(view: View) {
@@ -433,12 +436,19 @@ class HomeFragment :
             viewModel.setCurrentHomePage(currentPage)
             refreshAppNames()
             updatePageIndicator()
+            syncRepeatedHomeGateEligibility()
         }
     }
 
     fun resetToFirstPage() {
         if (currentPage == 0) return
         switchToPage(0)
+    }
+
+    fun isOnFirstPage(): Boolean = currentPage == 0
+
+    private fun syncRepeatedHomeGateEligibility() {
+        (activity as? MainActivity)?.syncRepeatedHomeGateEligibility()
     }
 
     private fun initObservers() {

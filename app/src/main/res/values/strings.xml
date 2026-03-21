@@ -23,6 +23,7 @@
     <string name="settings_notifications">Notifications</string>
     <string name="settings_hidden_apps">Hidden Apps</string>
     <string name="settings_default_launcher">Default Launcher</string>
+    <string name="unlock_gate_message">Press Home for Luma</string>
 
     <!-- Tools screen -->
     <string name="tools_phone">Phone</string>
