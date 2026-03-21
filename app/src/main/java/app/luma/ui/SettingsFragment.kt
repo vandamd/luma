@@ -18,21 +18,16 @@ import androidx.navigation.fragment.findNavController
 import app.luma.MainViewModel
 import app.luma.R
 import app.luma.data.Constants.AppDrawerFlag
-import app.luma.data.Prefs
 import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
-import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
-import app.luma.ui.compose.SettingsComposable.SelectorButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 
 class SettingsFragment : Fragment() {
-    private lateinit var prefs: Prefs
     private lateinit var viewModel: MainViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = Prefs.getInstance(requireContext())
         viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
     }
 
@@ -53,24 +48,9 @@ class SettingsFragment : Fragment() {
 
             ContentContainer {
                 CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
-                    PrefsToggleTextButton(
-                        title = stringResource(R.string.settings_auto_rotate),
-                        initialValue = prefs.autoRotateEnabled,
-                        onValueChange = {
-                            prefs.autoRotateEnabled = it
-                            requireActivity().recreate()
-                        },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.settings_invert_colours),
-                        value =
-                            when (prefs.themeMode) {
-                                Prefs.ThemeMode.Dark -> stringResource(R.string.settings_theme_dark)
-                                Prefs.ThemeMode.Light -> stringResource(R.string.settings_theme_light)
-                                Prefs.ThemeMode.Automatic -> stringResource(R.string.settings_theme_automatic)
-                            },
-                        onClick = { findNavController().navigate(R.id.action_settingsFragment_to_themeModeFragment) },
-                    )
+                    SimpleTextButton(stringResource(R.string.settings_appearance)) {
+                        findNavController().navigate(R.id.action_settingsFragment_to_appearanceFragment)
+                    }
                     SimpleTextButton(stringResource(R.string.settings_tools)) {
                         findNavController().navigate(R.id.action_settingsFragment_to_toolsFragment)
                     }

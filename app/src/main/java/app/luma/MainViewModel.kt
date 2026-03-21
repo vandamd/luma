@@ -1,12 +1,9 @@
 package app.luma
 
-import android.app.Activity
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.content.pm.LauncherApps
-import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
@@ -20,20 +17,15 @@ import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
 import app.luma.data.Tool
-import app.luma.helper.ActionService
 import app.luma.helper.getAppsList
 import app.luma.helper.getHiddenAppsList
+import app.luma.helper.launchLightOsRoute
 import app.luma.helper.showToast
 import kotlinx.coroutines.launch
 
 class MainViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
-    companion object {
-        private const val LIGHT_OS_PACKAGE = "com.lightos"
-        private const val LIGHT_OS_MAIN_ACTIVITY = "com.lightos.MainActivity"
-    }
-
     private val appContext by lazy { application.applicationContext }
     private val prefs = Prefs.getInstance(appContext)
 
@@ -160,29 +152,7 @@ class MainViewModel(
     private fun launchTool(
         tool: Tool,
         launchContext: Context? = null,
-    ): Boolean {
-        val launchContext = launchContext ?: appContext
-        val actionService = ActionService.instance()
-        val intent =
-            Intent(Intent.ACTION_VIEW, Uri.parse("lightos://${tool.lightOsRoute}")).apply {
-                component = ComponentName(LIGHT_OS_PACKAGE, LIGHT_OS_MAIN_ACTIVITY)
-                // LightOS is a singleTask launcher activity. Reusing its existing task avoids
-                // a cold React Native boot, which otherwise flashes the default app screen
-                // before the deep link is applied.
-                if (launchContext !is Activity) {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            }
-
-        try {
-            actionService?.showToolLaunchMask(prefs.isDarkTheme())
-            launchContext.startActivity(intent)
-        } catch (_: Exception) {
-            actionService?.cancelToolLaunchMask()
-            showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
-        }
-        return true
-    }
+    ): Boolean = launchLightOsRoute(launchContext ?: appContext, tool.lightOsRoute)
 
     private fun launchPinnedShortcut(payload: String): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
@@ -203,9 +173,9 @@ class MainViewModel(
         return true
     }
 
-    fun getAppList() {
+    fun getAppList(includeHidden: Boolean = false) {
         viewModelScope.launch {
-            appList.value = getAppsList(appContext)
+            appList.value = getAppsList(appContext, includeHidden)
         }
     }
 

@@ -11,6 +11,9 @@
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_automatic">Automatic</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_show_tool_icons">Show Tool Icons</string>
+    <string name="settings_show_pin_icons">Show Pin Icons</string>
     <string name="settings_tools">Tools</string>
     <string name="settings_auto_rotate">Auto-rotate</string>
     <string name="settings_pages">Pages</string>
@@ -38,6 +41,7 @@
 
     <!-- Gesture actions -->
     <string name="action_open_app">Open App</string>
+    <string name="action_network_shortcut_light">Network Shortcut (Light)</string>
     <string name="action_lock_screen">Lock Screen</string>
     <string name="action_show_notifications">Notifications (Android)</string>
     <string name="action_show_app_list">App List</string>
@@ -172,5 +176,7 @@
     <string name="content_desc_save">Save</string>
     <string name="content_desc_clear">Clear</string>
     <string name="content_desc_hide">Hide</string>
+    <string name="content_desc_show_hidden_apps">Show hidden apps</string>
+    <string name="content_desc_hide_hidden_apps">Hide hidden apps</string>
     <string name="content_desc_app_info">App info</string>
 </resources>

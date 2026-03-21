@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.Filter
 import android.widget.Filterable
 import android.widget.FrameLayout
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import app.luma.R
 import app.luma.data.AppEntryType
@@ -22,7 +23,8 @@ data class AppDrawerConfig(
     val gravity: Int,
     val clickListener: (AppModel) -> Unit,
     val appLongPressListener: ((AppModel) -> Unit)? = null,
-    val showPinnedIcon: Boolean = false,
+    val showToolIcon: Boolean = true,
+    val showPinIcon: Boolean = true,
 )
 
 class AppDrawerAdapter(
@@ -67,8 +69,9 @@ class AppDrawerAdapter(
             appModel,
             config.clickListener,
             config.appLongPressListener,
-            config.showPinnedIcon,
-            config.showPinnedIcon && isPinned(appModel),
+            config.showToolIcon,
+            config.showPinIcon,
+            isPinned(appModel),
         )
     }
 
@@ -141,11 +144,12 @@ class AppDrawerAdapter(
             appModel: AppModel,
             listener: (AppModel) -> Unit,
             appLongPressListener: ((AppModel) -> Unit)? = null,
-            showPinnedIcon: Boolean = false,
+            showToolIcon: Boolean = true,
+            showPinIcon: Boolean = true,
             isPinned: Boolean = false,
         ) {
             val context = itemView.context
-            configureAppTitle(context, appModel, appLabelGravity, showPinnedIcon, isPinned)
+            configureAppTitle(context, appModel, appLabelGravity, showToolIcon, showPinIcon, isPinned)
             setupClickListeners(context, appModel, listener, appLongPressListener)
         }
 
@@ -153,7 +157,8 @@ class AppDrawerAdapter(
             context: Context,
             appModel: AppModel,
             gravity: Int,
-            showPinnedIcon: Boolean,
+            showToolIcon: Boolean,
+            showPinIcon: Boolean,
             isPinned: Boolean,
         ) {
             val showIndicator = Prefs.getInstance(context).showNotificationIndicator && appModel.hasNotification
@@ -161,23 +166,17 @@ class AppDrawerAdapter(
 
             binding.appTitle.text = displayName
 
-            val params = binding.appTitle.layoutParams as FrameLayout.LayoutParams
+            val params = binding.appTitleRow.layoutParams as FrameLayout.LayoutParams
             params.gravity = gravity
-            binding.appTitle.layoutParams = params
+            binding.appTitleRow.layoutParams = params
 
-            val startIconRes =
-                when {
-                    appModel.entryType == AppEntryType.Tool -> R.drawable.tool_bulb_24px
-                    showPinnedIcon && isPinned -> R.drawable.pin_24px
-                    else -> 0
-                }
-            val endIconRes =
-                if (appModel.entryType == AppEntryType.Tool && showPinnedIcon && isPinned) {
-                    R.drawable.pin_24px
-                } else {
-                    0
-                }
-            binding.appTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(startIconRes, 0, endIconRes, 0)
+            val showPin = showPinIcon && isPinned
+            val showTool = showToolIcon && appModel.entryType == AppEntryType.Tool
+
+            binding.appPinIcon.isVisible = showPin
+            binding.appToolIcon.isVisible = showTool
+            binding.appIconSpacer.isVisible = showPin && showTool
+            binding.appIconGroup.isVisible = showPin || showTool
         }
 
         private fun setupClickListeners(

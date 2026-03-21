@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
@@ -19,14 +18,17 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import app.luma.MainViewModel
 import app.luma.R
+import app.luma.data.AppEntryType
 import app.luma.data.AppModel
 import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.Prefs
+import app.luma.data.Tool
 import app.luma.databinding.FragmentAppDrawerBinding
 import app.luma.helper.LumaNotificationListener
 import app.luma.helper.performGestureActionHapticFeedback
 import app.luma.style.SettingsTheme
 import app.luma.style.isDarkTheme
+import app.luma.ui.compose.SettingsComposable.HeaderIconButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import kotlinx.coroutines.launch
 
@@ -35,7 +37,10 @@ class AppDrawerFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var flag: AppDrawerFlag
+    private lateinit var appAdapter: AppDrawerAdapter
+    private var allApps: List<AppModel> = emptyList()
     private var n: Int = 0
+    private var showHiddenApps: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -47,25 +52,16 @@ class AppDrawerFragment : Fragment() {
         val flagString = arguments?.getString("flag", AppDrawerFlag.LaunchApp.toString()) ?: AppDrawerFlag.LaunchApp.toString()
         flag = AppDrawerFlag.valueOf(flagString)
         n = arguments?.getInt("n", 0) ?: 0
+        showHiddenApps = Prefs.getInstance(requireContext()).showHiddenAppsInHomePicker
 
-        val header: ComposeView? = binding.headerCompose
-        header?.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-        header?.setContent {
-            val headerTitle =
-                when (flag) {
-                    AppDrawerFlag.SetHomeApp -> requireContext().getString(R.string.app_drawer_select_rename)
-                    AppDrawerFlag.HiddenApps -> requireContext().getString(R.string.app_drawer_hidden_apps)
-                    else -> requireContext().getString(R.string.app_drawer_title)
-                }
-            SettingsTheme(isDarkTheme(Prefs.getInstance(requireContext()))) {
-                SettingsHeader(title = headerTitle, onBack = { findNavController().popBackStack() })
-            }
-        }
+        binding.headerCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        renderHeader()
         return binding.root
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        allApps = emptyList()
         _binding = null
     }
 
@@ -77,8 +73,9 @@ class AppDrawerFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
+        val prefs = Prefs.getInstance(requireContext())
 
-        val appAdapter =
+        appAdapter =
             AppDrawerAdapter(
                 requireContext(),
                 AppDrawerConfig(
@@ -92,11 +89,12 @@ class AppDrawerFragment : Fragment() {
                         } else {
                             null
                         },
-                    showPinnedIcon = flag != AppDrawerFlag.HiddenApps,
+                    showToolIcon = prefs.showAppDrawerToolIcons,
+                    showPinIcon = prefs.showAppDrawerPinIcons,
                 ),
             )
 
-        initViewModel(flag, viewModel, appAdapter)
+        initViewModel(flag, viewModel)
 
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = appAdapter
@@ -113,35 +111,96 @@ class AppDrawerFragment : Fragment() {
     private fun initViewModel(
         flag: AppDrawerFlag,
         viewModel: MainViewModel,
-        appAdapter: AppDrawerAdapter,
     ) {
         viewModel.hiddenApps.observe(viewLifecycleOwner) {
             if (flag != AppDrawerFlag.HiddenApps) return@observe
             it?.let { appList ->
                 binding.listEmptyHint.visibility = if (appList.isEmpty()) View.VISIBLE else View.GONE
-                populateAppList(appList, appAdapter)
+                populateAppList(appList)
             }
         }
 
         viewModel.appList.observe(viewLifecycleOwner) {
             if (flag == AppDrawerFlag.HiddenApps) return@observe
             it?.let { appList ->
-                val prefs = Prefs.getInstance(requireContext())
-                val um = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
-                val filteredList =
-                    appList.filter { app ->
-                        !prefs.isAppHidden(app.appPackage, um.getSerialNumberForUser(app.user))
-                    }
+                allApps = appList
+                updateDisplayedApps()
+            }
+        }
+    }
 
-                binding.listEmptyHint.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
-                populateAppList(filteredList, appAdapter)
+    private fun renderHeader() {
+        val context = requireContext()
+        val headerTitle =
+            when (flag) {
+                AppDrawerFlag.SetHomeApp -> context.getString(R.string.app_drawer_select_rename)
+                AppDrawerFlag.HiddenApps -> context.getString(R.string.app_drawer_hidden_apps)
+                else -> context.getString(R.string.app_drawer_title)
+            }
+
+        binding.headerCompose.setContent {
+            SettingsTheme(isDarkTheme(Prefs.getInstance(context))) {
+                SettingsHeader(
+                    title = headerTitle,
+                    onBack = { findNavController().popBackStack() },
+                    trailingContent =
+                        if (flag == AppDrawerFlag.SetHomeApp) {
+                            {
+                                HeaderIconButton(
+                                    iconRes = if (showHiddenApps) R.drawable.visibility else R.drawable.visibility_off,
+                                    contentDescription =
+                                        context.getString(
+                                            if (showHiddenApps) {
+                                                R.string.content_desc_hide_hidden_apps
+                                            } else {
+                                                R.string.content_desc_show_hidden_apps
+                                            },
+                                        ),
+                                    onClick = {
+                                        showHiddenApps = !showHiddenApps
+                                        Prefs.getInstance(context).showHiddenAppsInHomePicker = showHiddenApps
+                                        renderHeader()
+                                        updateDisplayedApps()
+                                    },
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                )
+            }
+        }
+    }
+
+    private fun updateDisplayedApps() {
+        if (flag == AppDrawerFlag.HiddenApps) return
+        val displayedApps =
+            if (flag == AppDrawerFlag.SetHomeApp && showHiddenApps) {
+                allApps
+            } else {
+                filterHiddenApps(allApps)
+            }
+
+        binding.listEmptyHint.visibility = if (displayedApps.isEmpty()) View.VISIBLE else View.GONE
+        populateAppList(displayedApps)
+    }
+
+    private fun filterHiddenApps(apps: List<AppModel>): List<AppModel> {
+        val prefs = Prefs.getInstance(requireContext())
+        val userManager = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
+        val hiddenShortcutIds = prefs.hiddenShortcutIds
+
+        return apps.filterNot { app ->
+            when (app.entryType) {
+                AppEntryType.PinnedShortcut -> hiddenShortcutIds.contains(app.appActivityName)
+                AppEntryType.Tool -> Tool.fromPackageName(app.appPackage)?.let(prefs::isToolHidden) ?: false
+                AppEntryType.LauncherApp -> prefs.isAppHidden(app.appPackage, userManager.getSerialNumberForUser(app.user))
             }
         }
     }
 
     private fun populateAppList(
         apps: List<AppModel>,
-        appAdapter: AppDrawerAdapter,
     ) {
         appAdapter.setAppList(apps.toMutableList())
         appAdapter.updateNotifications(LumaNotificationListener.getActiveNotificationPackages())

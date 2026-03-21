@@ -54,7 +54,6 @@ private const val APP_ALIAS = "APP_ALIAS"
 private const val APP_ACTIVITY = "APP_ACTIVITY"
 private const val APP_USER_SERIAL = "APP_USER_SERIAL"
 private const val APP_ENTRY_TYPE = "APP_ENTRY_TYPE"
-private const val TOOL_ORDER = "TOOL_ORDER"
 
 enum class GestureType(
     val actionKey: String,
@@ -101,6 +100,9 @@ private const val HAPTICS_LONG_PRESS_ENABLED = "haptics_long_press_enabled"
 private const val HAPTICS_GESTURE_ACTIONS_ENABLED = "haptics_gesture_actions_enabled"
 private const val HAPTICS_STATUS_BAR_PRESS_ENABLED = "haptics_status_bar_press_enabled"
 private const val AUTO_ROTATE_ENABLED = "auto_rotate_enabled"
+private const val SHOW_HIDDEN_APPS_IN_HOME_PICKER = "show_hidden_apps_in_home_picker"
+private const val SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
+private const val SHOW_APP_DRAWER_PIN_ICONS = "show_app_drawer_pin_icons"
 
 class Prefs(
     val context: Context,
@@ -396,30 +398,6 @@ class Prefs(
         storeAction(type.actionKey, action)
     }
 
-    var toolOrder: List<Tool>
-        get() {
-            val raw = prefs.getString(TOOL_ORDER, null) ?: return Tool.entries.toList()
-            val parsed =
-                try {
-                    val array = JSONArray(raw)
-                    buildList {
-                        for (i in 0 until array.length()) {
-                            val tool = runCatching { enumValueOf<Tool>(array.optString(i)) }.getOrNull()
-                            if (tool != null) add(tool)
-                        }
-                    }
-                } catch (_: Exception) {
-                    emptyList()
-                }
-            return normalizeToolOrder(parsed)
-        }
-        set(value) {
-            val normalized = normalizeToolOrder(value)
-            val array = JSONArray()
-            normalized.forEach { array.put(it.name) }
-            prefs.edit().putString(TOOL_ORDER, array.toString()).apply()
-        }
-
     fun isToolEnabled(tool: Tool): Boolean = prefs.getBoolean(tool.prefKey, false)
 
     fun setToolEnabled(
@@ -429,23 +407,7 @@ class Prefs(
         prefs.edit().putBoolean(tool.prefKey, enabled).apply()
     }
 
-    fun getOrderedTools(): List<Tool> = toolOrder
-
-    fun getVisibleTools(): List<Tool> = toolOrder.filter { isToolEnabled(it) && !isToolHidden(it) }
-
-    fun getVisibleUnpinnedTools(): List<Tool> = getVisibleTools().filterNot(::isToolPinned)
-
-    fun isToolPinned(tool: Tool): Boolean = isPinned(tool.toPinnedEntry(mySerial))
-
     fun isToolHidden(tool: Tool): Boolean = isAppHidden(tool.packageName, mySerial)
-
-    fun moveToolUp(tool: Tool) {
-        moveTool(tool = tool, offset = -1)
-    }
-
-    fun moveToolDown(tool: Tool) {
-        moveTool(tool = tool, offset = 1)
-    }
 
     fun getSectionApp(type: StatusBarSectionType): AppModel = loadApp(type.appKey)
 
@@ -621,6 +583,18 @@ class Prefs(
         get() = prefs.getBoolean(AUTO_ROTATE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(AUTO_ROTATE_ENABLED, value).apply()
 
+    var showAppDrawerToolIcons: Boolean
+        get() = prefs.getBoolean(SHOW_APP_DRAWER_TOOL_ICONS, true)
+        set(value) = prefs.edit().putBoolean(SHOW_APP_DRAWER_TOOL_ICONS, value).apply()
+
+    var showAppDrawerPinIcons: Boolean
+        get() = prefs.getBoolean(SHOW_APP_DRAWER_PIN_ICONS, true)
+        set(value) = prefs.edit().putBoolean(SHOW_APP_DRAWER_PIN_ICONS, value).apply()
+
+    var showHiddenAppsInHomePicker: Boolean
+        get() = prefs.getBoolean(SHOW_HIDDEN_APPS_IN_HOME_PICKER, false)
+        set(value) = prefs.edit().putBoolean(SHOW_HIDDEN_APPS_IN_HOME_PICKER, value).apply()
+
     fun getHiddenAppKey(
         packageName: String,
         userSerial: Long,
@@ -645,31 +619,6 @@ class Prefs(
         appAlias: String,
     ) {
         prefs.edit().putString(appPackage, appAlias).apply()
-    }
-
-    private fun normalizeToolOrder(order: List<Tool>): List<Tool> {
-        val normalized = order.distinct().toMutableList()
-        Tool.entries.filterNot(normalized::contains).forEach(normalized::add)
-        return normalized
-    }
-
-    private fun moveTool(
-        tool: Tool,
-        offset: Int,
-    ) {
-        val visibleTools = getVisibleUnpinnedTools()
-        val visibleIndex = visibleTools.indexOf(tool)
-        if (visibleIndex < 0) return
-        val swapTool = visibleTools.getOrNull(visibleIndex + offset) ?: return
-
-        val currentOrder = toolOrder.toMutableList()
-        val currentIndex = currentOrder.indexOf(tool)
-        val swapIndex = currentOrder.indexOf(swapTool)
-        if (currentIndex < 0 || swapIndex < 0) return
-
-        currentOrder[currentIndex] = swapTool
-        currentOrder[swapIndex] = tool
-        toolOrder = currentOrder
     }
 
     private fun firstTrueFalseAfter(key: String): Boolean {

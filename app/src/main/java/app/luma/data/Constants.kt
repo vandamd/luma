@@ -37,6 +37,7 @@ object Constants {
     ) {
         Disabled(R.string.action_disabled),
         OpenApp(R.string.action_open_app),
+        NetworkShortcutLight(R.string.action_network_shortcut_light),
         ShowAppList(R.string.action_show_app_list),
         ShowNotificationList(R.string.action_show_notification_list),
         ShowRecents(R.string.action_show_recents),

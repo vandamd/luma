@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 
 private const val TAG = "HomeFragment"
+private const val NETWORK_SHORTCUT_LIGHT_ROUTE = "networksettings"
 
 class HomeFragment :
     Fragment(),
@@ -833,7 +834,7 @@ class HomeFragment :
         flag: AppDrawerFlag,
         n: Int = 0,
     ) {
-        viewModel.getAppList()
+        viewModel.getAppList(includeHidden = flag == AppDrawerFlag.SetHomeApp)
         findNavController().navigate(
             R.id.appListFragment,
             bundleOf("flag" to flag.toString(), "n" to n),
@@ -850,6 +851,10 @@ class HomeFragment :
     @SuppressLint("NewApi")
     private fun handleOtherAction(action: Action) {
         when (action) {
+            Action.NetworkShortcutLight -> {
+                launchLightOsRoute(requireActivity(), NETWORK_SHORTCUT_LIGHT_ROUTE)
+            }
+
             Action.ShowNotification -> {
                 expandNotificationDrawer(requireContext())
             }

@@ -1,6 +1,7 @@
 package app.luma.ui.compose
 
 import android.content.Context
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,8 +62,8 @@ object SettingsComposable {
         title: String,
         onBack: () -> Unit = {},
         onAction: (() -> Unit)? = null,
+        trailingContent: (@Composable () -> Unit)? = null,
     ) {
-        val context = LocalContext.current
         Row(
             modifier =
                 Modifier
@@ -70,57 +71,57 @@ object SettingsComposable {
                     .background(SettingsTheme.backgroundColor, SettingsTheme.shape)
                     .padding(horizontal = 6.dp, vertical = 0.dp),
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.arrow_back_ios_new_24px),
+            HeaderIconButton(
+                iconRes = R.drawable.arrow_back_ios_new_24px,
                 contentDescription = stringResource(R.string.content_desc_back),
-                modifier =
-                    Modifier
-                        .size(32.dp)
-                        .padding(top = 9.dp, bottom = 0.dp)
-                        .noRippleClickable {
-                            performHapticFeedback(context)
-                            onBack()
-                        },
-                colorFilter =
-                    androidx.compose.ui.graphics.ColorFilter
-                        .tint(SettingsTheme.typography.title.color),
+                onClick = onBack,
             )
             Spacer(modifier = Modifier.width(16.dp))
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 Text(text = title, style = SettingsTheme.typography.title, modifier = Modifier.padding(top = 9.dp, bottom = 24.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
-            if (onAction != null) {
-                Image(
-                    painter = painterResource(id = R.drawable.check_24px),
-                    contentDescription = stringResource(R.string.content_desc_save),
-                    modifier =
-                        Modifier
-                            .size(32.dp)
-                            .padding(top = 9.dp, bottom = 0.dp)
-                            .noRippleClickable {
-                                performHapticFeedback(context)
-                                onAction()
-                            },
-                    colorFilter =
-                        androidx.compose.ui.graphics.ColorFilter
-                            .tint(SettingsTheme.typography.title.color),
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.arrow_back_ios_new_24px),
-                    contentDescription = null,
-                    modifier =
-                        Modifier
-                            .size(32.dp)
-                            .padding(top = 9.dp, bottom = 0.dp),
-                    alpha = 0f,
-                    colorFilter =
-                        androidx.compose.ui.graphics.ColorFilter
-                            .tint(SettingsTheme.typography.title.color),
-                )
+            Box(
+                modifier = Modifier.width(32.dp),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                when {
+                    trailingContent != null -> trailingContent()
+                    onAction != null ->
+                        HeaderIconButton(
+                            iconRes = R.drawable.check_24px,
+                            contentDescription = stringResource(R.string.content_desc_save),
+                            onClick = onAction,
+                        )
+                    else -> Spacer(modifier = Modifier.size(32.dp))
+                }
             }
         }
+    }
+
+    @Composable
+    fun HeaderIconButton(
+        @DrawableRes iconRes: Int,
+        contentDescription: String,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier,
+    ) {
+        val context = LocalContext.current
+        Image(
+            painter = painterResource(id = iconRes),
+            contentDescription = contentDescription,
+            modifier =
+                modifier
+                    .size(32.dp)
+                    .padding(top = 9.dp, bottom = 0.dp)
+                    .noRippleClickable {
+                        performHapticFeedback(context)
+                        onClick()
+                    },
+            colorFilter =
+                androidx.compose.ui.graphics.ColorFilter
+                    .tint(SettingsTheme.typography.title.color),
+        )
     }
 
     @Composable

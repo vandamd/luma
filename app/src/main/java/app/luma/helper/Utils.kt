@@ -37,6 +37,8 @@ import kotlinx.coroutines.withContext
 import java.text.Collator
 
 private const val TAG = "Utils"
+private const val LIGHT_OS_PACKAGE = "com.lightos"
+private const val LIGHT_OS_MAIN_ACTIVITY = "com.lightos.MainActivity"
 
 fun performHapticFeedback(context: Context) {
     try {
@@ -92,7 +94,37 @@ fun showToast(
         }.show()
 }
 
-suspend fun getAppsList(context: Context): MutableList<AppModel> =
+fun launchLightOsRoute(
+    context: Context,
+    route: String,
+): Boolean {
+    val appContext = context.applicationContext
+    val actionService = ActionService.instance()
+    val intent =
+        Intent(Intent.ACTION_VIEW, Uri.parse("lightos://$route")).apply {
+            component = ComponentName(LIGHT_OS_PACKAGE, LIGHT_OS_MAIN_ACTIVITY)
+            // LightOS is a singleTask launcher activity. Reusing its existing task avoids
+            // a cold React Native boot, which otherwise flashes the default app screen
+            // before the deep link is applied.
+            if (context !is Activity) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+
+    try {
+        actionService?.showToolLaunchMask(Prefs.getInstance(appContext).isDarkTheme())
+        context.startActivity(intent)
+    } catch (_: Exception) {
+        actionService?.cancelToolLaunchMask()
+        showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
+    }
+    return true
+}
+
+suspend fun getAppsList(
+    context: Context,
+    includeHidden: Boolean = false,
+): MutableList<AppModel> =
     withContext(Dispatchers.IO) {
         val appList: MutableList<AppModel> = mutableListOf()
 
@@ -135,7 +167,7 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
             for (entry in prefs.pinnedShortcuts) {
                 val shortcut = ShortcutEntry.parse(entry) ?: continue
 
-                if (hiddenShortcutIds.contains(shortcut.payload)) continue
+                if (!includeHidden && hiddenShortcutIds.contains(shortcut.payload)) continue
 
                 val shortcutModel =
                     AppModel(
@@ -151,17 +183,15 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
                 appList.add(shortcutModel)
             }
 
-            for (tool in prefs.getOrderedTools()) {
-                if (!prefs.isToolEnabled(tool) || prefs.isToolHidden(tool)) continue
+            for (tool in Tool.entries) {
+                if (!prefs.isToolEnabled(tool) || (!includeHidden && prefs.isToolHidden(tool))) continue
                 val alias = prefs.getAppAlias(tool.packageName)
                 appList.add(tool.toAppModel(context, collator, alias))
             }
 
             val pinnedIndex = prefs.pinnedApps.withIndex().associate { it.value to it.index }
             val pinnedModels = mutableListOf<Pair<Int, AppModel>>()
-            val unpinnedToolModels = mutableListOf<Pair<Int, AppModel>>()
             val unpinnedModels = mutableListOf<AppModel>()
-            val toolOrderIndex = prefs.getOrderedTools().withIndex().associate { it.value to it.index }
 
             for (appModel in appList) {
                 val serial = userManager.getSerialNumberForUser(appModel.user)
@@ -169,23 +199,18 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
                 val index = pinnedIndex[entry]
                 if (index != null) {
                     pinnedModels.add(index to appModel)
-                } else if (appModel.entryType == AppEntryType.Tool) {
-                    val tool = Tool.fromPackageName(appModel.appPackage) ?: continue
-                    unpinnedToolModels.add((toolOrderIndex[tool] ?: Int.MAX_VALUE) to appModel)
                 } else {
                     unpinnedModels.add(appModel)
                 }
             }
 
             pinnedModels.sortBy { it.first }
-            unpinnedToolModels.sortBy { it.first }
             unpinnedModels.sortBy {
                 it.displayName.lowercase()
             }
 
             appList.clear()
             appList.addAll(pinnedModels.map { it.second })
-            appList.addAll(unpinnedToolModels.map { it.second })
             appList.addAll(unpinnedModels)
 
             val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()

@@ -149,8 +149,6 @@ class AppActionsFragment : Fragment() {
         val pinnedApps = prefs.pinnedApps
         val pinnedIndex = pinnedApps.indexOf(pinnedEntry)
         val isPinned = pinnedIndex >= 0
-        val visibleTools = prefs.getVisibleUnpinnedTools()
-        val toolIndex = tool?.let { visibleTools.indexOf(it) } ?: -1
 
         Column {
             SettingsHeader(
@@ -171,24 +169,22 @@ class AppActionsFragment : Fragment() {
                         )
                     }
                     if (!isAppHidden) {
-                        SimpleTextButton(
-                            stringResource(
+                        if (!isHomeApp) {
+                            SimpleTextButton(
+                                stringResource(
+                                    if (isPinned) {
+                                        R.string.app_actions_unpin
+                                    } else {
+                                        R.string.app_actions_pin
+                                    },
+                                ),
+                            ) {
                                 if (isPinned) {
-                                    R.string.app_actions_unpin
+                                    prefs.unpin(pinnedEntry)
                                 } else {
-                                    R.string.app_actions_pin
-                                },
-                            ),
-                        ) {
-                            if (isPinned) {
-                                prefs.unpin(pinnedEntry)
-                            } else {
-                                prefs.pin(pinnedEntry)
-                            }
-                            ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
-                            if (isHomeApp) {
-                                findNavController().popBackStack(R.id.mainFragment, false)
-                            } else {
+                                    prefs.pin(pinnedEntry)
+                                }
+                                ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
                                 findNavController().popBackStack(R.id.appListFragment, false)
                             }
                         }
@@ -203,22 +199,6 @@ class AppActionsFragment : Fragment() {
                             if (pinnedIndex >= 0 && pinnedIndex < pinnedApps.lastIndex) {
                                 SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
                                     prefs.movePinnedDown(pinnedEntry)
-                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
-                                    findNavController().popBackStack(R.id.appListFragment, false)
-                                }
-                            }
-                        }
-                        if (isTool && !isPinned && !isHomeApp) {
-                            if (toolIndex > 0) {
-                                SimpleTextButton(stringResource(R.string.app_actions_move_up)) {
-                                    tool?.let { prefs.moveToolUp(it) }
-                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
-                                    findNavController().popBackStack(R.id.appListFragment, false)
-                                }
-                            }
-                            if (toolIndex >= 0 && toolIndex < visibleTools.lastIndex) {
-                                SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
-                                    tool?.let { prefs.moveToolDown(it) }
                                     ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
                                     findNavController().popBackStack(R.id.appListFragment, false)
                                 }
@@ -252,6 +232,7 @@ class AppActionsFragment : Fragment() {
                     }
                     if (isHomeApp) {
                         SimpleTextButton(stringResource(R.string.app_actions_replace)) {
+                            ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList(includeHidden = true)
                             findNavController().navigate(
                                 R.id.appListFragment,
                                 bundleOf(

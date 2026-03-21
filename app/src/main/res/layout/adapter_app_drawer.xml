@@ -8,16 +8,59 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <TextView
-            android:id="@+id/appTitle"
-            style="@style/TextLarge"
+        <LinearLayout
+            android:id="@+id/appTitleRow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:drawablePadding="12dp"
-            android:maxLines="1"
+            android:layout_gravity="center"
+            android:layoutDirection="ltr"
+            android:gravity="center_vertical"
             android:paddingHorizontal="24dp"
-            android:paddingVertical="@dimen/app_padding_vertical"
-            android:text="@string/app_placeholder" />
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/appIconGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/appPinIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/pin_24px"
+                    android:visibility="gone" />
+
+                <View
+                    android:id="@+id/appIconSpacer"
+                    android:layout_width="4dp"
+                    android:layout_height="1dp"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/appToolIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/tool_bulb_24px"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/appTitle"
+                style="@style/TextLarge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:paddingVertical="@dimen/app_padding_vertical"
+                android:text="@string/app_placeholder"
+                android:textDirection="locale" />
+
+        </LinearLayout>
 
     </FrameLayout>
 
