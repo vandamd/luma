@@ -163,6 +163,8 @@ class HomeFragment :
             binding.firstRunTips.visibility = View.VISIBLE
         }
 
+        primeStatusBar()
+
         return view
     }
 
@@ -873,45 +875,56 @@ class HomeFragment :
         }
     }
 
+    private fun primeStatusBar() {
+        binding.statusBar.visibility = if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled) View.VISIBLE else View.GONE
+        updateClockDisplay()
+        primeBatteryState()
+        primeConnectivityState()
+    }
+
     private fun startClock() {
         clockJob =
             viewLifecycleOwner.lifecycleScope.launch {
                 while (true) {
-                    if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && prefs.timeEnabled) {
-                        binding.statusClock.visibility = View.VISIBLE
-                        val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
-                        val showSec = prefs.showSeconds
-                        val cal = Calendar.getInstance()
-                        val hour =
-                            if (is24Hour) {
-                                cal.get(Calendar.HOUR_OF_DAY)
-                            } else {
-                                cal.get(Calendar.HOUR).let { if (it == 0) 12 else it }
-                            }
-                        val min = cal.get(Calendar.MINUTE)
-                        val sec = cal.get(Calendar.SECOND)
-                        val hStr =
-                            if (is24Hour || prefs.leadingZero) {
-                                "%02d".format(hour)
-                            } else {
-                                hour.toString()
-                            }
-                        val time =
-                            buildString {
-                                append("$hStr:${"%02d".format(min)}")
-                                if (showSec) append(":${"%02d".format(sec)}")
-                                if (!is24Hour) append(if (cal.get(Calendar.AM_PM) == Calendar.AM) " AM" else " PM")
-                            }
-                        binding.statusClock.text = time
-                        repositionClockDot()
-                    } else {
-                        binding.statusClock.text = clockPlaceholder()
-                        binding.statusClock.visibility = View.INVISIBLE
-                    }
+                    updateClockDisplay()
                     val now = System.currentTimeMillis()
                     delay(1000 - (now % 1000))
                 }
             }
+    }
+
+    private fun updateClockDisplay() {
+        if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled && prefs.timeEnabled) {
+            binding.statusClock.visibility = View.VISIBLE
+            val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
+            val showSec = prefs.showSeconds
+            val cal = Calendar.getInstance()
+            val hour =
+                if (is24Hour) {
+                    cal.get(Calendar.HOUR_OF_DAY)
+                } else {
+                    cal.get(Calendar.HOUR).let { if (it == 0) 12 else it }
+                }
+            val min = cal.get(Calendar.MINUTE)
+            val sec = cal.get(Calendar.SECOND)
+            val hStr =
+                if (is24Hour || prefs.leadingZero) {
+                    "%02d".format(hour)
+                } else {
+                    hour.toString()
+                }
+            val time =
+                buildString {
+                    append("$hStr:${"%02d".format(min)}")
+                    if (showSec) append(":${"%02d".format(sec)}")
+                    if (!is24Hour) append(if (cal.get(Calendar.AM_PM) == Calendar.AM) " AM" else " PM")
+                }
+            binding.statusClock.text = time
+            repositionClockDot()
+        } else {
+            binding.statusClock.text = clockPlaceholder()
+            binding.statusClock.visibility = View.INVISIBLE
+        }
     }
 
     private fun clockPlaceholder(): String {
@@ -938,6 +951,22 @@ class HomeFragment :
         binding.statusClock.post {
             if (_binding == null) return@post
             dot.translationX = if (before) -(dot.width + dp4).toFloat() else (binding.statusClock.width + dp4).toFloat()
+        }
+    }
+
+    private fun primeBatteryState() {
+        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
+            binding.statusBatteryText.visibility = View.GONE
+            binding.statusBattery.visibility = View.GONE
+            updateSectionBaseline(binding.statusBatteryLayout)
+            binding.statusBatteryLayout.visibility =
+                if (hasDotIn(binding.statusBatteryLayout)) View.VISIBLE else View.INVISIBLE
+            return
+        }
+        binding.statusBatteryLayout.visibility = View.VISIBLE
+        val sticky = requireContext().registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        if (sticky != null) {
+            updateBatteryIcon(sticky)
         }
     }
 
@@ -1008,17 +1037,10 @@ class HomeFragment :
     }
 
     private fun startConnectivityMonitors() {
+        primeConnectivityState()
         if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled) {
-            binding.statusConnectivityLayout.visibility =
-                if (hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
             return
         }
-        val anyEnabled = prefs.cellularEnabled || prefs.wifiEnabled || prefs.bluetoothEnabled
-        if (!anyEnabled) {
-            binding.statusNetworkType.text = "LTE"
-        }
-        binding.statusConnectivityLayout.visibility =
-            if (anyEnabled || hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
         if (prefs.cellularEnabled) startCellularMonitor() else hideCellular()
         if (prefs.wifiEnabled) startWifiMonitor() else hideWifi()
         if (prefs.bluetoothEnabled) startBluetoothMonitor() else hideBluetooth()
@@ -1031,8 +1053,50 @@ class HomeFragment :
         stopBluetoothMonitor()
     }
 
+    private fun primeConnectivityState() {
+        if (prefs.statusBarMode != Prefs.StatusBarMode.Enabled) {
+            binding.statusConnectivityLayout.visibility =
+                if (hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
+            return
+        }
+        val anyEnabled = prefs.cellularEnabled || prefs.wifiEnabled || prefs.bluetoothEnabled
+        if (!anyEnabled) {
+            binding.statusNetworkType.text = "LTE"
+        }
+        binding.statusConnectivityLayout.visibility =
+            if (anyEnabled || hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
+        if (prefs.cellularEnabled) {
+            primeCellularState()
+        } else {
+            hideCellular()
+        }
+        if (prefs.wifiEnabled) {
+            updateWifiSnapshot()
+        } else {
+            hideWifi()
+        }
+        if (prefs.bluetoothEnabled) {
+            updateBluetoothState()
+        } else {
+            hideBluetooth()
+        }
+        updateSectionBaseline(binding.statusConnectivityLayout)
+    }
+
+    private fun primeCellularState() {
+        val tm = requireContext().getSystemService(TelephonyManager::class.java)
+        if (tm != null) {
+            updateCellularSnapshot(tm)
+        }
+        applyCachedCellularState(fillMissingOnly = true)
+    }
+
     private fun startCellularMonitor() {
-        val tm = requireContext().getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        val tm = requireContext().getSystemService(TelephonyManager::class.java) ?: run {
+            hideCellular()
+            return
+        }
+        updateCellularSnapshot(tm)
         val callback =
             object :
                 TelephonyCallback(),
@@ -1040,7 +1104,9 @@ class HomeFragment :
                 TelephonyCallback.DataConnectionStateListener {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     if (_binding == null) return
-                    updateSignalIcon(signalStrength.level)
+                    val level = signalStrength.level.coerceIn(0, 4)
+                    prefs.lastCellularSignalLevel = level
+                    updateSignalIcon(level)
                 }
 
                 override fun onDataConnectionStateChanged(
@@ -1048,6 +1114,7 @@ class HomeFragment :
                     networkType: Int,
                 ) {
                     if (_binding == null) return
+                    prefs.lastCellularNetworkType = networkType
                     updateNetworkTypeFromInt(networkType)
                 }
             }
@@ -1056,6 +1123,41 @@ class HomeFragment :
             tm.registerTelephonyCallback(requireContext().mainExecutor, callback)
         } catch (_: SecurityException) {
             telephonyCallback = null
+            hideCellular()
+        }
+    }
+
+    private fun updateCellularSnapshot(tm: TelephonyManager) {
+        try {
+            tm.signalStrength?.let {
+                val level = it.level.coerceIn(0, 4)
+                prefs.lastCellularSignalLevel = level
+                updateSignalIcon(level)
+            }
+        } catch (_: SecurityException) {
+        }
+        try {
+            val networkType = tm.dataNetworkType
+            prefs.lastCellularNetworkType = networkType
+            updateNetworkTypeFromInt(networkType)
+        } catch (_: SecurityException) {
+        }
+    }
+
+    private fun applyCachedCellularState(fillMissingOnly: Boolean = false) {
+        val cachedSignalLevel = prefs.lastCellularSignalLevel
+        val cachedNetworkType = prefs.lastCellularNetworkType
+        if ((!fillMissingOnly || binding.statusSignal.visibility != View.VISIBLE) && cachedSignalLevel != null) {
+            updateSignalIcon(cachedSignalLevel)
+        } else if (!fillMissingOnly) {
+            binding.statusSignal.visibility = View.GONE
+        }
+        if ((!fillMissingOnly || binding.statusNetworkType.visibility != View.VISIBLE) && cachedNetworkType != null) {
+            updateNetworkTypeFromInt(cachedNetworkType)
+        } else if (!fillMissingOnly) {
+            binding.statusNetworkType.visibility = View.GONE
+        }
+        if (binding.statusSignal.visibility != View.VISIBLE && binding.statusNetworkType.visibility != View.VISIBLE) {
             hideCellular()
         }
     }
@@ -1118,6 +1220,17 @@ class HomeFragment :
         binding.statusNetworkType.visibility = View.GONE
     }
 
+    private fun updateWifiSnapshot() {
+        val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val wm = requireContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
+        if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+            updateWifiIcon(wm.calculateSignalLevel(activeCaps.signalStrength))
+        } else {
+            hideWifi()
+        }
+    }
+
     private fun startWifiMonitor() {
         val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val wm = requireContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -1144,12 +1257,7 @@ class HomeFragment :
             }
         wifiNetworkCallback = callback
         cm.registerNetworkCallback(request, callback)
-        val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
-        if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-            updateWifiIcon(wm.calculateSignalLevel(activeCaps.signalStrength))
-        } else {
-            hideWifi()
-        }
+        updateWifiSnapshot()
     }
 
     private fun stopWifiMonitor() {
@@ -1174,9 +1282,13 @@ class HomeFragment :
         binding.statusWifi.visibility = View.GONE
     }
 
-    private fun startBluetoothMonitor() {
+    private fun updateBluetoothState() {
         val btOn = Settings.Global.getInt(requireContext().contentResolver, Settings.Global.BLUETOOTH_ON, 0) != 0
         if (btOn) showBluetooth() else hideBluetooth()
+    }
+
+    private fun startBluetoothMonitor() {
+        updateBluetoothState()
         val receiver =
             object : BroadcastReceiver() {
                 override fun onReceive(
