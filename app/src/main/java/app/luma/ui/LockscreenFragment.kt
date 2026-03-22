@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Constants
+import app.luma.data.GestureScope
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
 import app.luma.helper.formatLockscreenDateText
@@ -21,6 +22,7 @@ import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
+import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 import app.luma.ui.compose.SettingsComposable.ToggleSelectorButton
 import app.luma.ui.compose.SettingsItemSpacing
 
@@ -73,6 +75,12 @@ class LockscreenFragment : Fragment() {
                         initialValue = prefs.lockscreenGateEnabled,
                         onValueChange = { prefs.lockscreenGateEnabled = it },
                     )
+                    SimpleTextButton(stringResource(R.string.settings_gestures)) {
+                        findNavController().navigate(
+                            R.id.action_lockscreenFragment_to_gesturesFragment,
+                            bundleOf(GestureActionFragment.GESTURE_SCOPE to GestureScope.Lockscreen.name),
+                        )
+                    }
                     ToggleSelectorButton(
                         label = stringResource(R.string.notifications_indicator),
                         value =

@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.OnBackPressedCallback
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
@@ -24,6 +25,7 @@ import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.Prefs
 import app.luma.data.Tool
 import app.luma.databinding.FragmentAppDrawerBinding
+import app.luma.helper.ActionService
 import app.luma.helper.LumaNotificationListener
 import app.luma.helper.performGestureActionHapticFeedback
 import app.luma.style.SettingsTheme
@@ -41,6 +43,7 @@ class AppDrawerFragment : Fragment() {
     private var allApps: List<AppModel> = emptyList()
     private var n: Int = 0
     private var showHiddenApps: Boolean = false
+    private var restoreUnlockGateOnBack = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,6 +56,7 @@ class AppDrawerFragment : Fragment() {
         flag = AppDrawerFlag.valueOf(flagString)
         n = arguments?.getInt("n", 0) ?: 0
         showHiddenApps = Prefs.getInstance(requireContext()).showHiddenAppsInHomePicker
+        restoreUnlockGateOnBack = arguments?.getBoolean(RESTORE_UNLOCK_GATE_ON_BACK, false) == true
 
         binding.headerCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         renderHeader()
@@ -71,6 +75,7 @@ class AppDrawerFragment : Fragment() {
         savedInstanceState: Bundle?,
     ) {
         super.onViewCreated(view, savedInstanceState)
+        registerRestoreUnlockGateOnBackCallback()
 
         val viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
         val prefs = Prefs.getInstance(requireContext())
@@ -110,6 +115,19 @@ class AppDrawerFragment : Fragment() {
                 appAdapter.updateNotifications(packages)
             }
         }
+    }
+
+    private fun registerRestoreUnlockGateOnBackCallback() {
+        if (!restoreUnlockGateOnBack) return
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    findNavController().popBackStack()
+                    ActionService.instance()?.restoreUnlockGate()
+                }
+            },
+        )
     }
 
     private fun initViewModel(
@@ -220,6 +238,11 @@ class AppDrawerFragment : Fragment() {
             AppDrawerFlag.SetSwipeUp,
             AppDrawerFlag.SetSwipeDown,
             AppDrawerFlag.SetDoubleTap,
+            AppDrawerFlag.SetLockscreenSwipeLeft,
+            AppDrawerFlag.SetLockscreenSwipeRight,
+            AppDrawerFlag.SetLockscreenSwipeUp,
+            AppDrawerFlag.SetLockscreenSwipeDown,
+            AppDrawerFlag.SetLockscreenDoubleTap,
             AppDrawerFlag.SetStatusBarCellular,
             AppDrawerFlag.SetStatusBarTime,
             AppDrawerFlag.SetStatusBarBattery,

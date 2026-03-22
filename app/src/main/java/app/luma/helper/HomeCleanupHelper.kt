@@ -5,6 +5,7 @@ import android.os.UserHandle
 import android.os.UserManager
 import app.luma.data.AppModel
 import app.luma.data.Constants
+import app.luma.data.GestureScope
 import app.luma.data.GestureType
 import app.luma.data.HomeLayout
 import app.luma.data.Prefs
@@ -41,11 +42,15 @@ object HomeCleanupHelper {
             }
         }
 
-        for (gestureType in GestureType.entries) {
-            val appModel = prefs.getGestureApp(gestureType)
-            if (shouldClear(appModel, packageName, userHandle)) {
-                prefs.setGestureApp(gestureType, emptyAppModel())
-                needsHomeRefresh = true
+        for (gestureScope in GestureScope.entries) {
+            for (gestureType in GestureType.entries) {
+                val appModel = prefs.getGestureApp(gestureType, gestureScope)
+                if (shouldClear(appModel, packageName, userHandle)) {
+                    prefs.setGestureApp(gestureType, emptyAppModel(), gestureScope)
+                    if (gestureScope == GestureScope.Homescreen) {
+                        needsHomeRefresh = true
+                    }
+                }
             }
         }
 

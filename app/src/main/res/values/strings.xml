@@ -27,7 +27,7 @@
     <string name="settings_miscellaneous">General</string>
     <string name="settings_keymaps">Keymaps</string>
     <string name="settings_hidden_apps">Hidden Apps</string>
-    <string name="settings_scrollwheel_brightness">Scrollwheel brightness</string>
+    <string name="settings_scrollwheel_brightness">Scrollwheel Brightness</string>
     <string name="keymaps_camera_shortcut">Camera Shortcut</string>
     <string name="keymaps_scrollwheel_button">Scrollwheel Press</string>
     <string name="keymaps_action">Action</string>

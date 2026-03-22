@@ -4,29 +4,33 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Constants
+import app.luma.data.GestureScope
 import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.ui.compose.SettingsComposable.ContentContainer
-import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 
 class GesturesFragment : Fragment() {
     private lateinit var prefs: Prefs
+    private var gestureScope = GestureScope.Homescreen
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs.getInstance(requireContext())
+        gestureScope =
+            arguments
+                ?.getString(GestureActionFragment.GESTURE_SCOPE)
+                ?.let { runCatching { GestureScope.valueOf(it) }.getOrNull() }
+                ?: GestureScope.Homescreen
     }
 
     override fun onCreateView(
@@ -58,11 +62,11 @@ class GesturesFragment : Fragment() {
         label: String,
         type: GestureType,
     ) {
-        val action = prefs.getGestureAction(type)
+        val action = prefs.getGestureAction(type, gestureScope)
         val value =
             when (action) {
                 Constants.Action.OpenApp -> {
-                    val appLabel = prefs.getGestureApp(type).displayName
+                    val appLabel = prefs.getGestureApp(type, gestureScope).displayName
                     if (appLabel.isNotEmpty()) {
                         stringResource(R.string.action_open_app_name, appLabel)
                     } else {
@@ -84,7 +88,10 @@ class GesturesFragment : Fragment() {
             onClick = {
                 findNavController().navigate(
                     R.id.gestureActionFragment,
-                    bundleOf(GestureActionFragment.GESTURE_TYPE to type.name),
+                    bundleOf(
+                        GestureActionFragment.GESTURE_TYPE to type.name,
+                        GestureActionFragment.GESTURE_SCOPE to gestureScope.name,
+                    ),
                 )
             },
         )

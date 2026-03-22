@@ -68,6 +68,11 @@ enum class GestureType(
     DOUBLE_TAP("DOUBLE_TAP_ACTION", "DOUBLE_TAP", Constants.Action.Disabled),
 }
 
+enum class GestureScope {
+    Homescreen,
+    Lockscreen,
+}
+
 enum class StatusBarSectionType(
     val actionKey: String,
     val appKey: String,
@@ -412,22 +417,30 @@ class Prefs(
         hiddenShortcutIds = hiddenShortcutIds - id
     }
 
-    fun getGestureApp(type: GestureType): AppModel = loadApp(type.appKey)
+    fun getGestureApp(
+        type: GestureType,
+        scope: GestureScope = GestureScope.Homescreen,
+    ): AppModel = loadApp(gestureAppKey(type, scope))
 
     fun setGestureApp(
         type: GestureType,
         appModel: AppModel,
+        scope: GestureScope = GestureScope.Homescreen,
     ) {
-        storeApp(type.appKey, appModel)
+        storeApp(gestureAppKey(type, scope), appModel)
     }
 
-    fun getGestureAction(type: GestureType): Constants.Action = loadAction(type.actionKey, type.defaultAction)
+    fun getGestureAction(
+        type: GestureType,
+        scope: GestureScope = GestureScope.Homescreen,
+    ): Constants.Action = loadAction(gestureActionKey(type, scope), defaultGestureAction(type, scope))
 
     fun setGestureAction(
         type: GestureType,
         action: Constants.Action,
+        scope: GestureScope = GestureScope.Homescreen,
     ) {
-        storeAction(type.actionKey, action)
+        storeAction(gestureActionKey(type, scope), action)
     }
 
     fun getCameraKeyAction(): Constants.Action {
@@ -589,6 +602,38 @@ class Prefs(
     fun setLockscreenShortcutApp(appModel: AppModel) {
         storeApp(LOCKSCREEN_SHORTCUT_APP, appModel)
     }
+
+    private fun gestureActionKey(
+        type: GestureType,
+        scope: GestureScope,
+    ): String =
+        when (scope) {
+            GestureScope.Homescreen -> type.actionKey
+            GestureScope.Lockscreen -> "LOCKSCREEN_${type.actionKey}"
+        }
+
+    private fun gestureAppKey(
+        type: GestureType,
+        scope: GestureScope,
+    ): String =
+        when (scope) {
+            GestureScope.Homescreen -> type.appKey
+            GestureScope.Lockscreen -> "LOCKSCREEN_${type.appKey}"
+        }
+
+    private fun defaultGestureAction(
+        type: GestureType,
+        scope: GestureScope,
+    ): Constants.Action =
+        when (scope) {
+            GestureScope.Homescreen -> type.defaultAction
+            GestureScope.Lockscreen ->
+                if (type == GestureType.SWIPE_DOWN) {
+                    Constants.Action.ShowNotificationList
+                } else {
+                    Constants.Action.Disabled
+                }
+        }
 
     private fun loadApp(id: String): AppModel {
         val name = prefs.getString("${APP_NAME}_$id", "") ?: ""

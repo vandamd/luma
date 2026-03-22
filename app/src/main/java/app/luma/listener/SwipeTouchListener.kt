@@ -20,6 +20,8 @@ private const val TAG = "SwipeTouchListener"
 internal open class SwipeTouchListener(
     context: Context?,
     private val view: View? = null,
+    private val confirmSingleTap: Boolean = false,
+    private val consumeTouchEvents: Boolean = false,
 ) : OnTouchListener {
     private val gestureDetector: GestureDetector
 
@@ -35,7 +37,7 @@ internal open class SwipeTouchListener(
             }
         }
 
-        return gestureDetector.onTouchEvent(motionEvent)
+        return gestureDetector.onTouchEvent(motionEvent) || consumeTouchEvents
     }
 
     private inner class GestureListener : SimpleOnGestureListener() {
@@ -45,10 +47,17 @@ internal open class SwipeTouchListener(
         override fun onDown(e: MotionEvent): Boolean = true
 
         override fun onSingleTapUp(e: MotionEvent): Boolean {
-            if (view != null) {
+            if (!confirmSingleTap && view != null) {
                 onClick(view)
             }
             return super.onSingleTapUp(e)
+        }
+
+        override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+            if (confirmSingleTap && view != null) {
+                onClick(view)
+            }
+            return super.onSingleTapConfirmed(e)
         }
 
         override fun onDoubleTap(e: MotionEvent): Boolean {

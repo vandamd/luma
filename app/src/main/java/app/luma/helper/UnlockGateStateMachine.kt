@@ -101,6 +101,10 @@ internal sealed interface UnlockGateEvent {
         val gateEnabled: Boolean,
         val deviceLocked: Boolean,
     ) : UnlockGateEvent
+
+    data class RestoreRequested(
+        val nowUptimeMs: Long,
+    ) : UnlockGateEvent
 }
 
 internal class UnlockGateStateMachine(
@@ -293,6 +297,18 @@ internal class UnlockGateStateMachine(
                     )
                 }
             }
+
+            is UnlockGateEvent.RestoreRequested ->
+                if (currentState.phase != UnlockGatePhase.Idle) {
+                    Reduction(currentState)
+                } else {
+                    Reduction(
+                        currentState.enterVisible(
+                            phase = UnlockGatePhase.UnlockGateVisible,
+                            nowUptimeMs = event.nowUptimeMs,
+                        ),
+                    )
+                }
         }
 
     private fun scheduleDismiss(

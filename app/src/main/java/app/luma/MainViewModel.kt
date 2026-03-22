@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import app.luma.data.AppModel
 import app.luma.data.Constants
 import app.luma.data.Constants.AppDrawerFlag
+import app.luma.data.GestureScope
 import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
@@ -62,35 +63,25 @@ class MainViewModel(
                 true
             }
 
-            AppDrawerFlag.SetSwipeLeft -> {
-                prefs.setGestureAction(GestureType.SWIPE_LEFT, Constants.Action.OpenApp)
-                prefs.setGestureApp(GestureType.SWIPE_LEFT, appModel)
-                true
-            }
+            AppDrawerFlag.SetSwipeLeft -> setGestureApp(GestureType.SWIPE_LEFT, appModel, GestureScope.Homescreen)
 
-            AppDrawerFlag.SetSwipeRight -> {
-                prefs.setGestureAction(GestureType.SWIPE_RIGHT, Constants.Action.OpenApp)
-                prefs.setGestureApp(GestureType.SWIPE_RIGHT, appModel)
-                true
-            }
+            AppDrawerFlag.SetSwipeRight -> setGestureApp(GestureType.SWIPE_RIGHT, appModel, GestureScope.Homescreen)
 
-            AppDrawerFlag.SetSwipeUp -> {
-                prefs.setGestureAction(GestureType.SWIPE_UP, Constants.Action.OpenApp)
-                prefs.setGestureApp(GestureType.SWIPE_UP, appModel)
-                true
-            }
+            AppDrawerFlag.SetSwipeUp -> setGestureApp(GestureType.SWIPE_UP, appModel, GestureScope.Homescreen)
 
-            AppDrawerFlag.SetSwipeDown -> {
-                prefs.setGestureAction(GestureType.SWIPE_DOWN, Constants.Action.OpenApp)
-                prefs.setGestureApp(GestureType.SWIPE_DOWN, appModel)
-                true
-            }
+            AppDrawerFlag.SetSwipeDown -> setGestureApp(GestureType.SWIPE_DOWN, appModel, GestureScope.Homescreen)
 
-            AppDrawerFlag.SetDoubleTap -> {
-                prefs.setGestureAction(GestureType.DOUBLE_TAP, Constants.Action.OpenApp)
-                prefs.setGestureApp(GestureType.DOUBLE_TAP, appModel)
-                true
-            }
+            AppDrawerFlag.SetDoubleTap -> setGestureApp(GestureType.DOUBLE_TAP, appModel, GestureScope.Homescreen)
+
+            AppDrawerFlag.SetLockscreenSwipeLeft -> setGestureApp(GestureType.SWIPE_LEFT, appModel, GestureScope.Lockscreen)
+
+            AppDrawerFlag.SetLockscreenSwipeRight -> setGestureApp(GestureType.SWIPE_RIGHT, appModel, GestureScope.Lockscreen)
+
+            AppDrawerFlag.SetLockscreenSwipeUp -> setGestureApp(GestureType.SWIPE_UP, appModel, GestureScope.Lockscreen)
+
+            AppDrawerFlag.SetLockscreenSwipeDown -> setGestureApp(GestureType.SWIPE_DOWN, appModel, GestureScope.Lockscreen)
+
+            AppDrawerFlag.SetLockscreenDoubleTap -> setGestureApp(GestureType.DOUBLE_TAP, appModel, GestureScope.Lockscreen)
 
             AppDrawerFlag.SetStatusBarCellular -> {
                 prefs.setSectionAction(StatusBarSectionType.CELLULAR, Constants.Action.OpenApp)
@@ -127,6 +118,16 @@ class MainViewModel(
         appModel: AppModel,
         launchContext: Context? = null,
     ): Boolean = launchAppModel(launchContext ?: appContext, appModel)
+
+    private fun setGestureApp(
+        gestureType: GestureType,
+        appModel: AppModel,
+        scope: GestureScope,
+    ): Boolean {
+        prefs.setGestureAction(gestureType, Constants.Action.OpenApp, scope)
+        prefs.setGestureApp(gestureType, appModel, scope)
+        return true
+    }
 
     fun getAppList(includeHidden: Boolean = false) {
         viewModelScope.launch {

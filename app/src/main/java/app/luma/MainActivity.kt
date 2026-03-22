@@ -25,6 +25,8 @@ import app.luma.data.Constants
 import app.luma.data.Constants.Action
 import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.Prefs
+import app.luma.data.GestureScope
+import app.luma.data.GestureType
 import app.luma.data.StatusBarSectionType
 import app.luma.databinding.ActivityMainBinding
 import app.luma.helper.ActionExecutionCallbacks
@@ -36,6 +38,7 @@ import app.luma.helper.showStatusBar
 import app.luma.helper.showToast
 import app.luma.style.DisplayDefaults.withDisplayDefaults
 import app.luma.ui.HomeFragment
+import app.luma.ui.RESTORE_UNLOCK_GATE_ON_BACK
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -101,6 +104,7 @@ class MainActivity : AppCompatActivity() {
         notifyUnlockGateLauncherIntent(intent)
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
+        handleLockscreenGestureIntent(intent)
         handleStatusBarSectionIntent(intent)
         sanitizeActivityIntent(intent)
     }
@@ -152,6 +156,7 @@ class MainActivity : AppCompatActivity() {
         notifyUnlockGateLauncherIntent(intent)
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
+        handleLockscreenGestureIntent(intent)
         handleStatusBarSectionIntent(intent)
         sanitizeActivityIntent(intent)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
@@ -238,6 +243,7 @@ class MainActivity : AppCompatActivity() {
             !intent.getBooleanExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, false) &&
             !intent.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, false) &&
             !intent.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP, false) &&
+            intent.getStringExtra(EXTRA_RUN_LOCKSCREEN_GESTURE) == null &&
             intent.getStringExtra(EXTRA_RUN_STATUS_BAR_SECTION) == null
         ) {
             return
@@ -248,6 +254,7 @@ class MainActivity : AppCompatActivity() {
                 removeExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH)
                 removeExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT)
                 removeExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP)
+                removeExtra(EXTRA_RUN_LOCKSCREEN_GESTURE)
                 removeExtra(EXTRA_RUN_STATUS_BAR_SECTION)
             },
         )
@@ -342,6 +349,32 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun handleLockscreenGestureIntent(intent: Intent?) {
+        val gestureName = intent?.getStringExtra(EXTRA_RUN_LOCKSCREEN_GESTURE) ?: return
+        intent.removeExtra(EXTRA_RUN_LOCKSCREEN_GESTURE)
+
+        val gestureType = runCatching { GestureType.valueOf(gestureName) }.getOrNull() ?: return
+        val action = prefs.getGestureAction(gestureType, GestureScope.Lockscreen)
+        if (action == Action.Disabled) return
+
+        if (action == Action.OpenApp) {
+            val appModel = prefs.getGestureApp(gestureType, GestureScope.Lockscreen)
+            if (appModel.appPackage.isEmpty()) return
+            viewModel.selectedApp(
+                appModel,
+                AppDrawerFlag.LaunchApp,
+                launchContext = this,
+            )
+            return
+        }
+
+        executeSecondaryAction(
+            context = this,
+            action = action,
+            callbacks = lockscreenNavigationCallbacks(),
+        )
+    }
+
     private fun handleStatusBarSectionIntent(intent: Intent?) {
         val sectionName = intent?.getStringExtra(EXTRA_RUN_STATUS_BAR_SECTION) ?: return
         intent.removeExtra(EXTRA_RUN_STATUS_BAR_SECTION)
@@ -364,11 +397,7 @@ class MainActivity : AppCompatActivity() {
         executeSecondaryAction(
             context = this,
             action = action,
-            callbacks =
-                ActionExecutionCallbacks(
-                    showAppList = ::showAppList,
-                    showNotificationList = ::showNotificationList,
-                ),
+            callbacks = lockscreenNavigationCallbacks(),
         )
     }
 
@@ -393,28 +422,36 @@ class MainActivity : AppCompatActivity() {
         executeSecondaryAction(
             context = this,
             action = action,
-            callbacks =
-                ActionExecutionCallbacks(
-                    showAppList = ::showAppList,
-                    showNotificationList = ::showNotificationList,
-                ),
+            callbacks = lockscreenNavigationCallbacks(),
         )
     }
 
-    private fun showAppList() {
+    private fun lockscreenNavigationCallbacks(): ActionExecutionCallbacks =
+        ActionExecutionCallbacks(
+            showAppList = { showAppList(restoreUnlockGateOnBack = true) },
+            showNotificationList = { showNotificationList(restoreUnlockGateOnBack = true) },
+        )
+
+    private fun showAppList(restoreUnlockGateOnBack: Boolean = false) {
         viewModel.getAppList()
         try {
             navController.navigate(
                 R.id.appListFragment,
-                bundleOf("flag" to AppDrawerFlag.LaunchApp.toString()),
+                bundleOf(
+                    "flag" to AppDrawerFlag.LaunchApp.toString(),
+                    RESTORE_UNLOCK_GATE_ON_BACK to restoreUnlockGateOnBack,
+                ),
             )
         } catch (_: Exception) {
         }
     }
 
-    private fun showNotificationList() {
+    private fun showNotificationList(restoreUnlockGateOnBack: Boolean = false) {
         try {
-            navController.navigate(R.id.action_mainFragment_to_notificationListFragment)
+            navController.navigate(
+                R.id.action_mainFragment_to_notificationListFragment,
+                bundleOf(RESTORE_UNLOCK_GATE_ON_BACK to restoreUnlockGateOnBack),
+            )
         } catch (_: Exception) {
         }
     }
@@ -423,6 +460,7 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_UNLOCK_GATE_HOME_LAUNCH = "app.luma.extra.UNLOCK_GATE_HOME_LAUNCH"
         const val EXTRA_RUN_LOCKSCREEN_SHORTCUT = "app.luma.extra.RUN_LOCKSCREEN_SHORTCUT"
         const val EXTRA_RUN_LOCKSCREEN_DATE_TAP = "app.luma.extra.RUN_LOCKSCREEN_DATE_TAP"
+        const val EXTRA_RUN_LOCKSCREEN_GESTURE = "app.luma.extra.RUN_LOCKSCREEN_GESTURE"
         const val EXTRA_RUN_STATUS_BAR_SECTION = "app.luma.extra.RUN_STATUS_BAR_SECTION"
         private const val PENDING_UNLOCK_GATE_HOME_LAUNCH_TIMEOUT_MS = 3000L
         @Volatile
@@ -476,6 +514,14 @@ class MainActivity : AppCompatActivity() {
         fun createLockscreenDateTapIntent(context: Context): Intent =
             createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {
                 putExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP, true)
+            }
+
+        fun createLockscreenGestureIntent(
+            context: Context,
+            gestureType: GestureType,
+        ): Intent =
+            createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {
+                putExtra(EXTRA_RUN_LOCKSCREEN_GESTURE, gestureType.name)
             }
 
         fun createStatusBarSectionIntent(

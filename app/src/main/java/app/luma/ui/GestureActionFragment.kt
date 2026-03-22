@@ -17,6 +17,7 @@ import app.luma.R
 import app.luma.data.Constants
 import app.luma.data.Constants.Action
 import app.luma.data.Constants.AppDrawerFlag
+import app.luma.data.GestureScope
 import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
@@ -27,19 +28,20 @@ import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 class GestureActionFragment : Fragment() {
     companion object {
         const val GESTURE_TYPE = "gesture_type"
+        const val GESTURE_SCOPE = "gesture_scope"
         const val SECTION_TYPE = "section_type"
         const val LOCKSCREEN_SHORTCUT = "lockscreen_shortcut"
         const val LOCKSCREEN_DATE_TAP = "lockscreen_date_tap"
         const val CAMERA_KEY = "camera_key"
         const val SCROLLWHEEL_BUTTON = "scrollwheel_button"
 
-        private val gestureDisplayInfo =
+        private val gestureTitleRes =
             mapOf(
-                GestureType.SWIPE_LEFT to ActionDisplayInfo(R.string.gesture_swipe_left, AppDrawerFlag.SetSwipeLeft),
-                GestureType.SWIPE_RIGHT to ActionDisplayInfo(R.string.gesture_swipe_right, AppDrawerFlag.SetSwipeRight),
-                GestureType.SWIPE_UP to ActionDisplayInfo(R.string.gesture_swipe_up, AppDrawerFlag.SetSwipeUp),
-                GestureType.SWIPE_DOWN to ActionDisplayInfo(R.string.gesture_swipe_down, AppDrawerFlag.SetSwipeDown),
-                GestureType.DOUBLE_TAP to ActionDisplayInfo(R.string.gesture_double_tap, AppDrawerFlag.SetDoubleTap),
+                GestureType.SWIPE_LEFT to R.string.gesture_swipe_left,
+                GestureType.SWIPE_RIGHT to R.string.gesture_swipe_right,
+                GestureType.SWIPE_UP to R.string.gesture_swipe_up,
+                GestureType.SWIPE_DOWN to R.string.gesture_swipe_down,
+                GestureType.DOUBLE_TAP to R.string.gesture_double_tap,
             )
 
         private val sectionDisplayInfo =
@@ -56,6 +58,7 @@ class GestureActionFragment : Fragment() {
     )
 
     private lateinit var prefs: Prefs
+    private var gestureScope = GestureScope.Homescreen
     private var gestureType: GestureType? = null
     private var sectionType: StatusBarSectionType? = null
     private var lockscreenShortcut = false
@@ -66,6 +69,11 @@ class GestureActionFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs.getInstance(requireContext())
+        gestureScope =
+            arguments
+                ?.getString(GESTURE_SCOPE)
+                ?.let { runCatching { GestureScope.valueOf(it) }.getOrNull() }
+                ?: GestureScope.Homescreen
         arguments?.getString(GESTURE_TYPE)?.takeIf { it.isNotEmpty() }?.let {
             gestureType = runCatching { GestureType.valueOf(it) }.getOrNull()
         }
@@ -85,7 +93,7 @@ class GestureActionFragment : Fragment() {
     ): View = composeView(onSwipeBack = ::goBack) { Screen() }
 
     private fun getDisplayInfo(): ActionDisplayInfo =
-        gestureType?.let { gestureDisplayInfo[it] }
+        gestureType?.let { gestureDisplayInfo(it) }
             ?: sectionType?.let { sectionDisplayInfo[it] }
             ?: if (lockscreenShortcut) {
                 ActionDisplayInfo(R.string.lockscreen_shortcut, AppDrawerFlag.SetLockscreenShortcut)
@@ -99,6 +107,31 @@ class GestureActionFragment : Fragment() {
                 null
             }
             ?: error("No gesture or section type provided")
+
+    private fun gestureDisplayInfo(type: GestureType): ActionDisplayInfo =
+        ActionDisplayInfo(
+            titleRes = gestureTitleRes.getValue(type),
+            appDrawerFlag =
+                when (gestureScope) {
+                    GestureScope.Homescreen ->
+                        when (type) {
+                            GestureType.SWIPE_LEFT -> AppDrawerFlag.SetSwipeLeft
+                            GestureType.SWIPE_RIGHT -> AppDrawerFlag.SetSwipeRight
+                            GestureType.SWIPE_UP -> AppDrawerFlag.SetSwipeUp
+                            GestureType.SWIPE_DOWN -> AppDrawerFlag.SetSwipeDown
+                            GestureType.DOUBLE_TAP -> AppDrawerFlag.SetDoubleTap
+                        }
+
+                    GestureScope.Lockscreen ->
+                        when (type) {
+                            GestureType.SWIPE_LEFT -> AppDrawerFlag.SetLockscreenSwipeLeft
+                            GestureType.SWIPE_RIGHT -> AppDrawerFlag.SetLockscreenSwipeRight
+                            GestureType.SWIPE_UP -> AppDrawerFlag.SetLockscreenSwipeUp
+                            GestureType.SWIPE_DOWN -> AppDrawerFlag.SetLockscreenSwipeDown
+                            GestureType.DOUBLE_TAP -> AppDrawerFlag.SetLockscreenDoubleTap
+                        }
+                },
+        )
 
     @Composable
     fun Screen() {
@@ -142,7 +175,7 @@ class GestureActionFragment : Fragment() {
     }
 
     private fun getCurrentAction(): Action =
-        gestureType?.let { prefs.getGestureAction(it) }
+        gestureType?.let { prefs.getGestureAction(it, gestureScope) }
             ?: sectionType?.let { prefs.getSectionAction(it) }
             ?: if (lockscreenShortcut) {
                 prefs.getLockscreenShortcutAction()
@@ -158,7 +191,7 @@ class GestureActionFragment : Fragment() {
             ?: Action.Disabled
 
     private fun setCurrentAction(action: Action) {
-        gestureType?.let { prefs.setGestureAction(it, action) }
+        gestureType?.let { prefs.setGestureAction(it, action, gestureScope) }
             ?: sectionType?.let { prefs.setSectionAction(it, action) }
             ?: if (lockscreenShortcut) {
                 prefs.setLockscreenShortcutAction(action)
@@ -174,7 +207,7 @@ class GestureActionFragment : Fragment() {
     }
 
     private fun getAppLabel(): String =
-        gestureType?.let { prefs.getGestureApp(it).displayName }
+        gestureType?.let { prefs.getGestureApp(it, gestureScope).displayName }
             ?: sectionType?.let { prefs.getSectionApp(it).displayName }
             ?: if (lockscreenShortcut) {
                 prefs.getLockscreenShortcutApp().displayName

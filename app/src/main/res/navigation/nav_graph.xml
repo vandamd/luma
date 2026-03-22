@@ -78,6 +78,10 @@
         android:id="@+id/gesturesFragment"
         android:name="app.luma.ui.GesturesFragment"
         android:label="GesturesFragment">
+        <argument
+            android:name="gesture_scope"
+            app:argType="string"
+            android:defaultValue="Homescreen" />
     </fragment>
     <fragment
         android:id="@+id/gestureActionFragment"
@@ -87,6 +91,10 @@
             android:name="gesture_type"
             app:argType="string"
             android:defaultValue="" />
+        <argument
+            android:name="gesture_scope"
+            app:argType="string"
+            android:defaultValue="Homescreen" />
         <argument
             android:name="section_type"
             app:argType="string"
@@ -179,6 +187,9 @@
         android:id="@+id/lockscreenFragment"
         android:name="app.luma.ui.LockscreenFragment"
         android:label="LockscreenFragment">
+        <action
+            android:id="@+id/action_lockscreenFragment_to_gesturesFragment"
+            app:destination="@id/gesturesFragment" />
         <action
             android:id="@+id/action_lockscreenFragment_to_gestureActionFragment"
             app:destination="@id/gestureActionFragment" />

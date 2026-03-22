@@ -50,9 +50,12 @@ import app.luma.MainActivity
 import app.luma.R
 import app.luma.data.AppEntryType
 import app.luma.data.Constants.Action
+import app.luma.data.GestureScope
+import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
 import app.luma.data.Tool
+import app.luma.listener.SwipeTouchListener
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -181,6 +184,16 @@ class ActionService : AccessibilityService() {
                 UnlockGateEvent.DismissRequested(
                     nowUptimeMs = SystemClock.uptimeMillis(),
                     minDelayMs = delayMs,
+                ),
+            )
+        }
+    }
+
+    fun restoreUnlockGate() {
+        runOnMainThread {
+            dispatchUnlockGateEventOnMain(
+                UnlockGateEvent.RestoreRequested(
+                    nowUptimeMs = SystemClock.uptimeMillis(),
                 ),
             )
         }
@@ -1059,15 +1072,17 @@ class ActionService : AccessibilityService() {
             isFocusable = true
             setOnClickListener {
                 performAppTapHapticFeedback(this@ActionService)
-                bringLumaToFrontUnderUnlockGate()
-                dispatchUnlockGateEventOnMain(
-                    UnlockGateEvent.DismissRequested(
-                        nowUptimeMs = SystemClock.uptimeMillis(),
-                        minDelayMs = UNLOCK_GATE_HIDE_DELAY_MS,
-                    ),
-                )
+                if (dispatchLockscreenShortcut()) {
+                    dispatchUnlockGateEventOnMain(
+                        UnlockGateEvent.DismissRequested(
+                            nowUptimeMs = SystemClock.uptimeMillis(),
+                            minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                        ),
+                    )
+                }
             }
         }
+        bindUnlockGateGestureListeners(view)
     }
 
     private fun updateUnlockGateSecureMode(
@@ -1325,13 +1340,14 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun dispatchLockscreenShortcut() {
+    private fun dispatchLockscreenShortcut(): Boolean =
         try {
             startActivity(MainActivity.createLockscreenShortcutIntent(this))
+            true
         } catch (exception: Exception) {
             Log.e(TAG, "dispatchLockscreenShortcut: startActivity failed", exception)
+            false
         }
-    }
 
     private fun dispatchLockscreenDateTap(): Boolean {
         if (prefs.getLockscreenDateTapAction() == Action.Disabled) return false
@@ -1342,6 +1358,37 @@ class ActionService : AccessibilityService() {
             Log.e(TAG, "dispatchLockscreenDateTap: startActivity failed", exception)
             false
         }
+    }
+
+    private fun canHandleLockscreenGesture(gestureType: GestureType): Boolean {
+        val action = prefs.getGestureAction(gestureType, GestureScope.Lockscreen)
+        if (action == Action.Disabled) return false
+        if (action == Action.OpenApp && prefs.getGestureApp(gestureType, GestureScope.Lockscreen).appPackage.isEmpty()) return false
+        return true
+    }
+
+    private fun dispatchLockscreenGesture(gestureType: GestureType): Boolean {
+        if (!canHandleLockscreenGesture(gestureType)) return false
+        return try {
+            startActivity(MainActivity.createLockscreenGestureIntent(this, gestureType))
+            true
+        } catch (exception: Exception) {
+            Log.e(TAG, "dispatchLockscreenGesture: startActivity failed", exception)
+            false
+        }
+    }
+
+    private fun handleUnlockGateGesture(gestureType: GestureType) {
+        val phase = unlockGateStateMachine.state.phase
+        if (phase != UnlockGatePhase.UnlockGateVisible && phase != UnlockGatePhase.Dismissing) return
+        if (!dispatchLockscreenGesture(gestureType)) return
+        performGestureActionHapticFeedback(this)
+        dispatchUnlockGateEventOnMain(
+            UnlockGateEvent.DismissRequested(
+                nowUptimeMs = SystemClock.uptimeMillis(),
+                minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+            ),
+        )
     }
 
     private fun canHandleStatusBarSectionTap(section: StatusBarSectionType): Boolean {
@@ -1392,6 +1439,53 @@ class ActionService : AccessibilityService() {
             },
         )
     }
+
+    private fun bindUnlockGateGestureListeners(view: View) {
+        view.setOnTouchListener(createUnlockGateGestureTouchListener())
+        bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateClock))
+        bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateDate), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateHomeButton), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateStatusBar))
+        bindUnlockGateGestureTarget(view.findViewById(R.id.statusConnectivityLayout), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(view.findViewById(R.id.statusClockLayout))
+        bindUnlockGateGestureTarget(view.findViewById(R.id.statusBatteryLayout), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicator))
+        bindUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicatorLabel), preserveSingleTap = true)
+    }
+
+    private fun bindUnlockGateGestureTarget(
+        target: View,
+        preserveSingleTap: Boolean = false,
+    ) {
+        target.setOnTouchListener(createUnlockGateGestureTouchListener(target, preserveSingleTap))
+    }
+
+    private fun createUnlockGateGestureTouchListener(
+        target: View? = null,
+        preserveSingleTap: Boolean = false,
+    ): View.OnTouchListener =
+        object : SwipeTouchListener(
+            context = this,
+            view = target,
+            confirmSingleTap = preserveSingleTap,
+            consumeTouchEvents = true,
+        ) {
+            override fun onSwipeRight() = handleUnlockGateGesture(GestureType.SWIPE_RIGHT)
+
+            override fun onSwipeLeft() = handleUnlockGateGesture(GestureType.SWIPE_LEFT)
+
+            override fun onSwipeUp() = handleUnlockGateGesture(GestureType.SWIPE_UP)
+
+            override fun onSwipeDown() = handleUnlockGateGesture(GestureType.SWIPE_DOWN)
+
+            override fun onDoubleClick() = handleUnlockGateGesture(GestureType.DOUBLE_TAP)
+
+            override fun onClick(view: View) {
+                if (preserveSingleTap) {
+                    view.performClick()
+                }
+            }
+        }
 
     private fun publishUnlockGateState() {
         val snapshot = unlockGateStateMachine.snapshot
@@ -1459,6 +1553,25 @@ class ActionService : AccessibilityService() {
     private fun resetUnlockGateViewState(view: View) {
         view.translationY = 0f
         view.alpha = 1f
+        clearUnlockGateGestureTouchListeners(view)
+    }
+
+    private fun clearUnlockGateGestureTouchListeners(view: View) {
+        view.setOnTouchListener(null)
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateClock))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateDate))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateHomeButton))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateStatusBar))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.statusConnectivityLayout))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.statusClockLayout))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.statusBatteryLayout))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicator))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicatorLabel))
+    }
+
+    private fun clearUnlockGateGestureTarget(target: View) {
+        target.setOnTouchListener(null)
+        target.isPressed = false
     }
 
     private fun createSecureLockMaskDismissGesture(): GestureDescription {
@@ -1935,14 +2048,17 @@ class ActionService : AccessibilityService() {
         if (locked) {
             imageView.background = null
             imageView.setImageResource(R.drawable.ic_unlock_gate_lock)
-            imageView.imageTintList = ColorStateList.valueOf(tint)
             @Suppress("DEPRECATION")
             imageView.setColorFilter(tint, PorterDuff.Mode.SRC_IN)
+            imageView.scaleX = SECURE_LOCK_MASK_ICON_SCALE
+            imageView.scaleY = SECURE_LOCK_MASK_ICON_SCALE
         } else {
             imageView.setImageDrawable(null)
             imageView.imageTintList = null
             imageView.clearColorFilter()
             imageView.background = createUnlockGateHomeButtonBackground(isDark)
+            imageView.scaleX = 1f
+            imageView.scaleY = 1f
         }
     }
 
@@ -1970,6 +2086,7 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
         private const val UNLOCK_GATE_HOME_BUTTON_SIZE_DP = 30f
+        private const val SECURE_LOCK_MASK_ICON_SCALE = 1.20f
         private const val UNLOCK_GATE_DATE_GAP_DP = 30f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"

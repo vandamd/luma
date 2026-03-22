@@ -11,6 +11,7 @@ import android.service.notification.StatusBarNotification
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import app.luma.R
+import app.luma.helper.ActionService
 import app.luma.helper.LumaNotificationListener
 import app.luma.helper.performAppTapHapticFeedback
 import app.luma.style.SettingsTheme
@@ -60,6 +63,7 @@ private data class NotificationItem(
 
 class NotificationListFragment : Fragment() {
     private val hasPermission = mutableStateOf(false)
+    private var restoreUnlockGateOnBack = false
 
     private fun checkPermission() {
         val ctx = context ?: return
@@ -74,11 +78,24 @@ class NotificationListFragment : Fragment() {
         checkPermission()
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        restoreUnlockGateOnBack = arguments?.getBoolean(RESTORE_UNLOCK_GATE_ON_BACK, false) == true
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View = composeView(onSwipeBack = ::goBack) { NotificationListScreen() }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        registerRestoreUnlockGateOnBackCallback()
+    }
 
     @Suppress("DEPRECATION")
     private fun loadNotifications(): List<NotificationItem> {
@@ -200,6 +217,19 @@ class NotificationListFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun registerRestoreUnlockGateOnBackCallback() {
+        if (!restoreUnlockGateOnBack) return
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    findNavController().popBackStack()
+                    ActionService.instance()?.restoreUnlockGate()
+                }
+            },
+        )
     }
 
     @Composable
