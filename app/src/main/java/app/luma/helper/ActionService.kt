@@ -38,6 +38,7 @@ import android.view.ContextThemeWrapper
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -1071,7 +1072,6 @@ class ActionService : AccessibilityService() {
             isClickable = true
             isFocusable = true
             setOnClickListener {
-                performAppTapHapticFeedback(this@ActionService)
                 if (dispatchLockscreenShortcut()) {
                     dispatchUnlockGateEventOnMain(
                         UnlockGateEvent.DismissRequested(
@@ -1444,7 +1444,11 @@ class ActionService : AccessibilityService() {
         view.setOnTouchListener(createUnlockGateGestureTouchListener())
         bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateClock))
         bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateDate), preserveSingleTap = true)
-        bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateHomeButton), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(
+            view.findViewById(R.id.unlockGateHomeButton),
+            preserveSingleTap = true,
+            onPress = { performAppTapHapticFeedback(this) },
+        )
         bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateStatusBar))
         bindUnlockGateGestureTarget(view.findViewById(R.id.statusConnectivityLayout), preserveSingleTap = true)
         bindUnlockGateGestureTarget(view.findViewById(R.id.statusClockLayout))
@@ -1456,13 +1460,15 @@ class ActionService : AccessibilityService() {
     private fun bindUnlockGateGestureTarget(
         target: View,
         preserveSingleTap: Boolean = false,
+        onPress: (() -> Unit)? = null,
     ) {
-        target.setOnTouchListener(createUnlockGateGestureTouchListener(target, preserveSingleTap))
+        target.setOnTouchListener(createUnlockGateGestureTouchListener(target, preserveSingleTap, onPress))
     }
 
     private fun createUnlockGateGestureTouchListener(
         target: View? = null,
         preserveSingleTap: Boolean = false,
+        onPress: (() -> Unit)? = null,
     ): View.OnTouchListener =
         object : SwipeTouchListener(
             context = this,
@@ -1470,6 +1476,16 @@ class ActionService : AccessibilityService() {
             confirmSingleTap = preserveSingleTap,
             consumeTouchEvents = true,
         ) {
+            override fun onTouch(
+                v: View,
+                motionEvent: MotionEvent,
+            ): Boolean {
+                if (motionEvent.action == MotionEvent.ACTION_DOWN) {
+                    onPress?.invoke()
+                }
+                return super.onTouch(v, motionEvent)
+            }
+
             override fun onSwipeRight() = handleUnlockGateGesture(GestureType.SWIPE_RIGHT)
 
             override fun onSwipeLeft() = handleUnlockGateGesture(GestureType.SWIPE_LEFT)
