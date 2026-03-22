@@ -46,6 +46,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.RequiresApi
+import androidx.biometric.BiometricManager
 import androidx.core.content.ContextCompat
 import app.luma.MainActivity
 import app.luma.R
@@ -2122,7 +2123,14 @@ class ActionService : AccessibilityService() {
         val tint = if (isDark) Color.WHITE else Color.BLACK
         if (locked) {
             imageView.background = null
-            imageView.setImageResource(R.drawable.ic_unlock_gate_lock)
+            val hasBiometrics =
+                BiometricManager
+                    .from(this)
+                    .canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
+                    BiometricManager.BIOMETRIC_SUCCESS
+            imageView.setImageResource(
+                if (hasBiometrics) R.drawable.ic_shortcut_fingerprint else R.drawable.ic_unlock_gate_lock,
+            )
             @Suppress("DEPRECATION")
             imageView.setColorFilter(tint, PorterDuff.Mode.SRC_IN)
             imageView.scaleX = ICON_SCALE
