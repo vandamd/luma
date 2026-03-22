@@ -776,9 +776,9 @@ class HomeFragment :
 
     private fun observeUnlockGateClockVisibility() {
         viewLifecycleOwner.lifecycleScope.launch {
-            ActionService.unlockGateVisible.collect { shouldHideClock ->
+            ActionService.unlockGateState.collect { snapshot ->
                 if (_binding == null) return@collect
-                isUnlockGateVisible = shouldHideClock
+                isUnlockGateVisible = snapshot.visible
                 applyStatusBarVisibility()
                 updateClockDisplay()
             }

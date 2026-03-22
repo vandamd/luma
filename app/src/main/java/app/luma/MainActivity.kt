@@ -182,7 +182,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initObservers() {
         lifecycleScope.launch {
-            ActionService.unlockGateVisible.collect {
+            ActionService.unlockGateState.collect {
                 updateSystemStatusBarVisibility(navController.currentDestination?.id)
             }
         }
@@ -275,7 +275,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateSystemStatusBarVisibility(destinationId: Int?) {
-        val unlockGateVisible = ActionService.unlockGateVisible.value
+        val unlockGateVisible = ActionService.unlockGateState.value.visible
         val shouldShowSystemStatusBar =
             destinationId == R.id.mainFragment &&
                 if (unlockGateVisible) {
