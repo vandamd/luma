@@ -124,6 +124,7 @@
     <string name="status_bar_show_seconds">Show Seconds</string>
     <string name="status_bar_leading_zero">Leading Zero</string>
     <string name="status_bar_connectivity">Connectivity</string>
+    <string name="status_bar_connectivity_tap">On Connectivity Tap</string>
     <string name="status_bar_cellular">Cellular Signal</string>
     <string name="status_bar_wifi">WiFi</string>
     <string name="status_bar_bluetooth">Bluetooth</string>
@@ -137,6 +138,7 @@
     <string name="status_bar_notif_alignment_before">Before</string>
     <string name="status_bar_notif_alignment_after">After</string>
     <string name="status_bar_battery">Battery</string>
+    <string name="status_bar_battery_tap">On Battery Tap</string>
     <string name="status_bar_battery_percentage">Show Percentage</string>
     <string name="status_bar_battery_icon">Show Icon</string>
 

@@ -42,9 +42,9 @@ class GestureActionFragment : Fragment() {
 
         private val sectionDisplayInfo =
             mapOf(
-                StatusBarSectionType.CELLULAR to ActionDisplayInfo(R.string.status_bar_connectivity, AppDrawerFlag.SetStatusBarCellular),
+                StatusBarSectionType.CELLULAR to ActionDisplayInfo(R.string.status_bar_connectivity_tap, AppDrawerFlag.SetStatusBarCellular),
                 StatusBarSectionType.TIME to ActionDisplayInfo(R.string.status_bar_time, AppDrawerFlag.SetStatusBarTime),
-                StatusBarSectionType.BATTERY to ActionDisplayInfo(R.string.status_bar_battery, AppDrawerFlag.SetStatusBarBattery),
+                StatusBarSectionType.BATTERY to ActionDisplayInfo(R.string.status_bar_battery_tap, AppDrawerFlag.SetStatusBarBattery),
             )
     }
 

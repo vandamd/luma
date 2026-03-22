@@ -584,8 +584,8 @@ class Prefs(
         set(value) = prefs.edit().putBoolean(SHOW_NOTIFICATION_INDICATOR, value).apply()
 
     var showStatusBarNotificationIndicator: Boolean
-        get() = prefs.getBoolean(SHOW_STATUS_BAR_NOTIFICATION_INDICATOR, true)
-        set(value) = prefs.edit().putBoolean(SHOW_STATUS_BAR_NOTIFICATION_INDICATOR, value).apply()
+        get() = false
+        set(value) {}
 
     var notificationIndicatorSection: NotificationIndicatorSection
         get() = enumPref(NOTIFICATION_INDICATOR_SECTION, NotificationIndicatorSection.Time)
@@ -596,10 +596,8 @@ class Prefs(
         set(value) = prefs.edit().putString(NOTIFICATION_INDICATOR_ALIGNMENT, value.name).apply()
 
     var statusBarEnabled: Boolean
-        get() = statusBarVisibility != StatusBarVisibility.Disabled
-        set(value) {
-            statusBarVisibility = if (value) StatusBarVisibility.Both else StatusBarVisibility.Disabled
-        }
+        get() = true
+        set(value) {}
 
     private fun legacyStatusBarMode(): StatusBarMode =
         if (prefs.contains(STATUS_BAR_MODE)) {
@@ -611,97 +609,41 @@ class Prefs(
         }
 
     var statusBarVisibility: StatusBarVisibility
-        get() {
-            if (prefs.contains(STATUS_BAR_VISIBILITY_MODE)) {
-                return enumPref(STATUS_BAR_VISIBILITY_MODE, StatusBarVisibility.Both)
-            }
-            return when (legacyStatusBarMode()) {
-                StatusBarMode.Enabled,
-                StatusBarMode.AndroidStatusBar,
-                -> StatusBarVisibility.Both
-                StatusBarMode.None -> StatusBarVisibility.Disabled
-            }
-        }
-        set(value) = prefs.edit().putString(STATUS_BAR_VISIBILITY_MODE, value.name).apply()
+        get() = StatusBarVisibility.Lockscreen
+        set(value) {}
 
     var statusBarType: StatusBarType
-        get() {
-            if (prefs.contains(STATUS_BAR_TYPE)) {
-                return enumPref(STATUS_BAR_TYPE, StatusBarType.Luma)
-            }
-            return when (legacyStatusBarMode()) {
-                StatusBarMode.AndroidStatusBar -> StatusBarType.Android
-                StatusBarMode.Enabled,
-                StatusBarMode.None,
-                -> StatusBarType.Luma
-            }
-        }
-        set(value) = prefs.edit().putString(STATUS_BAR_TYPE, value.name).apply()
+        get() = StatusBarType.Luma
+        set(value) {}
 
     var statusBarMode: StatusBarMode
-        get() =
-            when {
-                statusBarVisibility == StatusBarVisibility.Disabled -> StatusBarMode.None
-                statusBarType == StatusBarType.Android -> StatusBarMode.AndroidStatusBar
-                else -> StatusBarMode.Enabled
-            }
-        set(value) {
-            when (value) {
-                StatusBarMode.Enabled -> {
-                    statusBarVisibility = StatusBarVisibility.Both
-                    statusBarType = StatusBarType.Luma
-                }
-
-                StatusBarMode.None -> {
-                    statusBarVisibility = StatusBarVisibility.Disabled
-                    statusBarType = StatusBarType.Luma
-                }
-
-                StatusBarMode.AndroidStatusBar -> {
-                    statusBarVisibility = StatusBarVisibility.Both
-                    statusBarType = StatusBarType.Android
-                }
-            }
-        }
+        get() = StatusBarMode.Enabled
+        set(value) {}
 
     fun isStatusBarVisibleOnHomescreen(): Boolean =
-        when (statusBarVisibility) {
-            StatusBarVisibility.Both,
-            StatusBarVisibility.Homescreen,
-            -> true
-            StatusBarVisibility.Disabled,
-            StatusBarVisibility.Lockscreen,
-            -> false
-        }
+        false
 
     fun isStatusBarVisibleOnLockscreen(): Boolean =
-        when (statusBarVisibility) {
-            StatusBarVisibility.Both,
-            StatusBarVisibility.Lockscreen,
-            -> true
-            StatusBarVisibility.Disabled,
-            StatusBarVisibility.Homescreen,
-            -> false
-        }
+        true
 
     fun showsLumaStatusBarOnHomescreen(): Boolean =
-        statusBarType == StatusBarType.Luma && isStatusBarVisibleOnHomescreen()
+        false
 
     fun showsLumaStatusBarOnLockscreen(): Boolean =
-        statusBarType == StatusBarType.Luma && isStatusBarVisibleOnLockscreen()
+        true
 
     fun showsLumaStatusBarAnywhere(): Boolean =
-        statusBarType == StatusBarType.Luma && statusBarVisibility != StatusBarVisibility.Disabled
+        true
 
     fun showsAndroidStatusBarOnHomescreen(): Boolean =
-        statusBarType == StatusBarType.Android && isStatusBarVisibleOnHomescreen()
+        false
 
     fun showsAndroidStatusBarOnLockscreen(): Boolean =
-        statusBarType == StatusBarType.Android && isStatusBarVisibleOnLockscreen()
+        false
 
     var timeEnabled: Boolean
-        get() = prefs.getBoolean(TIME_ENABLED, true)
-        set(value) = prefs.edit().putBoolean(TIME_ENABLED, value).apply()
+        get() = false
+        set(value) {}
 
     var timeFormat: TimeFormat
         get() = enumPref(TIME_FORMAT, TimeFormat.TwentyFourHour)
@@ -716,24 +658,24 @@ class Prefs(
         set(value) = prefs.edit().putBoolean(LEADING_ZERO, value).apply()
 
     var batteryPercentage: Boolean
-        get() = prefs.getBoolean(BATTERY_PERCENTAGE, true)
-        set(value) = prefs.edit().putBoolean(BATTERY_PERCENTAGE, value).apply()
+        get() = true
+        set(value) {}
 
     var batteryIcon: Boolean
-        get() = prefs.getBoolean(BATTERY_ICON, true)
-        set(value) = prefs.edit().putBoolean(BATTERY_ICON, value).apply()
+        get() = true
+        set(value) {}
 
     var cellularEnabled: Boolean
-        get() = prefs.getBoolean(CELLULAR_ENABLED, false)
-        set(value) = prefs.edit().putBoolean(CELLULAR_ENABLED, value).apply()
+        get() = true
+        set(value) {}
 
     var wifiEnabled: Boolean
-        get() = prefs.getBoolean(WIFI_ENABLED, false)
-        set(value) = prefs.edit().putBoolean(WIFI_ENABLED, value).apply()
+        get() = true
+        set(value) {}
 
     var bluetoothEnabled: Boolean
-        get() = prefs.getBoolean(BLUETOOTH_ENABLED, false)
-        set(value) = prefs.edit().putBoolean(BLUETOOTH_ENABLED, value).apply()
+        get() = true
+        set(value) {}
 
     var lastCellularSignalLevel: Int?
         get() = prefs.getInt(LAST_CELLULAR_SIGNAL_LEVEL, -1).takeIf { it >= 0 }

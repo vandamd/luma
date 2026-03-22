@@ -24,6 +24,7 @@ import app.luma.data.Constants
 import app.luma.data.Constants.Action
 import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.Prefs
+import app.luma.data.StatusBarSectionType
 import app.luma.databinding.ActivityMainBinding
 import app.luma.helper.ActionExecutionCallbacks
 import app.luma.helper.ActionService
@@ -99,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         notifyUnlockGateLauncherIntent(intent)
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
+        handleStatusBarSectionIntent(intent)
     }
 
     override fun onDestroy() {
@@ -145,6 +147,7 @@ class MainActivity : AppCompatActivity() {
         notifyUnlockGateLauncherIntent(intent)
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
+        handleStatusBarSectionIntent(intent)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
@@ -311,6 +314,36 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun handleStatusBarSectionIntent(intent: Intent?) {
+        val sectionName = intent?.getStringExtra(EXTRA_RUN_STATUS_BAR_SECTION) ?: return
+        intent.removeExtra(EXTRA_RUN_STATUS_BAR_SECTION)
+
+        val section = runCatching { StatusBarSectionType.valueOf(sectionName) }.getOrNull() ?: return
+        val action = prefs.getSectionAction(section)
+        if (action == Action.Disabled) return
+
+        if (action == Action.OpenApp) {
+            val appModel = prefs.getSectionApp(section)
+            if (appModel.appPackage.isEmpty()) return
+            viewModel.selectedApp(
+                appModel,
+                AppDrawerFlag.LaunchApp,
+                launchContext = this,
+            )
+            return
+        }
+
+        executeSecondaryAction(
+            context = this,
+            action = action,
+            callbacks =
+                ActionExecutionCallbacks(
+                    showAppList = ::showAppList,
+                    showNotificationList = ::showNotificationList,
+                ),
+        )
+    }
+
     private fun handleLockscreenActionIntent(
         intent: Intent?,
         extraName: String,
@@ -362,6 +395,7 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_UNLOCK_GATE_HOME_LAUNCH = "app.luma.extra.UNLOCK_GATE_HOME_LAUNCH"
         const val EXTRA_RUN_LOCKSCREEN_SHORTCUT = "app.luma.extra.RUN_LOCKSCREEN_SHORTCUT"
         const val EXTRA_RUN_LOCKSCREEN_DATE_TAP = "app.luma.extra.RUN_LOCKSCREEN_DATE_TAP"
+        const val EXTRA_RUN_STATUS_BAR_SECTION = "app.luma.extra.RUN_STATUS_BAR_SECTION"
 
         fun createUnlockGateHomeIntent(context: Context): Intent =
             Intent(Intent.ACTION_MAIN).apply {
@@ -379,6 +413,14 @@ class MainActivity : AppCompatActivity() {
         fun createLockscreenDateTapIntent(context: Context): Intent =
             createUnlockGateHomeIntent(context).apply {
                 putExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP, true)
+            }
+
+        fun createStatusBarSectionIntent(
+            context: Context,
+            section: StatusBarSectionType,
+        ): Intent =
+            createUnlockGateHomeIntent(context).apply {
+                putExtra(EXTRA_RUN_STATUS_BAR_SECTION, section.name)
             }
     }
 }

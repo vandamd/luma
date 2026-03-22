@@ -35,8 +35,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -66,6 +64,36 @@ private const val NETWORK_SHORTCUT_LIGHT_ROUTE = "networksettings"
 private const val NOTIFICATION_SETTINGS_LIGHT_ROUTE = "notificationsettings"
 private const val VOLUME_INDICATOR_HIDE_DELAY_MS = 1500L
 private const val STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS = 120L
+
+private val FragmentHomeBinding.statusBattery: ImageView
+    get() = statusBar.findViewById(R.id.statusBattery)
+
+private val FragmentHomeBinding.statusBatteryLayout: LinearLayout
+    get() = statusBar.findViewById(R.id.statusBatteryLayout)
+
+private val FragmentHomeBinding.statusBatteryText: TextView
+    get() = statusBar.findViewById(R.id.statusBatteryText)
+
+private val FragmentHomeBinding.statusBluetooth: ImageView
+    get() = statusBar.findViewById(R.id.statusBluetooth)
+
+private val FragmentHomeBinding.statusClock: TextView
+    get() = statusBar.findViewById(R.id.statusClock)
+
+private val FragmentHomeBinding.statusClockLayout: BaselineFrameLayout
+    get() = statusBar.findViewById(R.id.statusClockLayout)
+
+private val FragmentHomeBinding.statusConnectivityLayout: LinearLayout
+    get() = statusBar.findViewById(R.id.statusConnectivityLayout)
+
+private val FragmentHomeBinding.statusNetworkType: TextView
+    get() = statusBar.findViewById(R.id.statusNetworkType)
+
+private val FragmentHomeBinding.statusSignal: ImageView
+    get() = statusBar.findViewById(R.id.statusSignal)
+
+private val FragmentHomeBinding.statusWifi: ImageView
+    get() = statusBar.findViewById(R.id.statusWifi)
 
 private data class VolumeIndicatorState(
     val labelRes: Int,
@@ -332,7 +360,6 @@ class HomeFragment :
 
     private fun initStatusBarClickListeners() {
         binding.statusConnectivityLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.CELLULAR) }
-        binding.statusClockLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.TIME) }
         binding.statusBatteryLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.BATTERY) }
     }
 
@@ -464,31 +491,10 @@ class HomeFragment :
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility()
     }
 
-    private fun shouldShowLumaStatusBarNow(): Boolean =
-        if (isUnlockGateVisible) {
-            prefs.showsLumaStatusBarOnLockscreen()
-        } else {
-            prefs.showsLumaStatusBarOnHomescreen()
-        }
+    private fun shouldShowLumaStatusBarNow(): Boolean = false
 
     private fun lockscreenStatusBarInsetPx(): Int =
-        when (prefs.statusBarType) {
-            Prefs.StatusBarType.Luma -> binding.touchArea.top
-            Prefs.StatusBarType.Android -> systemStatusBarInsetPx()
-        }
-
-    private fun systemStatusBarInsetPx(): Int {
-        val insets =
-            ViewCompat.getRootWindowInsets(binding.root)
-                ?.getInsets(WindowInsetsCompat.Type.statusBars())
-                ?.top
-        if (insets != null && insets > 0) {
-            return insets
-        }
-
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
-    }
+        resources.getDimensionPixelSize(R.dimen.lockscreen_gate_home_content_top)
 
     private fun applyStatusBarVisibility() {
         binding.statusBar.visibility = if (shouldShowLumaStatusBarNow()) View.VISIBLE else View.GONE
@@ -794,9 +800,7 @@ class HomeFragment :
         notificationDotView?.let { it.parent == layout && it.visibility == View.VISIBLE } == true
 
     private fun ImageView.showTinted(icon: Int) {
-        visibility = View.VISIBLE
-        setImageResource(icon)
-        setColorFilter(binding.statusClock.currentTextColor)
+        LumaStatusBarUi.showTinted(this, icon, binding.statusClock.currentTextColor)
     }
 
     private fun detachDot(
@@ -977,35 +981,15 @@ class HomeFragment :
     }
 
     private fun updateClockDisplay() {
-        if (shouldHideClockForUnlockGate()) {
-            binding.statusClock.text = formatClockText(prefs)
-            binding.statusClockLayout.visibility = View.INVISIBLE
-            return
-        }
-
-        binding.statusClockLayout.visibility = View.VISIBLE
-        if (shouldShowLumaStatusBarNow() && prefs.timeEnabled) {
-            binding.statusClock.visibility = View.VISIBLE
-            binding.statusClock.text = formatClockText(prefs)
-            repositionClockDot()
-        } else {
-            binding.statusClock.text = clockPlaceholder()
-            binding.statusClock.visibility = View.INVISIBLE
-        }
+        binding.statusClock.text = formatClockText(prefs)
+        binding.statusClockLayout.visibility = View.GONE
     }
 
     private fun shouldHideClockForUnlockGate(): Boolean =
         isUnlockGateVisible
 
     private fun clockPlaceholder(): String {
-        val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
-        val showSec = prefs.showSeconds
-        val hour = if (is24Hour || prefs.leadingZero) "00" else "12"
-        return buildString {
-            append("$hour:00")
-            if (showSec) append(":00")
-            if (!is24Hour) append(" AM")
-        }
+        return LumaStatusBarUi.clockPlaceholder(prefs)
     }
 
     private fun stopClock() {
@@ -1083,19 +1067,7 @@ class HomeFragment :
             status == BatteryManager.BATTERY_STATUS_CHARGING ||
                 status == BatteryManager.BATTERY_STATUS_FULL
 
-        val icon =
-            if (charging) {
-                R.drawable.battery_charging
-            } else {
-                when {
-                    pct >= 95 -> R.drawable.battery_full
-                    pct >= 60 -> R.drawable.battery_75
-                    pct >= 40 -> R.drawable.battery_50
-                    pct >= 20 -> R.drawable.battery_low
-                    pct >= 5 -> R.drawable.battery_very_low
-                    else -> R.drawable.battery_empty
-                }
-            }
+        val icon = LumaStatusBarUi.batteryIconRes(intent)
         binding.statusBatteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
         binding.statusBatteryText.text = "$pct%"
         binding.statusBattery.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
@@ -1241,48 +1213,17 @@ class HomeFragment :
     }
 
     private fun updateSignalIcon(level: Int) {
-        val icon =
-            when (level) {
-                0 -> R.drawable.signal_0
-                1 -> R.drawable.signal_1
-                2 -> R.drawable.signal_2
-                3 -> R.drawable.signal_3
-                else -> R.drawable.signal_4
-            }
-        binding.statusSignal.showTinted(icon)
+        binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(level))
     }
 
     private fun updateNetworkTypeFromInt(type: Int) {
-        val label =
-            when (type) {
-                TelephonyManager.NETWORK_TYPE_NR -> "5G"
-
-                TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
-
-                TelephonyManager.NETWORK_TYPE_HSPAP,
-                TelephonyManager.NETWORK_TYPE_HSPA,
-                TelephonyManager.NETWORK_TYPE_HSDPA,
-                TelephonyManager.NETWORK_TYPE_HSUPA,
-                TelephonyManager.NETWORK_TYPE_UMTS,
-                -> "3G"
-
-                TelephonyManager.NETWORK_TYPE_EDGE -> "E"
-
-                TelephonyManager.NETWORK_TYPE_GPRS -> "G"
-
-                else -> ""
-            }
+        val label = LumaStatusBarUi.networkLabelForType(type)
         binding.statusNetworkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
         binding.statusNetworkType.text = label
     }
 
     private fun updateSectionBaseline(layout: LinearLayout) {
-        for (i in 0 until layout.childCount) {
-            if (layout.getChildAt(i).visibility != View.GONE) {
-                layout.baselineAlignedChildIndex = i
-                return
-            }
-        }
+        LumaStatusBarUi.updateSectionBaseline(layout)
     }
 
     private fun hideCellular() {
@@ -1339,13 +1280,7 @@ class HomeFragment :
     }
 
     private fun updateWifiIcon(level: Int) {
-        val icon =
-            when {
-                level <= 1 -> R.drawable.wifi_1
-                level == 2 -> R.drawable.wifi_2
-                else -> R.drawable.wifi_full
-            }
-        binding.statusWifi.showTinted(icon)
+        binding.statusWifi.showTinted(LumaStatusBarUi.wifiDrawableForLevel(level))
     }
 
     private fun hideWifi() {

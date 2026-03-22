@@ -5,6 +5,15 @@
     android:clickable="true"
     android:focusable="true">
 
+    <LinearLayout
+        android:id="@+id/unlockGateStatusBar"
+        style="@style/LumaStatusBarContainer"
+        android:visibility="gone">
+
+        <include layout="@layout/luma_status_bar_content" />
+
+    </LinearLayout>
+
     <TextView
         android:id="@+id/unlockGateDate"
         android:layout_width="wrap_content"
@@ -28,13 +37,16 @@
         android:textAlignment="center"
         android:textSize="88sp" />
 
-    <View
+    <ImageView
         android:id="@+id/unlockGateHomeButton"
         android:layout_width="30dp"
         android:layout_height="30dp"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="18dp"
         android:clickable="true"
-        android:focusable="true" />
+        android:contentDescription="@null"
+        android:focusable="true"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_unlock_gate_lock" />
 
 </FrameLayout>

@@ -202,75 +202,9 @@
         android:name="app.luma.ui.StatusBarFragment"
         android:label="StatusBarFragment">
         <action
-            android:id="@+id/action_statusBarFragment_to_statusBarModeFragment"
-            app:destination="@id/statusBarModeFragment" />
-        <action
-            android:id="@+id/action_statusBarFragment_to_statusBarTypeFragment"
-            app:destination="@id/statusBarTypeFragment" />
-        <action
-            android:id="@+id/action_statusBarFragment_to_statusBarTimeFragment"
-            app:destination="@id/statusBarTimeFragment" />
-        <action
-            android:id="@+id/action_statusBarFragment_to_statusBarBatteryFragment"
-            app:destination="@id/statusBarBatteryFragment" />
-        <action
-            android:id="@+id/action_statusBarFragment_to_statusBarConnectivityFragment"
-            app:destination="@id/statusBarConnectivityFragment" />
-        <action
-            android:id="@+id/action_statusBarFragment_to_statusBarNotificationIndicatorFragment"
-            app:destination="@id/statusBarNotificationIndicatorFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/statusBarModeFragment"
-        android:name="app.luma.ui.StatusBarModeFragment"
-        android:label="StatusBarModeFragment" />
-    <fragment
-        android:id="@+id/statusBarTypeFragment"
-        android:name="app.luma.ui.StatusBarTypeFragment"
-        android:label="StatusBarTypeFragment" />
-    <fragment
-        android:id="@+id/statusBarTimeFragment"
-        android:name="app.luma.ui.StatusBarTimeFragment"
-        android:label="StatusBarTimeFragment">
-        <action
-            android:id="@+id/action_statusBarTimeFragment_to_gestureActionFragment"
+            android:id="@+id/action_statusBarFragment_to_gestureActionFragment"
             app:destination="@id/gestureActionFragment" />
     </fragment>
-    <fragment
-        android:id="@+id/statusBarBatteryFragment"
-        android:name="app.luma.ui.StatusBarBatteryFragment"
-        android:label="StatusBarBatteryFragment">
-        <action
-            android:id="@+id/action_statusBarBatteryFragment_to_gestureActionFragment"
-            app:destination="@id/gestureActionFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/statusBarConnectivityFragment"
-        android:name="app.luma.ui.StatusBarConnectivityFragment"
-        android:label="StatusBarConnectivityFragment">
-        <action
-            android:id="@+id/action_statusBarConnectivityFragment_to_gestureActionFragment"
-            app:destination="@id/gestureActionFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/statusBarNotificationIndicatorFragment"
-        android:name="app.luma.ui.StatusBarNotificationIndicatorFragment"
-        android:label="StatusBarNotificationIndicatorFragment">
-        <action
-            android:id="@+id/action_statusBarNotificationIndicatorFragment_to_notificationIndicatorSectionFragment"
-            app:destination="@id/notificationIndicatorSectionFragment" />
-        <action
-            android:id="@+id/action_statusBarNotificationIndicatorFragment_to_notificationIndicatorAlignmentFragment"
-            app:destination="@id/notificationIndicatorAlignmentFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/notificationIndicatorSectionFragment"
-        android:name="app.luma.ui.NotificationIndicatorSectionFragment"
-        android:label="NotificationIndicatorSectionFragment" />
-    <fragment
-        android:id="@+id/notificationIndicatorAlignmentFragment"
-        android:name="app.luma.ui.NotificationIndicatorAlignmentFragment"
-        android:label="NotificationIndicatorAlignmentFragment" />
     <fragment
         android:id="@+id/timeFormatFragment"
         android:name="app.luma.ui.TimeFormatFragment"
