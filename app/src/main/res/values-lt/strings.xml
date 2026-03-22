@@ -130,7 +130,6 @@
     <string name="toast_added_to_app_drawer">Pridėta į programėlių saugyklą</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">Įjungėte būsenos juostą, rekomenduoju naudoti daugiausia 5 programėles, kad ji gerai atrodytų :)</string>
     <string name="app_placeholder">Programėlė</string>
 
     <!-- Content descriptions -->

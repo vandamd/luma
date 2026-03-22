@@ -18,6 +18,8 @@ import app.luma.data.GestureScope
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
 import app.luma.helper.formatLockscreenDateText
+import app.luma.helper.isAccessibilityEnabled
+import app.luma.helper.openAccessibilitySettings
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SelectorButton
@@ -75,7 +77,12 @@ class LockscreenFragment : Fragment() {
                     PrefsToggleTextButton(
                         title = stringResource(R.string.lockscreen_enabled),
                         initialValue = prefs.lockscreenGateEnabled,
-                        onValueChange = { prefs.lockscreenGateEnabled = it },
+                        onValueChange = {
+                            prefs.lockscreenGateEnabled = it
+                            if (it && !isAccessibilityEnabled(requireContext())) {
+                                openAccessibilitySettings(requireContext())
+                            }
+                        },
                     )
                     SimpleTextButton(stringResource(R.string.settings_gestures)) {
                         findNavController().navigate(

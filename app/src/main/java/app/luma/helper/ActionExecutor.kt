@@ -22,6 +22,9 @@ fun executeSecondaryAction(
 ): Boolean =
     when (action) {
         Action.NetworkShortcutLight -> {
+            if (!isAccessibilityEnabled(context)) {
+                openAccessibilitySettings(context)
+            }
             launchLightOsRoute(context, NETWORK_SHORTCUT_LIGHT_ROUTE)
         }
 
@@ -63,5 +66,7 @@ fun executeSecondaryAction(
         Action.ToggleFlashlight,
         Action.OpenApp,
         Action.Disabled,
-        -> false
+        -> {
+            false
+        }
     }

@@ -130,7 +130,6 @@
 
     <!-- Misc -->
     <string name="app_placeholder">Aplicativo</string>
-    <string name="app_count_status_bar_hint">Você está com a barra de status ativada, recomendo usar no máximo 5 apps para ficar bonito :)</string>
 
     <!-- Content descriptions -->
     <string name="content_desc_back">Voltar</string>

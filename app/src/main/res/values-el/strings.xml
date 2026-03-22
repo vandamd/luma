@@ -127,7 +127,6 @@
 
     <!-- Misc -->
     <string name="app_placeholder">Εφαρμογή</string>
-    <string name="app_count_status_bar_hint">Έχετε ενεργοποιήσει τη γραμμή κατάστασης, προτείνω το πολύ 5 εφαρμογές για να δείχνει όμορφα :)</string>
 
     <!-- Content descriptions -->
     <string name="content_desc_back">Πίσω</string>

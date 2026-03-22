@@ -5,18 +5,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.HomeLayout
 import app.luma.data.Prefs
 import app.luma.ui.compose.SettingsComposable.ContentContainer
-import app.luma.ui.compose.SettingsComposable.MessageText
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 
@@ -46,12 +42,6 @@ class AppCountFragment : Fragment() {
             )
 
             ContentContainer {
-                if (prefs.showsLumaStatusBarOnHomescreen() && resources.configuration.fontScale >= 0.85f) {
-                    MessageText(
-                        stringResource(R.string.app_count_status_bar_hint),
-                        modifier = Modifier.padding(end = 30.dp),
-                    )
-                }
                 for (i in HomeLayout.MIN_APPS_PER_PAGE..HomeLayout.APPS_PER_PAGE) {
                     val isSelected = prefs.getAppsPerPage(pageNumber) == i
                     SimpleTextButton(

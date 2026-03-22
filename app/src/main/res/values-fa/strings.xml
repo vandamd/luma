@@ -132,7 +132,6 @@
 
     <!-- Misc -->
     <string name="app_placeholder">برنامه</string>
-    <string name="app_count_status_bar_hint">نوار وضعیت را فعال کرده‌اید، پیشنهاد می‌کنم برای ظاهر بهتر حداکثر ۵ برنامه استفاده کنید :)</string>
 
     <!-- Content descriptions -->
     <string name="content_desc_back">بازگشت</string>

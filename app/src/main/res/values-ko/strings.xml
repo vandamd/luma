@@ -131,7 +131,6 @@
 
     <!-- Misc -->
     <string name="app_placeholder">앱</string>
-    <string name="app_count_status_bar_hint">상태 표시줄을 켜 두셨네요. 보기 좋게 하려면 앱은 최대 5개를 추천해요 :)</string>
 
     <!-- Content descriptions -->
     <string name="content_desc_back">뒤로</string>

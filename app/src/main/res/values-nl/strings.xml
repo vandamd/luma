@@ -131,7 +131,6 @@
 
     <!-- Misc -->
     <string name="app_placeholder">App</string>
-    <string name="app_count_status_bar_hint">Je hebt de statusbalk ingeschakeld, ik raad aan maximaal 5 apps te gebruiken zodat het er goed uitziet :)</string>
 
     <!-- Content descriptions -->
     <string name="content_desc_back">Terug</string>

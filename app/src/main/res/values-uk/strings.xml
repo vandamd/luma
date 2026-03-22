@@ -131,7 +131,6 @@
     <string name="toast_added_to_app_drawer">Додано до панелі застосунків</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">У вас увімкнено рядок стану, рекомендую використовувати максимум 5 застосунків, щоб це виглядало добре :)</string>
     <string name="app_placeholder">Застосунок</string>
 
     <!-- Content descriptions -->

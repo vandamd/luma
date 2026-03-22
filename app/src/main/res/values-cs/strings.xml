@@ -126,7 +126,6 @@
     <string name="toast_added_to_app_drawer">Přidáno do šuplíku aplikací</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">Máte zapnutý stavový řádek, doporučuji použít maximálně 5 aplikací, aby to vypadalo dobře :)</string>
     <string name="app_placeholder">Aplikace</string>
 
     <!-- Content descriptions -->

@@ -129,7 +129,6 @@
     <string name="toast_added_to_app_drawer">Dodano do listy aplikacji</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">Masz włączony pasek stanu, zalecam używać maksymalnie 5 aplikacji, żeby wyglądało to dobrze :)</string>
     <string name="app_placeholder">Aplikacja</string>
 
     <!-- Content descriptions -->

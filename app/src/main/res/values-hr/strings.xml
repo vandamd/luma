@@ -131,7 +131,6 @@
     <string name="toast_added_to_app_drawer">Dodano u ladicu s aplikacijama</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">Imate uključenu statusnu traku, preporučujem najviše 5 aplikacija kako bi izgledalo dobro :)</string>
     <string name="app_placeholder">Aplikacija</string>
 
     <!-- Content descriptions -->

@@ -25,8 +25,8 @@ import android.view.WindowManager
 import android.widget.Toast
 import app.luma.BuildConfig
 import app.luma.R
-import app.luma.data.AppModel
 import app.luma.data.AppEntryType
+import app.luma.data.AppModel
 import app.luma.data.Constants
 import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
@@ -173,14 +173,17 @@ fun launchAppModel(
                 return true
             }
 
-            1 -> ComponentName(packageName, activityInfo[0].name)
+            1 -> {
+                ComponentName(packageName, activityInfo[0].name)
+            }
 
-            else ->
+            else -> {
                 if (appActivityName.isNotEmpty()) {
                     ComponentName(packageName, appActivityName)
                 } else {
                     ComponentName(packageName, activityInfo.last().name)
                 }
+            }
         }
 
     try {
@@ -398,6 +401,12 @@ fun initActionService(context: Context): ActionService? {
     }
 
     return null
+}
+
+fun isAccessibilityEnabled(context: Context): Boolean {
+    val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+    val enabledServices = am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+    return enabledServices.any { it.resolveInfo.serviceInfo.name == ActionService::class.java.name }
 }
 
 fun openAccessibilitySettings(context: Context) {

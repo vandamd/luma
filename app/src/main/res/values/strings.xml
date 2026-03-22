@@ -209,7 +209,8 @@
     <string name="toast_unable_to_toggle_flashlight">Unable to toggle flashlight</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">You have the status bar enabled, I recommend using a maximum of 5 apps for it to look good :)</string>
+    <string name="accessibility_hint">Luma needs accessibility permissions for features like locking the screen, remapping keys, and the lockscreen. Please grant below.</string>
+    <string name="accessibility_grant">Grant Accessibility</string>
     <string name="app_placeholder">App</string>
 
     <!-- Content descriptions -->

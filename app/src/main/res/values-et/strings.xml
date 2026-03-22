@@ -131,7 +131,6 @@
     <string name="toast_added_to_app_drawer">Lisatud rakenduste menüüsse</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">Sul on olekuriba lubatud, soovitan kasutada maksimaalselt 5 rakendust, et see näeks hea välja :)</string>
     <string name="app_placeholder">Rakendus</string>
 
     <!-- Content descriptions -->

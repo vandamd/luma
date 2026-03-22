@@ -131,7 +131,6 @@
     <string name="toast_added_to_app_drawer">Uygulama çekmecesine eklendi</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">Durum çubuğunu etkinleştirdiniz, iyi görünmesi için en fazla 5 uygulama kullanmanızı öneririm :)</string>
     <string name="app_placeholder">Uygulama</string>
 
     <!-- Content descriptions -->

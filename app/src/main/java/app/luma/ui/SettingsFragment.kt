@@ -5,23 +5,36 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Prefs
+import app.luma.helper.isAccessibilityEnabled
+import app.luma.helper.openAccessibilitySettings
 import app.luma.ui.compose.SettingsComposable.ContentContainer
+import app.luma.ui.compose.SettingsComposable.MessageText
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 
 class SettingsFragment : Fragment() {
     private lateinit var prefs: Prefs
+    private val hasAccessibilityPermission = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs.getInstance(requireContext())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hasAccessibilityPermission.value = isAccessibilityEnabled(requireContext())
     }
 
     override fun onCreateView(
@@ -40,16 +53,25 @@ class SettingsFragment : Fragment() {
             )
 
             ContentContainer {
+                if (!hasAccessibilityPermission.value) {
+                    MessageText(
+                        stringResource(R.string.accessibility_hint),
+                        modifier = Modifier.padding(end = 30.dp),
+                    )
+                    SimpleTextButton(stringResource(R.string.accessibility_grant)) {
+                        openAccessibilitySettings(requireContext())
+                    }
+                }
                 SimpleTextButton(stringResource(R.string.settings_miscellaneous)) {
                     findNavController().navigate(R.id.action_settingsFragment_to_miscellaneousFragment)
                 }
                 SimpleTextButton(stringResource(R.string.settings_homescreen)) {
                     findNavController().navigate(R.id.action_settingsFragment_to_homescreenFragment)
                 }
-                SimpleTextButton(stringResource(R.string.settings_lockscreen)) {
+                SimpleTextButton(stringResource(R.string.settings_lockscreen), enabled = hasAccessibilityPermission.value) {
                     findNavController().navigate(R.id.action_settingsFragment_to_lockscreenFragment)
                 }
-                SimpleTextButton(stringResource(R.string.settings_keymaps)) {
+                SimpleTextButton(stringResource(R.string.settings_keymaps), enabled = hasAccessibilityPermission.value) {
                     findNavController().navigate(R.id.action_settingsFragment_to_keymapsFragment)
                 }
                 PrefsToggleTextButton(

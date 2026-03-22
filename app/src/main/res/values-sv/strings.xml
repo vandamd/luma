@@ -130,7 +130,6 @@
 
     <!-- Misc -->
     <string name="app_placeholder">App</string>
-    <string name="app_count_status_bar_hint">Du har statusfältet aktiverat, jag rekommenderar högst 5 appar för att det ska se bra ut :)</string>
 
     <!-- Content descriptions -->
     <string name="content_desc_back">Tillbaka</string>

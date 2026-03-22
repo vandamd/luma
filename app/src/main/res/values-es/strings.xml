@@ -123,7 +123,6 @@
 
     <!-- Misc -->
     <string name="app_placeholder">Aplicación</string>
-    <string name="app_count_status_bar_hint">Tienes la barra de estado activada, te recomiendo usar un máximo de 5 apps para que se vea bien :)</string>
 
     <!-- Content descriptions -->
     <string name="content_desc_back">Atrás</string>

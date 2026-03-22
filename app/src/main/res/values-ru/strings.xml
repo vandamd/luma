@@ -129,7 +129,6 @@
     <string name="toast_added_to_app_drawer">Добавлено в ящик приложений</string>
 
     <!-- Misc -->
-    <string name="app_count_status_bar_hint">У вас включена строка состояния, рекомендую использовать максимум 5 приложений, чтобы она выглядела хорошо :)</string>
     <string name="app_placeholder">Приложение</string>
 
     <!-- Content descriptions -->
