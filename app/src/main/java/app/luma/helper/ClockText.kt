@@ -40,11 +40,27 @@ fun formatLockscreenDateText(
     calendar: Calendar = Calendar.getInstance(),
     locale: Locale = Locale.getDefault(),
 ): String {
-    val skeleton =
-        when (format) {
-            Prefs.LockscreenDateFormat.ShortWeekday -> "EEE MMM d"
-            Prefs.LockscreenDateFormat.LongWeekday -> "EEEE MMMM d"
+    when (format) {
+        Prefs.LockscreenDateFormat.ShortWeekday -> {
+            val pattern = DateFormat.getBestDateTimePattern(locale, "EEE MMM d")
+            return SimpleDateFormat(pattern, locale).format(calendar.time)
         }
-    val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
-    return SimpleDateFormat(pattern, locale).format(calendar.time)
+
+        Prefs.LockscreenDateFormat.LongWeekday -> {
+            val pattern = DateFormat.getBestDateTimePattern(locale, "EEEE MMMM d")
+            return SimpleDateFormat(pattern, locale).format(calendar.time)
+        }
+
+        Prefs.LockscreenDateFormat.SlashedDMY -> {
+            return SimpleDateFormat("dd/MM/yy", locale).format(calendar.time)
+        }
+
+        Prefs.LockscreenDateFormat.SlashedMDY -> {
+            return SimpleDateFormat("MM/dd/yy", locale).format(calendar.time)
+        }
+
+        Prefs.LockscreenDateFormat.ISO8601 -> {
+            return SimpleDateFormat("yyyy-MM-dd", locale).format(calendar.time)
+        }
+    }
 }

@@ -164,7 +164,7 @@ class Prefs(
 
     enum class NotificationIndicatorAlignment { Before, After }
 
-    enum class LockscreenDateFormat { ShortWeekday, LongWeekday }
+    enum class LockscreenDateFormat { ShortWeekday, LongWeekday, SlashedDMY, SlashedMDY, ISO8601 }
 
     enum class LockscreenShortcutIcon { Ring, Star, Camera, Phone, Heart, Flashlight, Music, Message }
 
