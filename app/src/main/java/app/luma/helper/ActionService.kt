@@ -1110,7 +1110,6 @@ class ActionService : AccessibilityService() {
         view.isFocusable = true
         view.setOnClickListener(null)
         view.findViewById<TextView>(R.id.unlockGateDate).setOnClickListener {
-            performAppTapHapticFeedback(this@ActionService)
             if (dispatchLockscreenDateTap()) {
                 dispatchUnlockGateEventOnMain(
                     UnlockGateEvent.DismissRequested(
@@ -1483,7 +1482,6 @@ class ActionService : AccessibilityService() {
         target.setOnClickListener(
             if (enabled) {
                 View.OnClickListener {
-                    performStatusBarPressHapticFeedback(this)
                     if (dispatchStatusBarSectionTap(section)) {
                         dispatchUnlockGateEventOnMain(
                             UnlockGateEvent.DismissRequested(
@@ -1502,18 +1500,34 @@ class ActionService : AccessibilityService() {
     private fun bindUnlockGateGestureListeners(view: View) {
         view.setOnTouchListener(createUnlockGateGestureTouchListener())
         bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateClock))
-        bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateDate), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(
+            view.findViewById(R.id.unlockGateDate),
+            preserveSingleTap = true,
+            onPress = { performAppTapHapticFeedback(this) },
+        )
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.unlockGateHomeButton),
             preserveSingleTap = true,
             onPress = { performAppTapHapticFeedback(this) },
         )
         bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateStatusBar))
-        bindUnlockGateGestureTarget(view.findViewById(R.id.statusConnectivityLayout), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(
+            view.findViewById(R.id.statusConnectivityLayout),
+            preserveSingleTap = true,
+            onPress = { performStatusBarPressHapticFeedback(this) },
+        )
         bindUnlockGateGestureTarget(view.findViewById(R.id.statusClockLayout))
-        bindUnlockGateGestureTarget(view.findViewById(R.id.statusBatteryLayout), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(
+            view.findViewById(R.id.statusBatteryLayout),
+            preserveSingleTap = true,
+            onPress = { performStatusBarPressHapticFeedback(this) },
+        )
         bindUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicator))
-        bindUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicatorLabel), preserveSingleTap = true)
+        bindUnlockGateGestureTarget(
+            view.findViewById(R.id.volumeIndicatorLabel),
+            preserveSingleTap = true,
+            onPress = { performAppTapHapticFeedback(this) },
+        )
     }
 
     private fun bindUnlockGateGestureTarget(
@@ -1845,7 +1859,6 @@ class ActionService : AccessibilityService() {
             isClickable = true
             isFocusable = true
             setOnClickListener {
-                performAppTapHapticFeedback(this@ActionService)
                 if (launchLightOsRoute(this@ActionService, NOTIFICATION_SETTINGS_LIGHT_ROUTE)) {
                     dispatchUnlockGateEventOnMain(
                         UnlockGateEvent.DismissRequested(
