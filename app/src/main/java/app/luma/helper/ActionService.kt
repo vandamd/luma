@@ -192,11 +192,37 @@ class ActionService : AccessibilityService() {
 
         val unlockGatePhase = unlockGateStateMachine.state.phase
         if (unlockGatePhase != UnlockGatePhase.Idle) {
-            if (unlockGatePhase == UnlockGatePhase.SecureMask || unlockGatePhase == UnlockGatePhase.AwaitingCredential) {
+            if (unlockGatePhase == UnlockGatePhase.SecureMask) {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    runOnMainThread {
+                        dismissSecureLockMaskWithGestureOnMain()
+                    }
+                }
+                return true
+            }
+            if (unlockGatePhase == UnlockGatePhase.AwaitingCredential) {
+                return true
+            }
+            if (event.repeatCount != 0) {
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                runOnMainThread {
+                    bringLumaToFrontUnderUnlockGate()
+                    dispatchUnlockGateEventOnMain(
+                        UnlockGateEvent.DismissRequested(
+                            nowUptimeMs = SystemClock.uptimeMillis(),
+                            minDelayMs = UNLOCK_GATE_HIDE_DELAY_MS,
+                        ),
+                    )
+                }
                 return true
             }
             if (event.action == KeyEvent.ACTION_UP) {
                 val shouldConsume = unlockGateStateMachine.state.ignoreNextHomeUp
+                if (!shouldConsume) {
+                    return true
+                }
                 runOnMainThread {
                     dispatchUnlockGateEventOnMain(
                         UnlockGateEvent.HomeKeyUp(
@@ -205,9 +231,9 @@ class ActionService : AccessibilityService() {
                         ),
                     )
                 }
-                if (shouldConsume) return true
+                return true
             }
-            return false
+            return true
         }
 
         if (!prefs.lockscreenGateEnabled) return false
@@ -570,13 +596,20 @@ class ActionService : AccessibilityService() {
                 UnlockGatePhase.Idle -> return true
             }
 
-        return if (!view.isAttachedToWindow) {
+        val shouldAddView = !view.isAttachedToWindow && view.windowToken == null && view.parent == null
+
+        return if (shouldAddView) {
             try {
                 windowManager.addView(view, layoutParams)
                 true
             } catch (exception: Exception) {
+                if (exception is IllegalStateException && exception.message?.contains("already been added") == true) {
+                    if (tryUpdateUnlockGateViewLayoutOnMain(view, layoutParams, logPrefix = "renderUnlockGateStateOnMain recover")) {
+                        return true
+                    }
+                }
                 Log.e(TAG, "renderUnlockGateStateOnMain: addView failed", exception)
-                unlockGateView = null
+                forceRemoveUnlockGateViewInstanceOnMain(view)
                 unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility = false)
                 cancelUnlockGateCallbacks()
                 stopUnlockGateStatusBarMonitors()
@@ -584,12 +617,16 @@ class ActionService : AccessibilityService() {
                 false
             }
         } else {
-            try {
-                windowManager.updateViewLayout(view, layoutParams)
-            } catch (exception: Exception) {
-                Log.e(TAG, "renderUnlockGateStateOnMain: updateViewLayout failed", exception)
+            if (tryUpdateUnlockGateViewLayoutOnMain(view, layoutParams, logPrefix = "renderUnlockGateStateOnMain")) {
+                true
+            } else {
+                forceRemoveUnlockGateViewInstanceOnMain(view)
+                unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility = false)
+                cancelUnlockGateCallbacks()
+                stopUnlockGateStatusBarMonitors()
+                publishUnlockGateState()
+                false
             }
-            true
         }
     }
 
@@ -624,11 +661,11 @@ class ActionService : AccessibilityService() {
             isFocusable = true
             setOnClickListener {
                 performAppTapHapticFeedback(this@ActionService)
-                dispatchLockscreenShortcut()
+                bringLumaToFrontUnderUnlockGate()
                 dispatchUnlockGateEventOnMain(
                     UnlockGateEvent.DismissRequested(
                         nowUptimeMs = SystemClock.uptimeMillis(),
-                        minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                        minDelayMs = UNLOCK_GATE_HIDE_DELAY_MS,
                     ),
                 )
             }
@@ -750,6 +787,34 @@ class ActionService : AccessibilityService() {
             Log.e(TAG, "removeUnlockGateViewOnMain: removeView failed", exception)
         } finally {
             unlockGateView = null
+        }
+    }
+
+    private fun tryUpdateUnlockGateViewLayoutOnMain(
+        view: View,
+        layoutParams: WindowManager.LayoutParams,
+        logPrefix: String,
+    ): Boolean =
+        try {
+            windowManager.updateViewLayout(view, layoutParams)
+            true
+        } catch (exception: Exception) {
+            Log.e(TAG, "$logPrefix: updateViewLayout failed", exception)
+            false
+        }
+
+    private fun forceRemoveUnlockGateViewInstanceOnMain(view: View) {
+        view.animate().setListener(null)
+        view.animate().cancel()
+        resetUnlockGateViewState(view)
+        try {
+            windowManager.removeViewImmediate(view)
+        } catch (exception: Exception) {
+            Log.e(TAG, "forceRemoveUnlockGateViewInstanceOnMain: removeViewImmediate failed", exception)
+        } finally {
+            if (unlockGateView === view) {
+                unlockGateView = null
+            }
         }
     }
 

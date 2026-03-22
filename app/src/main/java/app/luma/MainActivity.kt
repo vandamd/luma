@@ -8,6 +8,7 @@ import android.content.pm.LauncherApps
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
 import androidx.activity.OnBackPressedCallback
@@ -101,6 +102,7 @@ class MainActivity : AppCompatActivity() {
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
         handleStatusBarSectionIntent(intent)
+        sanitizeActivityIntent(intent)
     }
 
     override fun onDestroy() {
@@ -148,6 +150,7 @@ class MainActivity : AppCompatActivity() {
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
         handleStatusBarSectionIntent(intent)
+        sanitizeActivityIntent(intent)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
@@ -220,9 +223,31 @@ class MainActivity : AppCompatActivity() {
             )
 
     private fun notifyUnlockGateLauncherIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, false) == true) return
         if (intent == null || !isLauncherIntent(intent)) return
+        if (consumePendingUnlockGateHomeLaunch()) return
+        if (intent.getBooleanExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, false)) return
         ActionService.instance()?.handleLauncherIntent()
+    }
+
+    private fun sanitizeActivityIntent(intent: Intent?) {
+        if (intent == null) return
+        if (
+            !intent.getBooleanExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, false) &&
+            !intent.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, false) &&
+            !intent.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP, false) &&
+            intent.getStringExtra(EXTRA_RUN_STATUS_BAR_SECTION) == null
+        ) {
+            return
+        }
+
+        setIntent(
+            Intent(intent).apply {
+                removeExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH)
+                removeExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT)
+                removeExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP)
+                removeExtra(EXTRA_RUN_STATUS_BAR_SECTION)
+            },
+        )
     }
 
     fun syncRepeatedHomeGateEligibility(destinationId: Int? = navController.currentDestination?.id) {
@@ -396,13 +421,29 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_RUN_LOCKSCREEN_SHORTCUT = "app.luma.extra.RUN_LOCKSCREEN_SHORTCUT"
         const val EXTRA_RUN_LOCKSCREEN_DATE_TAP = "app.luma.extra.RUN_LOCKSCREEN_DATE_TAP"
         const val EXTRA_RUN_STATUS_BAR_SECTION = "app.luma.extra.RUN_STATUS_BAR_SECTION"
+        private const val PENDING_UNLOCK_GATE_HOME_LAUNCH_TIMEOUT_MS = 3000L
+        @Volatile
+        private var pendingUnlockGateHomeLaunchUntilUptimeMs = 0L
+
+        private fun markPendingUnlockGateHomeLaunch() {
+            pendingUnlockGateHomeLaunchUntilUptimeMs =
+                SystemClock.uptimeMillis() + PENDING_UNLOCK_GATE_HOME_LAUNCH_TIMEOUT_MS
+        }
+
+        private fun consumePendingUnlockGateHomeLaunch(): Boolean {
+            val now = SystemClock.uptimeMillis()
+            val deadline = pendingUnlockGateHomeLaunchUntilUptimeMs
+            if (deadline == 0L) return false
+            pendingUnlockGateHomeLaunchUntilUptimeMs = 0L
+            return now <= deadline
+        }
 
         fun createUnlockGateHomeIntent(context: Context): Intent =
             Intent(Intent.ACTION_MAIN).apply {
+                markPendingUnlockGateHomeLaunch()
                 setClass(context, MainActivity::class.java)
                 addCategory(Intent.CATEGORY_HOME)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, true)
             }
 
         fun createLockscreenShortcutIntent(context: Context): Intent =

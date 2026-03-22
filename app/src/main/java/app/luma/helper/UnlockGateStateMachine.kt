@@ -274,7 +274,6 @@ internal class UnlockGateStateMachine(
             is UnlockGateEvent.UserPresent -> {
                 val shouldShowUnlockGate =
                     event.gateEnabled &&
-                        !event.deviceLocked &&
                         (
                             currentState.wakeArmed ||
                                 currentState.phase == UnlockGatePhase.SecureMask ||
