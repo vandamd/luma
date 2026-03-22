@@ -567,7 +567,9 @@ class ActionService : AccessibilityService() {
                     if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
                         false
                     } else {
-                        launchAppModel(this, appModel)
+                        val launched = launchAppModel(this, appModel)
+                        if (launched) dismissUnlockGateIfNeeded()
+                        launched
                     }
                 }
 
@@ -589,7 +591,9 @@ class ActionService : AccessibilityService() {
                     if (appModel.appPackage.isBlank()) {
                         false
                     } else {
-                        launchAppModel(this, appModel)
+                        val launched = launchAppModel(this, appModel)
+                        if (launched) dismissUnlockGateIfNeeded()
+                        launched
                     }
                 }
 
@@ -1441,6 +1445,17 @@ class ActionService : AccessibilityService() {
         if (phase != UnlockGatePhase.UnlockGateVisible && phase != UnlockGatePhase.Dismissing) return
         if (!dispatchLockscreenGesture(gestureType)) return
         performGestureActionHapticFeedback(this)
+        dispatchUnlockGateEventOnMain(
+            UnlockGateEvent.DismissRequested(
+                nowUptimeMs = SystemClock.uptimeMillis(),
+                minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+            ),
+        )
+    }
+
+    private fun dismissUnlockGateIfNeeded() {
+        val phase = unlockGateStateMachine.state.phase
+        if (phase != UnlockGatePhase.UnlockGateVisible && phase != UnlockGatePhase.Dismissing) return
         dispatchUnlockGateEventOnMain(
             UnlockGateEvent.DismissRequested(
                 nowUptimeMs = SystemClock.uptimeMillis(),
