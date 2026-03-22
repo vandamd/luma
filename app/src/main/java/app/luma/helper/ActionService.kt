@@ -563,13 +563,17 @@ class ActionService : AccessibilityService() {
         maybeVibrateAfterMappedAction(prefs.cameraKeyVibrate) {
             when (prefs.getCameraKeyAction()) {
                 Action.OpenApp -> {
-                    val appModel = prefs.getCameraKeyApp()
-                    if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
+                    if (unlockGateStateMachine.state.phase == UnlockGatePhase.SecureMask) {
                         false
                     } else {
-                        val launched = launchAppModel(this, appModel)
-                        if (launched) dismissUnlockGateIfNeeded()
-                        launched
+                        val appModel = prefs.getCameraKeyApp()
+                        if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
+                            false
+                        } else {
+                            val launched = launchAppModel(this, appModel)
+                            if (launched) dismissUnlockGateIfNeeded()
+                            launched
+                        }
                     }
                 }
 
@@ -587,13 +591,17 @@ class ActionService : AccessibilityService() {
                 }
 
                 Action.OpenApp -> {
-                    val appModel = prefs.getScrollwheelButtonApp()
-                    if (appModel.appPackage.isBlank()) {
+                    if (unlockGateStateMachine.state.phase == UnlockGatePhase.SecureMask) {
                         false
                     } else {
-                        val launched = launchAppModel(this, appModel)
-                        if (launched) dismissUnlockGateIfNeeded()
-                        launched
+                        val appModel = prefs.getScrollwheelButtonApp()
+                        if (appModel.appPackage.isBlank()) {
+                            false
+                        } else {
+                            val launched = launchAppModel(this, appModel)
+                            if (launched) dismissUnlockGateIfNeeded()
+                            launched
+                        }
                     }
                 }
 
