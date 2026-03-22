@@ -336,7 +336,7 @@ class ActionService : AccessibilityService() {
             return true
         }
 
-        if (prefs.lockscreenGateEnabled && unlockGateStateMachine.state.repeatedHomeGateEligible) {
+        if (unlockGateStateMachine.state.repeatedHomeGateEligible) {
             if (event.action != KeyEvent.ACTION_DOWN) return false
             if (event.repeatCount != 0) return true
 
@@ -344,7 +344,7 @@ class ActionService : AccessibilityService() {
                 dispatchUnlockGateEventOnMain(
                     UnlockGateEvent.HomeKeyDown(
                         nowUptimeMs = SystemClock.uptimeMillis(),
-                        gateEnabled = prefs.lockscreenGateEnabled,
+                        gateEnabled = true,
                     ),
                 )
             }
@@ -361,7 +361,6 @@ class ActionService : AccessibilityService() {
             return true
         }
 
-        if (!prefs.lockscreenGateEnabled) return false
         if (event.action != KeyEvent.ACTION_DOWN) return false
         if (event.repeatCount != 0) return true
 
@@ -369,7 +368,7 @@ class ActionService : AccessibilityService() {
             dispatchUnlockGateEventOnMain(
                 UnlockGateEvent.HomeKeyDown(
                     nowUptimeMs = SystemClock.uptimeMillis(),
-                    gateEnabled = prefs.lockscreenGateEnabled,
+                    gateEnabled = true,
                 ),
             )
         }
@@ -929,7 +928,7 @@ class ActionService : AccessibilityService() {
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.ScreenOn(
                                         nowUptimeMs = SystemClock.uptimeMillis(),
-                                        gateEnabled = prefs.lockscreenGateEnabled,
+                                        gateEnabled = true,
                                         deviceLocked = keyguardManager.isDeviceLocked,
                                     ),
                                 )
@@ -941,7 +940,7 @@ class ActionService : AccessibilityService() {
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.UserPresent(
                                         nowUptimeMs = SystemClock.uptimeMillis(),
-                                        gateEnabled = prefs.lockscreenGateEnabled,
+                                        gateEnabled = true,
                                         deviceLocked = keyguardManager.isDeviceLocked,
                                     ),
                                 )
@@ -1216,7 +1215,7 @@ class ActionService : AccessibilityService() {
     private fun restoreUnlockGatePrimaryContent(view: View) {
         view.findViewById<TextView>(R.id.unlockGateClock).visibility = View.VISIBLE
         view.findViewById<TextView>(R.id.unlockGateDate).visibility =
-            if (prefs.lockscreenDateEnabled) {
+            if (prefs.lockscreenDateFormat != Prefs.LockscreenDateFormat.None) {
                 View.VISIBLE
             } else {
                 View.GONE
@@ -1638,7 +1637,7 @@ class ActionService : AccessibilityService() {
         }
 
         dateView.apply {
-            if (prefs.lockscreenDateEnabled) {
+            if (prefs.lockscreenDateFormat != Prefs.LockscreenDateFormat.None) {
                 text = formatLockscreenDateText(prefs.lockscreenDateFormat)
                 visibility = View.VISIBLE
                 isClickable = isInteractive && prefs.getLockscreenDateTapAction() != Action.Disabled

@@ -38,13 +38,19 @@ class LockscreenDateFormatFragment : Fragment() {
             )
 
             ContentContainer {
-                    for (format in Prefs.LockscreenDateFormat.values()) {
-                        SimpleTextButton(
-                            title = formatLockscreenDateText(format),
-                            underline = prefs.lockscreenDateFormat == format,
-                            onClick = { select(format) },
-                        )
-                    }
+                for (format in Prefs.LockscreenDateFormat.values()) {
+                    val label =
+                        if (format == Prefs.LockscreenDateFormat.None) {
+                            stringResource(R.string.option_none)
+                        } else {
+                            formatLockscreenDateText(format)
+                        }
+                    SimpleTextButton(
+                        title = label,
+                        underline = prefs.lockscreenDateFormat == format,
+                        onClick = { select(format) },
+                    )
+                }
             }
         }
     }

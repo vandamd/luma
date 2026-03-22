@@ -52,73 +52,76 @@ class HomescreenFragment : Fragment() {
             )
 
             ContentContainer {
-                    SimpleTextButton(stringResource(R.string.settings_tools)) {
-                        findNavController().navigate(R.id.action_homescreenFragment_to_toolsFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_pages)) {
-                        findNavController().navigate(R.id.action_homescreenFragment_to_pagesFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_gestures)) {
-                        findNavController().navigate(R.id.action_homescreenFragment_to_gesturesFragment)
-                    }
-                    ToggleSelectorButton(
-                        label = stringResource(R.string.notifications_indicator),
-                        value =
-                            if (hasNotificationPermission.value) {
-                                if (notificationIndicatorState.value) {
-                                    stringResource(R.string.notifications_visible_next_to_apps)
-                                } else {
-                                    stringResource(R.string.notifications_not_visible)
-                                }
+                SimpleTextButton(stringResource(R.string.settings_pages)) {
+                    findNavController().navigate(R.id.action_homescreenFragment_to_pagesFragment)
+                }
+                SimpleTextButton(stringResource(R.string.settings_gestures)) {
+                    findNavController().navigate(R.id.action_homescreenFragment_to_gesturesFragment)
+                }
+                ToggleSelectorButton(
+                    label = stringResource(R.string.notifications_indicator),
+                    value =
+                        if (hasNotificationPermission.value) {
+                            if (notificationIndicatorState.value) {
+                                stringResource(R.string.notifications_visible_next_to_apps)
                             } else {
-                                stringResource(R.string.notifications_not_visible_permission_required)
-                            },
-                        checked = hasNotificationPermission.value && notificationIndicatorState.value,
-                        onCheckedChange = {
-                            if (hasNotificationPermission.value) {
-                                notificationIndicatorState.value = it
-                                prefs.showNotificationIndicator = it
-                            } else {
-                                openNotificationListenerSettings()
+                                stringResource(R.string.notifications_not_visible)
                             }
+                        } else {
+                            stringResource(R.string.notifications_not_visible_permission_required)
                         },
-                        onClick = {
-                            if (hasNotificationPermission.value) {
-                                notificationIndicatorState.value = !notificationIndicatorState.value
-                                prefs.showNotificationIndicator = notificationIndicatorState.value
-                            } else {
-                                openNotificationListenerSettings()
-                            }
-                        },
-                    )
-                    ToggleSelectorButton(
-                        label = stringResource(R.string.settings_show_tool_icons),
-                        value = stringResource(if (toolIconState.value) R.string.notifications_visible else R.string.notifications_not_visible),
-                        checked = toolIconState.value,
-                        labelIconRes = R.drawable.tool_bulb_24px,
-                        onCheckedChange = {
-                            toolIconState.value = it
-                            prefs.showAppDrawerToolIcons = it
-                        },
-                        onClick = {
-                            toolIconState.value = !toolIconState.value
-                            prefs.showAppDrawerToolIcons = toolIconState.value
-                        },
-                    )
-                    ToggleSelectorButton(
-                        label = stringResource(R.string.settings_show_pin_icons),
-                        value = stringResource(if (pinIconState.value) R.string.notifications_visible else R.string.notifications_not_visible),
-                        checked = pinIconState.value,
-                        labelIconRes = R.drawable.pin_24px,
-                        onCheckedChange = {
-                            pinIconState.value = it
-                            prefs.showAppDrawerPinIcons = it
-                        },
-                        onClick = {
-                            pinIconState.value = !pinIconState.value
-                            prefs.showAppDrawerPinIcons = pinIconState.value
-                        },
-                    )
+                    checked = hasNotificationPermission.value && notificationIndicatorState.value,
+                    onCheckedChange = {
+                        if (hasNotificationPermission.value) {
+                            notificationIndicatorState.value = it
+                            prefs.showNotificationIndicator = it
+                        } else {
+                            openNotificationListenerSettings()
+                        }
+                    },
+                    onClick = {
+                        if (hasNotificationPermission.value) {
+                            notificationIndicatorState.value = !notificationIndicatorState.value
+                            prefs.showNotificationIndicator = notificationIndicatorState.value
+                        } else {
+                            openNotificationListenerSettings()
+                        }
+                    },
+                )
+                ToggleSelectorButton(
+                    label = stringResource(R.string.settings_show_tool_icons),
+                    value =
+                        stringResource(
+                            if (toolIconState.value) R.string.notifications_visible else R.string.notifications_not_visible,
+                        ),
+                    checked = toolIconState.value,
+                    labelIconRes = R.drawable.tool_bulb_24px,
+                    onCheckedChange = {
+                        toolIconState.value = it
+                        prefs.showAppDrawerToolIcons = it
+                    },
+                    onClick = {
+                        toolIconState.value = !toolIconState.value
+                        prefs.showAppDrawerToolIcons = toolIconState.value
+                    },
+                )
+                ToggleSelectorButton(
+                    label = stringResource(R.string.settings_show_pin_icons),
+                    value =
+                        stringResource(
+                            if (pinIconState.value) R.string.notifications_visible else R.string.notifications_not_visible,
+                        ),
+                    checked = pinIconState.value,
+                    labelIconRes = R.drawable.pin_24px,
+                    onCheckedChange = {
+                        pinIconState.value = it
+                        prefs.showAppDrawerPinIcons = it
+                    },
+                    onClick = {
+                        pinIconState.value = !pinIconState.value
+                        prefs.showAppDrawerPinIcons = pinIconState.value
+                    },
+                )
             }
         }
     }

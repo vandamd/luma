@@ -41,6 +41,10 @@ fun formatLockscreenDateText(
     locale: Locale = Locale.getDefault(),
 ): String {
     when (format) {
+        Prefs.LockscreenDateFormat.None -> {
+            return ""
+        }
+
         Prefs.LockscreenDateFormat.ShortWeekday -> {
             val pattern = DateFormat.getBestDateTimePattern(locale, "EEE MMM d")
             return SimpleDateFormat(pattern, locale).format(calendar.time)

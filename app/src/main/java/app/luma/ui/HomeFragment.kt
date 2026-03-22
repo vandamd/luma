@@ -25,8 +25,8 @@ import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.util.TypedValue
-import android.view.KeyEvent
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -114,29 +114,33 @@ private data class VolumeState(
 ) {
     fun toIndicatorState(): VolumeIndicatorState =
         when (type) {
-            VolumeStateType.Media ->
+            VolumeStateType.Media -> {
                 VolumeIndicatorState(
                     labelRes = R.string.volume_indicator_media,
                     progress = if (maxVolume <= 0) 0f else volume.toFloat() / maxVolume.toFloat(),
                 )
+            }
 
-            VolumeStateType.Ringer ->
+            VolumeStateType.Ringer -> {
                 VolumeIndicatorState(
                     labelRes = R.string.volume_indicator_ringer,
                     progress = if (maxVolume <= 0) 0f else volume.toFloat() / maxVolume.toFloat(),
                 )
+            }
 
-            VolumeStateType.Vibrate ->
+            VolumeStateType.Vibrate -> {
                 VolumeIndicatorState(
                     labelRes = R.string.volume_indicator_vibrate,
                     progress = 0f,
                 )
+            }
 
-            VolumeStateType.Silent ->
+            VolumeStateType.Silent -> {
                 VolumeIndicatorState(
                     labelRes = R.string.volume_indicator_silent,
                     progress = 0f,
                 )
+            }
         }
 }
 
@@ -491,8 +495,7 @@ class HomeFragment :
 
     private fun shouldShowLumaStatusBarNow(): Boolean = false
 
-    private fun lockscreenStatusBarInsetPx(): Int =
-        resources.getDimensionPixelSize(R.dimen.lockscreen_gate_home_content_top)
+    private fun lockscreenStatusBarInsetPx(): Int = resources.getDimensionPixelSize(R.dimen.lockscreen_gate_home_content_top)
 
     private fun applyStatusBarVisibility() {
         binding.statusBar.visibility = if (shouldShowLumaStatusBarNow()) View.VISIBLE else View.GONE
@@ -518,9 +521,7 @@ class HomeFragment :
         binding.homeAppsLayout.gravity = android.view.Gravity.CENTER
     }
 
-    private fun readCurrentVolumeState(
-        audioManager: AudioManager,
-    ): VolumeState {
+    private fun readCurrentVolumeState(audioManager: AudioManager): VolumeState {
         if (audioManager.isMusicActive) {
             return VolumeState(
                 type = VolumeStateType.Media,
@@ -531,24 +532,27 @@ class HomeFragment :
 
         val maxRingVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING).coerceAtLeast(1)
         when (audioManager.ringerMode) {
-            AudioManager.RINGER_MODE_VIBRATE ->
+            AudioManager.RINGER_MODE_VIBRATE -> {
                 return VolumeState(
                     type = VolumeStateType.Vibrate,
                     maxVolume = maxRingVolume,
                 )
+            }
 
-            AudioManager.RINGER_MODE_SILENT ->
+            AudioManager.RINGER_MODE_SILENT -> {
                 return VolumeState(
                     type = VolumeStateType.Silent,
                     maxVolume = maxRingVolume,
                 )
+            }
 
-            else ->
+            else -> {
                 return VolumeState(
                     type = VolumeStateType.Ringer,
                     volume = audioManager.getStreamVolume(AudioManager.STREAM_RING),
                     maxVolume = maxRingVolume,
                 )
+            }
         }
     }
 
@@ -705,11 +709,6 @@ class HomeFragment :
     }
 
     private fun showVolumeIndicator(state: VolumeIndicatorState) {
-        if (!prefs.showVolumeIndicator) {
-            hideVolumeIndicator()
-            return
-        }
-
         binding.volumeIndicator.visibility = View.VISIBLE
         scheduleVolumeIndicatorUiUpdate(state)
         restartVolumeIndicatorHideTimer()
@@ -973,12 +972,9 @@ class HomeFragment :
         binding.statusClockLayout.visibility = View.GONE
     }
 
-    private fun shouldHideClockForUnlockGate(): Boolean =
-        isUnlockGateVisible
+    private fun shouldHideClockForUnlockGate(): Boolean = isUnlockGateVisible
 
-    private fun clockPlaceholder(): String {
-        return LumaStatusBarUi.clockPlaceholder(prefs)
-    }
+    private fun clockPlaceholder(): String = LumaStatusBarUi.clockPlaceholder(prefs)
 
     private fun stopClock() {
         clockJob?.cancel()
@@ -1122,10 +1118,11 @@ class HomeFragment :
     }
 
     private fun startCellularMonitor() {
-        val tm = requireContext().getSystemService(TelephonyManager::class.java) ?: run {
-            hideCellular()
-            return
-        }
+        val tm =
+            requireContext().getSystemService(TelephonyManager::class.java) ?: run {
+                hideCellular()
+                return
+            }
         updateCellularSnapshot(tm)
         val callback =
             object :

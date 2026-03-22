@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -340,10 +341,12 @@ object SettingsComposable {
         label: String,
         value: String,
         isSelected: Boolean = false,
+        @DrawableRes iconRes: Int? = null,
         onClick: () -> Unit,
     ) {
         val context = LocalContext.current
         val selectedColor = SettingsTheme.typography.button.color
+        val valueColor = SettingsTheme.typography.item.color
         Column(
             modifier =
                 Modifier
@@ -361,17 +364,42 @@ object SettingsComposable {
                 fontSize = 16.sp,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Text(
-                value,
-                style = SettingsTheme.typography.item,
-                fontSize = 30.sp,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
                         .padding(bottom = 0.dp)
                         .then(
                             if (isSelected) Modifier.underline(selectedColor, yOffset = (-5).dp) else Modifier,
                         ),
-            )
+            ) {
+                Text(
+                    value,
+                    style = SettingsTheme.typography.item,
+                    fontSize = 30.sp,
+                )
+                if (iconRes != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "(",
+                        style = SettingsTheme.typography.item,
+                        fontSize = 30.sp,
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Image(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        colorFilter = ColorFilter.tint(valueColor),
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        ")",
+                        style = SettingsTheme.typography.item,
+                        fontSize = 30.sp,
+                    )
+                }
+            }
         }
     }
 

@@ -6,13 +6,17 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import app.luma.R
 import app.luma.data.Prefs
 import app.luma.data.Tool
 import app.luma.ui.compose.SettingsComposable.ContentContainer
+import app.luma.ui.compose.SettingsComposable.MessageText
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 
@@ -62,13 +66,17 @@ class ToolsFragment : Fragment() {
             )
 
             ContentContainer {
-                    toolToggleOptions.forEach { option ->
-                        PrefsToggleTextButton(
-                            title = stringResource(option.titleRes),
-                            initialValue = prefs.isToolEnabled(option.tool),
-                            onValueChange = { prefs.setToolEnabled(option.tool, it) },
-                        )
-                    }
+                MessageText(
+                    stringResource(R.string.tools_message),
+                    modifier = Modifier.padding(end = 30.dp),
+                )
+                toolToggleOptions.forEach { option ->
+                    PrefsToggleTextButton(
+                        title = stringResource(option.titleRes),
+                        initialValue = prefs.isToolEnabled(option.tool),
+                        onValueChange = { prefs.setToolEnabled(option.tool, it) },
+                    )
+                }
             }
         }
     }

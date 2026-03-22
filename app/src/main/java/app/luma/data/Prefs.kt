@@ -12,6 +12,7 @@ import java.text.Collator
 private const val PREFS_FILENAME = "app.luma"
 
 private const val FIRST_SETTINGS_OPEN = "FIRST_SETTINGS_OPEN"
+private const val FIRST_RUN_DEFAULTS = "FIRST_RUN_DEFAULTS"
 private const val HOME_PAGES = "HOME_PAGES"
 private const val HOME_APPS_PER_PAGE = "HOME_APPS_PER_PAGE_"
 
@@ -109,8 +110,6 @@ private const val HAPTICS_APP_TAP_ENABLED = "haptics_app_tap_enabled"
 private const val HAPTICS_LONG_PRESS_ENABLED = "haptics_long_press_enabled"
 private const val HAPTICS_GESTURE_ACTIONS_ENABLED = "haptics_gesture_actions_enabled"
 private const val HAPTICS_STATUS_BAR_PRESS_ENABLED = "haptics_status_bar_press_enabled"
-private const val AUTO_ROTATE_ENABLED = "auto_rotate_enabled"
-private const val SHOW_VOLUME_INDICATOR = "show_volume_indicator"
 private const val SCROLLWHEEL_BRIGHTNESS_ENABLED = "scrollwheel_brightness_enabled"
 private const val CAMERA_KEY_ACTION = "camera_key_action"
 private const val CAMERA_KEY_APP = "camera_key_app"
@@ -123,8 +122,6 @@ private const val SCROLLWHEEL_BUTTON_VIBRATE = "scrollwheel_button_vibrate"
 private const val SHOW_HIDDEN_APPS_IN_HOME_PICKER = "show_hidden_apps_in_home_picker"
 private const val SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
 private const val SHOW_APP_DRAWER_PIN_ICONS = "show_app_drawer_pin_icons"
-private const val LOCKSCREEN_GATE_ENABLED = "lockscreen_gate_enabled"
-private const val LOCKSCREEN_DATE_ENABLED = "lockscreen_date_enabled"
 private const val LOCKSCREEN_DATE_FORMAT = "lockscreen_date_format"
 private const val LOCKSCREEN_DATE_TAP_ACTION = "lockscreen_date_tap_action"
 private const val LOCKSCREEN_DATE_TAP_APP = "lockscreen_date_tap_app"
@@ -141,7 +138,10 @@ class Prefs(
 
         fun getInstance(context: Context): Prefs =
             instance ?: synchronized(this) {
-                instance ?: Prefs(context.applicationContext).also { instance = it }
+                instance ?: Prefs(context.applicationContext).also {
+                    instance = it
+                    it.initDefaults()
+                }
             }
     }
 
@@ -164,7 +164,7 @@ class Prefs(
 
     enum class NotificationIndicatorAlignment { Before, After }
 
-    enum class LockscreenDateFormat { ShortWeekday, LongWeekday, SlashedDMY, SlashedMDY, ISO8601 }
+    enum class LockscreenDateFormat { None, ShortWeekday, LongWeekday, SlashedDMY, SlashedMDY, ISO8601 }
 
     enum class LockscreenShortcutIcon { Ring, Star, Camera, Phone, Heart, Flashlight, Music, Message }
 
@@ -217,7 +217,7 @@ class Prefs(
         get() = prefs.getInt(HOME_PAGES, 1)
         set(value) = prefs.edit().putInt(HOME_PAGES, value.coerceIn(HomeLayout.MIN_PAGES, HomeLayout.MAX_PAGES)).apply()
 
-    fun getAppsPerPage(page: Int): Int = prefs.getInt("${HOME_APPS_PER_PAGE}$page", 4)
+    fun getAppsPerPage(page: Int): Int = prefs.getInt("${HOME_APPS_PER_PAGE}$page", if (page == 1) 2 else 4)
 
     fun setAppsPerPage(
         page: Int,
@@ -520,7 +520,7 @@ class Prefs(
         get() = prefs.getBoolean(SCROLLWHEEL_BUTTON_VIBRATE, false)
         set(value) = prefs.edit().putBoolean(SCROLLWHEEL_BUTTON_VIBRATE, value).apply()
 
-    fun isToolEnabled(tool: Tool): Boolean = prefs.getBoolean(tool.prefKey, false)
+    fun isToolEnabled(tool: Tool): Boolean = prefs.getBoolean(tool.prefKey, tool == Tool.Phone || tool == Tool.Settings)
 
     fun setToolEnabled(
         tool: Tool,
@@ -549,16 +549,8 @@ class Prefs(
         storeAction(type.actionKey, action)
     }
 
-    var lockscreenGateEnabled: Boolean
-        get() = prefs.getBoolean(LOCKSCREEN_GATE_ENABLED, true)
-        set(value) = prefs.edit().putBoolean(LOCKSCREEN_GATE_ENABLED, value).apply()
-
-    var lockscreenDateEnabled: Boolean
-        get() = prefs.getBoolean(LOCKSCREEN_DATE_ENABLED, false)
-        set(value) = prefs.edit().putBoolean(LOCKSCREEN_DATE_ENABLED, value).apply()
-
     var lockscreenDateFormat: LockscreenDateFormat
-        get() = enumPref(LOCKSCREEN_DATE_FORMAT, LockscreenDateFormat.ShortWeekday)
+        get() = enumPref(LOCKSCREEN_DATE_FORMAT, LockscreenDateFormat.None)
         set(value) = prefs.edit().putString(LOCKSCREEN_DATE_FORMAT, value.name).apply()
 
     var lockscreenShortcutIcon: LockscreenShortcutIcon
@@ -839,14 +831,6 @@ class Prefs(
         get() = prefs.getBoolean(HAPTICS_STATUS_BAR_PRESS_ENABLED, true)
         set(value) = prefs.edit().putBoolean(HAPTICS_STATUS_BAR_PRESS_ENABLED, value).apply()
 
-    var autoRotateEnabled: Boolean
-        get() = prefs.getBoolean(AUTO_ROTATE_ENABLED, false)
-        set(value) = prefs.edit().putBoolean(AUTO_ROTATE_ENABLED, value).apply()
-
-    var showVolumeIndicator: Boolean
-        get() = prefs.getBoolean(SHOW_VOLUME_INDICATOR, false)
-        set(value) = prefs.edit().putBoolean(SHOW_VOLUME_INDICATOR, value).apply()
-
     var scrollwheelBrightnessEnabled: Boolean
         get() = prefs.getBoolean(SCROLLWHEEL_BRIGHTNESS_ENABLED, false)
         set(value) = prefs.edit().putBoolean(SCROLLWHEEL_BRIGHTNESS_ENABLED, value).apply()
@@ -895,5 +879,12 @@ class Prefs(
             prefs.edit().putBoolean(key, false).apply()
         }
         return first
+    }
+
+    private fun initDefaults() {
+        if (!firstTrueFalseAfter(FIRST_RUN_DEFAULTS)) return
+        val collator = Collator.getInstance()
+        setHomeAppModel(0, Tool.Phone.toAppModel(context, collator))
+        setHomeAppModel(1, Tool.Settings.toAppModel(context, collator))
     }
 }

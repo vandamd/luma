@@ -16,6 +16,7 @@
     <string name="settings_show_pin_icons">Pin Icon</string>
     <string name="settings_show_volume_indicator">Volume Indicator</string>
     <string name="settings_tools">Tools</string>
+    <string name="tools_message">For some tools to work properly, they should be enabled on the Light Dashboard.</string>
     <string name="settings_auto_rotate">Auto-rotate</string>
     <string name="settings_time">Time</string>
     <string name="settings_homescreen">Homescreen</string>
@@ -43,6 +44,7 @@
     <string name="lockscreen_date_tap">On Date Tap</string>
     <string name="lockscreen_shortcut">Shortcut</string>
     <string name="lockscreen_shortcut_icon">Shortcut Icon</string>
+    <string name="lockscreen_tap_shortcuts">Tap Shortcuts</string>
 
     <!-- Tools screen -->
     <string name="tools_phone">Phone</string>

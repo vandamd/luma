@@ -174,9 +174,6 @@
         android:name="app.luma.ui.HomescreenFragment"
         android:label="HomescreenFragment">
         <action
-            android:id="@+id/action_homescreenFragment_to_toolsFragment"
-            app:destination="@id/toolsFragment" />
-        <action
             android:id="@+id/action_homescreenFragment_to_pagesFragment"
             app:destination="@id/pagesFragment" />
         <action
@@ -191,16 +188,24 @@
             android:id="@+id/action_lockscreenFragment_to_gesturesFragment"
             app:destination="@id/gesturesFragment" />
         <action
-            android:id="@+id/action_lockscreenFragment_to_gestureActionFragment"
-            app:destination="@id/gestureActionFragment" />
-        <action
             android:id="@+id/action_lockscreenFragment_to_timeFormatFragment"
             app:destination="@id/timeFormatFragment" />
         <action
             android:id="@+id/action_lockscreenFragment_to_lockscreenDateFormatFragment"
             app:destination="@id/lockscreenDateFormatFragment" />
         <action
-            android:id="@+id/action_lockscreenFragment_to_lockscreenShortcutIconFragment"
+            android:id="@+id/action_lockscreenFragment_to_lockscreenTapShortcutsFragment"
+            app:destination="@id/lockscreenTapShortcutsFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/lockscreenTapShortcutsFragment"
+        android:name="app.luma.ui.LockscreenTapShortcutsFragment"
+        android:label="LockscreenTapShortcutsFragment">
+        <action
+            android:id="@+id/action_lockscreenTapShortcutsFragment_to_gestureActionFragment"
+            app:destination="@id/gestureActionFragment" />
+        <action
+            android:id="@+id/action_lockscreenTapShortcutsFragment_to_lockscreenShortcutIconFragment"
             app:destination="@id/lockscreenShortcutIconFragment" />
     </fragment>
     <fragment
@@ -216,18 +221,10 @@
         android:name="app.luma.ui.MiscellaneousFragment"
         android:label="MiscellaneousFragment">
         <action
-            android:id="@+id/action_miscellaneousFragment_to_appearanceFragment"
-            app:destination="@id/appearanceFragment" />
-        <action
             android:id="@+id/action_miscellaneousFragment_to_hapticsFragment"
             app:destination="@id/hapticsFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/appearanceFragment"
-        android:name="app.luma.ui.AppearanceFragment"
-        android:label="AppearanceFragment">
         <action
-            android:id="@+id/action_appearanceFragment_to_themeModeFragment"
+            android:id="@+id/action_miscellaneousFragment_to_themeModeFragment"
             app:destination="@id/themeModeFragment" />
     </fragment>
     <fragment

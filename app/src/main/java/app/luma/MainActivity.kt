@@ -15,8 +15,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.bundleOf
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.NavHostFragment
@@ -24,9 +24,9 @@ import app.luma.data.AppModel
 import app.luma.data.Constants
 import app.luma.data.Constants.Action
 import app.luma.data.Constants.AppDrawerFlag
-import app.luma.data.Prefs
 import app.luma.data.GestureScope
 import app.luma.data.GestureType
+import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
 import app.luma.databinding.ActivityMainBinding
 import app.luma.helper.ActionExecutionCallbacks
@@ -201,12 +201,6 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SourceLockedOrientationActivity")
     private fun setupOrientation() {
-        if (prefs.autoRotateEnabled) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
-            return
-        }
-
-        // In Android 8.0, windowIsTranslucent cannot be used with screenOrientation=portrait
         if (Build.VERSION.SDK_INT != Build.VERSION_CODES.O) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
@@ -463,8 +457,10 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_RUN_LOCKSCREEN_GESTURE = "app.luma.extra.RUN_LOCKSCREEN_GESTURE"
         const val EXTRA_RUN_STATUS_BAR_SECTION = "app.luma.extra.RUN_STATUS_BAR_SECTION"
         private const val PENDING_UNLOCK_GATE_HOME_LAUNCH_TIMEOUT_MS = 3000L
+
         @Volatile
         private var lumaForeground = false
+
         @Volatile
         private var pendingUnlockGateHomeLaunchUntilUptimeMs = 0L
 
@@ -503,8 +499,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-        fun createUnlockGateHomeIntent(context: Context): Intent =
-            createLumaHomeIntent(context, suppressLauncherIntentHandling = true)
+        fun createUnlockGateHomeIntent(context: Context): Intent = createLumaHomeIntent(context, suppressLauncherIntentHandling = true)
 
         fun createLockscreenShortcutIntent(context: Context): Intent =
             createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {

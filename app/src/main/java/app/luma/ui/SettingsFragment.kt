@@ -19,7 +19,6 @@ import app.luma.helper.isAccessibilityEnabled
 import app.luma.helper.openAccessibilitySettings
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.MessageText
-import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
 import app.luma.ui.compose.SettingsComposable.SettingsHeader
 import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 
@@ -65,6 +64,9 @@ class SettingsFragment : Fragment() {
                 SimpleTextButton(stringResource(R.string.settings_miscellaneous)) {
                     findNavController().navigate(R.id.action_settingsFragment_to_miscellaneousFragment)
                 }
+                SimpleTextButton(stringResource(R.string.settings_tools)) {
+                    findNavController().navigate(R.id.action_settingsFragment_to_toolsFragment)
+                }
                 SimpleTextButton(stringResource(R.string.settings_homescreen)) {
                     findNavController().navigate(R.id.action_settingsFragment_to_homescreenFragment)
                 }
@@ -74,11 +76,6 @@ class SettingsFragment : Fragment() {
                 SimpleTextButton(stringResource(R.string.settings_keymaps), enabled = hasAccessibilityPermission.value) {
                     findNavController().navigate(R.id.action_settingsFragment_to_keymapsFragment)
                 }
-                PrefsToggleTextButton(
-                    title = stringResource(R.string.settings_show_volume_indicator),
-                    initialValue = prefs.showVolumeIndicator,
-                    onValueChange = { prefs.showVolumeIndicator = it },
-                )
             }
         }
     }
