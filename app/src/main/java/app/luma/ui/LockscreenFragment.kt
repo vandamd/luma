@@ -36,6 +36,7 @@ class LockscreenFragment : Fragment() {
     private val hasNotificationPermission = mutableStateOf(false)
     private val notificationIndicatorState = mutableStateOf(true)
     private val dateFormatState = mutableStateOf(Prefs.LockscreenDateFormat.ShortWeekday)
+    private val shortcutIconState = mutableStateOf(Prefs.LockscreenShortcutIcon.Ring)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +53,7 @@ class LockscreenFragment : Fragment() {
         timeFormatState.value = prefs.timeFormat
         notificationIndicatorState.value = prefs.lockscreenClockNotificationIndicator
         dateFormatState.value = prefs.lockscreenDateFormat
+        shortcutIconState.value = prefs.lockscreenShortcutIcon
     }
 
     override fun onCreateView(
@@ -172,6 +174,13 @@ class LockscreenFragment : Fragment() {
                                 R.id.action_lockscreenFragment_to_gestureActionFragment,
                                 bundleOf(GestureActionFragment.LOCKSCREEN_SHORTCUT to true),
                             )
+                        },
+                    )
+                    SelectorButton(
+                        label = stringResource(R.string.lockscreen_shortcut_icon),
+                        value = LockscreenShortcutIconFragment.iconDisplayName(shortcutIconState.value),
+                        onClick = {
+                            findNavController().navigate(R.id.action_lockscreenFragment_to_lockscreenShortcutIconFragment)
                         },
                     )
                 }

@@ -42,6 +42,7 @@
     <string name="lockscreen_date_format">Date Format</string>
     <string name="lockscreen_date_tap">On Date Tap</string>
     <string name="lockscreen_shortcut">Shortcut</string>
+    <string name="lockscreen_shortcut_icon">Shortcut Icon</string>
 
     <!-- Tools screen -->
     <string name="tools_phone">Phone</string>

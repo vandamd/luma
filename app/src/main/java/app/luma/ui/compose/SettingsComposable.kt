@@ -86,14 +86,21 @@ object SettingsComposable {
                 contentAlignment = Alignment.TopCenter,
             ) {
                 when {
-                    trailingContent != null -> trailingContent()
-                    onAction != null ->
+                    trailingContent != null -> {
+                        trailingContent()
+                    }
+
+                    onAction != null -> {
                         HeaderIconButton(
                             iconRes = R.drawable.check_24px,
                             contentDescription = stringResource(R.string.content_desc_save),
                             onClick = onAction,
                         )
-                    else -> Spacer(modifier = Modifier.size(32.dp))
+                    }
+
+                    else -> {
+                        Spacer(modifier = Modifier.size(32.dp))
+                    }
                 }
             }
         }
@@ -273,16 +280,14 @@ object SettingsComposable {
         fontSize: TextUnit = TextUnit.Unspecified,
         underline: Boolean = false,
         enabled: Boolean = true,
+        @DrawableRes iconRes: Int? = null,
         onClick: () -> Unit,
     ) {
         val context = LocalContext.current
         val underlineColor = SettingsTheme.typography.pageButton.color
+        val textColor = if (enabled) SettingsTheme.typography.pageButton.color else Color.Gray
         Box(modifier = Modifier.fillMaxWidth().padding(bottom = 0.dp)) {
-            Text(
-                title,
-                style = SettingsTheme.typography.pageButton,
-                fontSize = fontSize,
-                color = if (enabled) Color.Unspecified else Color.Gray,
+            Row(
                 modifier =
                     Modifier
                         .align(Alignment.CenterStart)
@@ -293,7 +298,40 @@ object SettingsComposable {
                         }.then(
                             if (underline) Modifier.underline(underlineColor) else Modifier,
                         ),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    title,
+                    style = SettingsTheme.typography.pageButton,
+                    fontSize = fontSize,
+                    color = textColor,
+                )
+                if (iconRes != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "(",
+                        style = SettingsTheme.typography.pageButton,
+                        fontSize = fontSize,
+                        color = textColor,
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Image(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        colorFilter =
+                            androidx.compose.ui.graphics.ColorFilter
+                                .tint(textColor),
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        ")",
+                        style = SettingsTheme.typography.pageButton,
+                        fontSize = fontSize,
+                        color = textColor,
+                    )
+                }
+            }
         }
     }
 
@@ -392,7 +430,9 @@ object SettingsComposable {
                             painter = painterResource(id = labelIconRes),
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(labelColor),
+                            colorFilter =
+                                androidx.compose.ui.graphics.ColorFilter
+                                    .tint(labelColor),
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(

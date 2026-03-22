@@ -3,41 +3,41 @@ package app.luma.helper
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
-import android.hardware.camera2.CameraAccessException
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
+import android.app.KeyguardManager
 import android.bluetooth.BluetoothAdapter
-import android.content.res.ColorStateList
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.app.KeyguardManager
-import android.net.Uri
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Path
+import android.graphics.PixelFormat
+import android.graphics.PorterDuff
+import android.graphics.drawable.GradientDrawable
+import android.hardware.camera2.CameraAccessException
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.Uri
 import android.net.wifi.WifiManager
-import android.graphics.Path
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.graphics.Color
-import android.graphics.PorterDuff
-import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
 import android.provider.Settings
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.ContextThemeWrapper
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
-import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -57,10 +57,10 @@ import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
 import app.luma.data.Tool
 import app.luma.listener.SwipeTouchListener
-import java.lang.ref.WeakReference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.lang.ref.WeakReference
 
 class ActionService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -226,8 +226,7 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    fun isUnlockGateShowingHomeStatusBar(): Boolean =
-        unlockGateStateMachine.snapshot.showingHomeStatusBar
+    fun isUnlockGateShowingHomeStatusBar(): Boolean = unlockGateStateMachine.snapshot.showingHomeStatusBar
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val event = event ?: return
@@ -388,7 +387,9 @@ class ActionService : AccessibilityService() {
                 if (event.repeatCount != 0) return true
 
                 when (prefs.cameraKeyDuration) {
-                    Prefs.KeymapDuration.ShortPress -> true
+                    Prefs.KeymapDuration.ShortPress -> {
+                        true
+                    }
 
                     Prefs.KeymapDuration.LongPress -> {
                         cancelCameraKeyLongPress()
@@ -408,7 +409,9 @@ class ActionService : AccessibilityService() {
 
             KeyEvent.ACTION_UP -> {
                 when (prefs.cameraKeyDuration) {
-                    Prefs.KeymapDuration.ShortPress -> executeCameraKeyAction()
+                    Prefs.KeymapDuration.ShortPress -> {
+                        executeCameraKeyAction()
+                    }
 
                     Prefs.KeymapDuration.LongPress -> {
                         cancelCameraKeyLongPress()
@@ -417,7 +420,9 @@ class ActionService : AccessibilityService() {
                 }
             }
 
-            else -> false
+            else -> {
+                false
+            }
         }
     }
 
@@ -433,7 +438,9 @@ class ActionService : AccessibilityService() {
 
                 scrollwheelButtonLongPressTriggered = false
                 when (prefs.scrollwheelButtonDuration) {
-                    Prefs.KeymapDuration.ShortPress -> true
+                    Prefs.KeymapDuration.ShortPress -> {
+                        true
+                    }
 
                     Prefs.KeymapDuration.LongPress -> {
                         cancelScrollwheelButtonLongPress()
@@ -452,7 +459,9 @@ class ActionService : AccessibilityService() {
 
             KeyEvent.ACTION_UP -> {
                 when (prefs.scrollwheelButtonDuration) {
-                    Prefs.KeymapDuration.ShortPress -> executeScrollwheelButtonAction()
+                    Prefs.KeymapDuration.ShortPress -> {
+                        executeScrollwheelButtonAction()
+                    }
 
                     Prefs.KeymapDuration.LongPress -> {
                         cancelScrollwheelButtonLongPress()
@@ -461,7 +470,9 @@ class ActionService : AccessibilityService() {
                 }
             }
 
-            else -> false
+            else -> {
+                false
+            }
         }
     }
 
@@ -538,7 +549,9 @@ class ActionService : AccessibilityService() {
                 appModel.appPackage.isNotBlank() && !isTargetAppForeground(appModel)
             }
 
-            else -> false
+            else -> {
+                false
+            }
         }
 
     private fun shouldHandleLightHomeFix(): Boolean =
@@ -548,23 +561,28 @@ class ActionService : AccessibilityService() {
     private fun executeCameraKeyAction(): Boolean =
         maybeVibrateAfterMappedAction(prefs.cameraKeyVibrate) {
             when (prefs.getCameraKeyAction()) {
-            Action.OpenApp -> {
-                val appModel = prefs.getCameraKeyApp()
-                if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
+                Action.OpenApp -> {
+                    val appModel = prefs.getCameraKeyApp()
+                    if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
+                        false
+                    } else {
+                        launchAppModel(this, appModel)
+                    }
+                }
+
+                else -> {
                     false
-                } else {
-                    launchAppModel(this, appModel)
                 }
             }
-
-            else -> false
-        }
         }
 
     private fun executeScrollwheelButtonAction(): Boolean =
         maybeVibrateAfterMappedAction(prefs.scrollwheelButtonVibrate) {
             when (prefs.getScrollwheelButtonAction()) {
-                Action.Disabled -> false
+                Action.Disabled -> {
+                    false
+                }
+
                 Action.OpenApp -> {
                     val appModel = prefs.getScrollwheelButtonApp()
                     if (appModel.appPackage.isBlank()) {
@@ -574,9 +592,13 @@ class ActionService : AccessibilityService() {
                     }
                 }
 
-                Action.ToggleFlashlight -> toggleFlashlight()
+                Action.ToggleFlashlight -> {
+                    toggleFlashlight()
+                }
 
-                else -> false
+                else -> {
+                    false
+                }
             }
         }
 
@@ -881,14 +903,15 @@ class ActionService : AccessibilityService() {
                     intent: Intent?,
                 ) {
                     when (intent?.action) {
-                        Intent.ACTION_SCREEN_OFF ->
+                        Intent.ACTION_SCREEN_OFF -> {
                             runOnMainThread {
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.ScreenOff(SystemClock.uptimeMillis()),
                                 )
                             }
+                        }
 
-                        Intent.ACTION_SCREEN_ON ->
+                        Intent.ACTION_SCREEN_ON -> {
                             runOnMainThread {
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.ScreenOn(
@@ -898,8 +921,9 @@ class ActionService : AccessibilityService() {
                                     ),
                                 )
                             }
+                        }
 
-                        Intent.ACTION_USER_PRESENT ->
+                        Intent.ACTION_USER_PRESENT -> {
                             runOnMainThread {
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.UserPresent(
@@ -909,6 +933,7 @@ class ActionService : AccessibilityService() {
                                     ),
                                 )
                             }
+                        }
                     }
                 }
             }
@@ -951,9 +976,13 @@ class ActionService : AccessibilityService() {
 
     private fun handleUnlockGateEffectOnMain(effect: UnlockGateEffect) {
         when (effect) {
-            UnlockGateEffect.BringLumaToFront -> bringLumaToFrontUnderUnlockGate()
+            UnlockGateEffect.BringLumaToFront -> {
+                bringLumaToFrontUnderUnlockGate()
+            }
 
-            UnlockGateEffect.CancelDismiss -> cancelUnlockGateDismissCallback()
+            UnlockGateEffect.CancelDismiss -> {
+                cancelUnlockGateDismissCallback()
+            }
 
             is UnlockGateEffect.ScheduleDismiss -> {
                 cancelUnlockGateDismissCallback()
@@ -1007,27 +1036,32 @@ class ActionService : AccessibilityService() {
 
         val layoutParams =
             when (state.phase) {
-                UnlockGatePhase.SecureMask ->
+                UnlockGatePhase.SecureMask -> {
                     createSecureLockMaskLayoutParams(
                         title = SECURE_LOCK_MASK_WINDOW_TITLE,
                         touchable = true,
                     )
+                }
 
-                UnlockGatePhase.AwaitingCredential ->
+                UnlockGatePhase.AwaitingCredential -> {
                     createSecureLockMaskLayoutParams(
                         title = SECURE_LOCK_MASK_WINDOW_TITLE,
                         touchable = false,
                     )
+                }
 
                 UnlockGatePhase.UnlockGateVisible,
                 UnlockGatePhase.Dismissing,
-                ->
+                -> {
                     createUnlockGateLayoutParams(
                         title = UNLOCK_GATE_WINDOW_TITLE,
                         topInsetPx = currentUnlockGateTopInsetPx(),
                     )
+                }
 
-                UnlockGatePhase.Idle -> return true
+                UnlockGatePhase.Idle -> {
+                    return true
+                }
             }
 
         val shouldAddView = !view.isAttachedToWindow && view.windowToken == null && view.parent == null
@@ -1160,9 +1194,7 @@ class ActionService : AccessibilityService() {
         view.setOnClickListener(null)
     }
 
-    private fun hideUnlockGatePrimaryContent(
-        view: View,
-    ) {
+    private fun hideUnlockGatePrimaryContent(view: View) {
         view.findViewById<View>(R.id.unlockGateStatusBar).visibility = View.GONE
         view.findViewById<TextView>(R.id.unlockGateClock).visibility = View.GONE
         view.findViewById<TextView>(R.id.unlockGateDate).visibility = View.GONE
@@ -1201,7 +1233,8 @@ class ActionService : AccessibilityService() {
         for (rowIndex in 0 until grid.childCount) {
             val row = grid.getChildAt(rowIndex) as? LinearLayout ?: continue
             for (columnIndex in 0 until row.childCount) {
-                row.getChildAt(columnIndex).background = dotBackground.constantState?.newDrawable()?.mutate() ?: createUnlockGatePatternDotBackground(isDark)
+                row.getChildAt(columnIndex).background =
+                    dotBackground.constantState?.newDrawable()?.mutate() ?: createUnlockGatePatternDotBackground(isDark)
             }
         }
     }
@@ -1263,55 +1296,58 @@ class ActionService : AccessibilityService() {
     }
 
     private fun createToolLaunchMaskLayoutParams(title: String): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.OPAQUE,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            this.title = title
-        }
+        WindowManager
+            .LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.OPAQUE,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                this.title = title
+            }
 
     private fun createUnlockGateLayoutParams(
         title: String,
         topInsetPx: Int,
     ): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            resolveUnlockGateHeightPx(topInsetPx),
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.OPAQUE,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            y = topInsetPx
-            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            this.title = title
-        }
+        WindowManager
+            .LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                resolveUnlockGateHeightPx(topInsetPx),
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.OPAQUE,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                y = topInsetPx
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                this.title = title
+            }
 
     private fun createSecureLockMaskLayoutParams(
         title: String,
         touchable: Boolean,
     ): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            (if (touchable) 0 else WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) or
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.OPAQUE,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            this.title = title
-        }
+        WindowManager
+            .LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                (if (touchable) 0 else WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) or
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.OPAQUE,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                this.title = title
+            }
 
     private fun currentUnlockGateTopInsetPx(): Int =
         unlockGateStateMachine.state.let { state ->
@@ -1635,7 +1671,8 @@ class ActionService : AccessibilityService() {
                 lineTo(centerX, endY)
             }
 
-        return GestureDescription.Builder()
+        return GestureDescription
+            .Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, SECURE_LOCK_MASK_GESTURE_DURATION_MS))
             .build()
     }
@@ -2088,17 +2125,31 @@ class ActionService : AccessibilityService() {
             imageView.setImageResource(R.drawable.ic_unlock_gate_lock)
             @Suppress("DEPRECATION")
             imageView.setColorFilter(tint, PorterDuff.Mode.SRC_IN)
-            imageView.scaleX = SECURE_LOCK_MASK_ICON_SCALE
-            imageView.scaleY = SECURE_LOCK_MASK_ICON_SCALE
+            imageView.scaleX = ICON_SCALE
+            imageView.scaleY = ICON_SCALE
         } else {
-            imageView.setImageDrawable(null)
+            val iconRes = shortcutIconDrawable(prefs.lockscreenShortcutIcon)
+            imageView.background = null
+            imageView.setImageResource(iconRes)
+            @Suppress("DEPRECATION")
+            imageView.setColorFilter(tint, PorterDuff.Mode.SRC_IN)
             imageView.imageTintList = null
-            imageView.clearColorFilter()
-            imageView.background = createUnlockGateHomeButtonBackground(isDark)
-            imageView.scaleX = 1f
-            imageView.scaleY = 1f
+            imageView.scaleX = ICON_SCALE
+            imageView.scaleY = ICON_SCALE
         }
     }
+
+    private fun shortcutIconDrawable(icon: Prefs.LockscreenShortcutIcon): Int =
+        when (icon) {
+            Prefs.LockscreenShortcutIcon.Ring -> R.drawable.ic_shortcut_ring
+            Prefs.LockscreenShortcutIcon.Star -> R.drawable.ic_shortcut_star
+            Prefs.LockscreenShortcutIcon.Camera -> R.drawable.ic_shortcut_camera
+            Prefs.LockscreenShortcutIcon.Phone -> R.drawable.ic_shortcut_phone
+            Prefs.LockscreenShortcutIcon.Heart -> R.drawable.ic_shortcut_heart
+            Prefs.LockscreenShortcutIcon.Flashlight -> R.drawable.ic_shortcut_flashlight
+            Prefs.LockscreenShortcutIcon.Music -> R.drawable.ic_shortcut_music
+            Prefs.LockscreenShortcutIcon.Message -> R.drawable.ic_shortcut_message
+        }
 
     private fun createUnlockGateHomeButtonBackground(isDark: Boolean): GradientDrawable =
         GradientDrawable().apply {
@@ -2124,7 +2175,7 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
         private const val UNLOCK_GATE_HOME_BUTTON_SIZE_DP = 30f
-        private const val SECURE_LOCK_MASK_ICON_SCALE = 1.20f
+        private const val ICON_SCALE = 1.25f
         private const val UNLOCK_GATE_DATE_GAP_DP = 30f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"

@@ -131,6 +131,7 @@ private const val LOCKSCREEN_DATE_TAP_APP = "lockscreen_date_tap_app"
 private const val LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR = "lockscreen_clock_notification_indicator"
 private const val LOCKSCREEN_SHORTCUT_ACTION = "lockscreen_shortcut_action"
 private const val LOCKSCREEN_SHORTCUT_APP = "lockscreen_shortcut_app"
+private const val LOCKSCREEN_SHORTCUT_ICON = "lockscreen_shortcut_icon"
 
 class Prefs(
     val context: Context,
@@ -164,6 +165,8 @@ class Prefs(
     enum class NotificationIndicatorAlignment { Before, After }
 
     enum class LockscreenDateFormat { ShortWeekday, LongWeekday }
+
+    enum class LockscreenShortcutIcon { Ring, Star, Camera, Phone, Heart, Flashlight, Music, Message }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_FILENAME, 0)
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
@@ -558,6 +561,10 @@ class Prefs(
         get() = enumPref(LOCKSCREEN_DATE_FORMAT, LockscreenDateFormat.ShortWeekday)
         set(value) = prefs.edit().putString(LOCKSCREEN_DATE_FORMAT, value.name).apply()
 
+    var lockscreenShortcutIcon: LockscreenShortcutIcon
+        get() = enumPref(LOCKSCREEN_SHORTCUT_ICON, LockscreenShortcutIcon.Ring)
+        set(value) = prefs.edit().putString(LOCKSCREEN_SHORTCUT_ICON, value.name).apply()
+
     fun getLockscreenDateTapAction(): Constants.Action = loadAction(LOCKSCREEN_DATE_TAP_ACTION, Constants.Action.Disabled)
 
     fun setLockscreenDateTapAction(action: Constants.Action) {
@@ -626,13 +633,17 @@ class Prefs(
         scope: GestureScope,
     ): Constants.Action =
         when (scope) {
-            GestureScope.Homescreen -> type.defaultAction
-            GestureScope.Lockscreen ->
+            GestureScope.Homescreen -> {
+                type.defaultAction
+            }
+
+            GestureScope.Lockscreen -> {
                 if (type == GestureType.SWIPE_DOWN) {
                     Constants.Action.ShowNotificationList
                 } else {
                     Constants.Action.Disabled
                 }
+            }
         }
 
     private fun loadApp(id: String): AppModel {
@@ -750,26 +761,19 @@ class Prefs(
         get() = StatusBarMode.Enabled
         set(value) {}
 
-    fun isStatusBarVisibleOnHomescreen(): Boolean =
-        false
+    fun isStatusBarVisibleOnHomescreen(): Boolean = false
 
-    fun isStatusBarVisibleOnLockscreen(): Boolean =
-        true
+    fun isStatusBarVisibleOnLockscreen(): Boolean = true
 
-    fun showsLumaStatusBarOnHomescreen(): Boolean =
-        false
+    fun showsLumaStatusBarOnHomescreen(): Boolean = false
 
-    fun showsLumaStatusBarOnLockscreen(): Boolean =
-        true
+    fun showsLumaStatusBarOnLockscreen(): Boolean = true
 
-    fun showsLumaStatusBarAnywhere(): Boolean =
-        true
+    fun showsLumaStatusBarAnywhere(): Boolean = true
 
-    fun showsAndroidStatusBarOnHomescreen(): Boolean =
-        false
+    fun showsAndroidStatusBarOnHomescreen(): Boolean = false
 
-    fun showsAndroidStatusBarOnLockscreen(): Boolean =
-        false
+    fun showsAndroidStatusBarOnLockscreen(): Boolean = false
 
     var timeEnabled: Boolean
         get() = false

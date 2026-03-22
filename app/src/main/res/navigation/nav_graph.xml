@@ -199,11 +199,18 @@
         <action
             android:id="@+id/action_lockscreenFragment_to_lockscreenDateFormatFragment"
             app:destination="@id/lockscreenDateFormatFragment" />
+        <action
+            android:id="@+id/action_lockscreenFragment_to_lockscreenShortcutIconFragment"
+            app:destination="@id/lockscreenShortcutIconFragment" />
     </fragment>
     <fragment
         android:id="@+id/lockscreenDateFormatFragment"
         android:name="app.luma.ui.LockscreenDateFormatFragment"
         android:label="LockscreenDateFormatFragment" />
+    <fragment
+        android:id="@+id/lockscreenShortcutIconFragment"
+        android:name="app.luma.ui.LockscreenShortcutIconFragment"
+        android:label="LockscreenShortcutIconFragment" />
     <fragment
         android:id="@+id/miscellaneousFragment"
         android:name="app.luma.ui.MiscellaneousFragment"
