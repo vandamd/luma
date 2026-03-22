@@ -3,6 +3,9 @@ package app.luma.helper
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
+import android.hardware.camera2.CameraAccessException
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.bluetooth.BluetoothAdapter
 import android.content.res.ColorStateList
 import android.content.BroadcastReceiver
@@ -10,6 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.app.KeyguardManager
+import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -44,9 +48,11 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import app.luma.MainActivity
 import app.luma.R
+import app.luma.data.AppEntryType
 import app.luma.data.Constants.Action
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
+import app.luma.data.Tool
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +62,7 @@ class ActionService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private val keyguardManager by lazy { getSystemService(KEYGUARD_SERVICE) as KeyguardManager }
+    private val cameraManager by lazy { getSystemService(CAMERA_SERVICE) as CameraManager }
     private val prefs by lazy { Prefs.getInstance(this) }
     private val overlayInflater by lazy {
         LayoutInflater.from(ContextThemeWrapper(this, R.style.AppTheme))
@@ -76,27 +83,45 @@ class ActionService : AccessibilityService() {
     private var unlockGateWifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var unlockGateTelephonyCallback: TelephonyCallback? = null
     private var secureLockMaskGestureAttempt = 0
+    private val consumedMappedKeyUps = mutableSetOf<Int>()
+    private var lastWriteSettingsPermissionPromptUptimeMs = 0L
+    private var currentForegroundPackage: String? = null
+    private var torchCameraId: String? = null
+    private var torchEnabled = false
+    private var torchCallback: CameraManager.TorchCallback? = null
+    private var cameraKeyLongPressRunnable: Runnable? = null
+    private var scrollwheelButtonLongPressRunnable: Runnable? = null
+    private var scrollwheelButtonLongPressTriggered = false
 
     override fun onServiceConnected() {
         configureServiceInfo()
         registerUnlockGateReceiver()
+        registerTorchCallback()
         instance = WeakReference(this)
         publishUnlockGateState()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        consumedMappedKeyUps.clear()
+        cancelCameraKeyLongPress()
+        cancelScrollwheelButtonLongPress()
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         secureLockMaskGestureAttempt = 0
+        unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         instance = WeakReference(null)
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        consumedMappedKeyUps.clear()
+        cancelCameraKeyLongPress()
+        cancelScrollwheelButtonLongPress()
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         secureLockMaskGestureAttempt = 0
+        unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         instance = WeakReference(null)
         super.onDestroy()
@@ -167,6 +192,13 @@ class ActionService : AccessibilityService() {
         val eventType = event.eventType
 
         runOnMainThread {
+            if (
+                eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+                eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            ) {
+                currentForegroundPackage = packageName
+            }
+
             if (toolLaunchMaskView != null && packageName == LIGHT_OS_PACKAGE) {
                 when (eventType) {
                     AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
@@ -180,12 +212,31 @@ class ActionService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
+        consumedMappedKeyUps.clear()
+        cancelCameraKeyLongPress()
+        cancelScrollwheelButtonLongPress()
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
         secureLockMaskGestureAttempt = 0
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_UP && consumedMappedKeyUps.remove(event.keyCode)) {
+            return true
+        }
+
+        if (handleScrollwheelBrightnessKeyEvent(event)) {
+            return true
+        }
+
+        if (handleScrollwheelButtonKeyEvent(event)) {
+            return true
+        }
+
+        if (handleCameraKeyEvent(event)) {
+            return true
+        }
+
         if (event.keyCode != KeyEvent.KEYCODE_HOME) {
             return false
         }
@@ -236,6 +287,16 @@ class ActionService : AccessibilityService() {
             return true
         }
 
+        if (shouldHandleLightHomeFix()) {
+            if (event.action != KeyEvent.ACTION_DOWN) return false
+            if (event.repeatCount != 0) return true
+            consumedMappedKeyUps.add(KeyEvent.KEYCODE_HOME)
+            runOnMainThread {
+                launchLumaHomeFromShortcut()
+            }
+            return true
+        }
+
         if (!prefs.lockscreenGateEnabled) return false
         if (event.action != KeyEvent.ACTION_DOWN) return false
         if (event.repeatCount != 0) return true
@@ -249,6 +310,312 @@ class ActionService : AccessibilityService() {
             )
         }
         return unlockGateStateMachine.state.repeatedHomeGateEligible
+    }
+
+    private fun handleCameraKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode != CAMERA_KEY_CODE) return false
+
+        val action = prefs.getCameraKeyAction()
+        if (action == Action.Disabled) return false
+
+        return when (event.action) {
+            KeyEvent.ACTION_DOWN -> {
+                if (!canExecuteCameraKeyAction(action)) return false
+                if (event.repeatCount != 0) return true
+
+                when (prefs.cameraKeyDuration) {
+                    Prefs.KeymapDuration.ShortPress -> true
+
+                    Prefs.KeymapDuration.LongPress -> {
+                        cancelCameraKeyLongPress()
+                        cameraKeyLongPressRunnable =
+                            Runnable {
+                                if (executeCameraKeyAction()) {
+                                    consumedMappedKeyUps.add(CAMERA_KEY_CODE)
+                                }
+                                cameraKeyLongPressRunnable = null
+                            }.also { runnable ->
+                                mainHandler.postDelayed(runnable, KEYMAP_LONG_PRESS_MS)
+                            }
+                        true
+                    }
+                }
+            }
+
+            KeyEvent.ACTION_UP -> {
+                when (prefs.cameraKeyDuration) {
+                    Prefs.KeymapDuration.ShortPress -> executeCameraKeyAction()
+
+                    Prefs.KeymapDuration.LongPress -> {
+                        cancelCameraKeyLongPress()
+                        true
+                    }
+                }
+            }
+
+            else -> false
+        }
+    }
+
+    private fun handleScrollwheelButtonKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode != SCROLLWHEEL_BUTTON_KEY_CODE) return false
+
+        val action = prefs.getScrollwheelButtonAction()
+        if (action == Action.Disabled) return false
+
+        return when (event.action) {
+            KeyEvent.ACTION_DOWN -> {
+                if (event.repeatCount != 0) return true
+
+                scrollwheelButtonLongPressTriggered = false
+                when (prefs.scrollwheelButtonDuration) {
+                    Prefs.KeymapDuration.ShortPress -> true
+
+                    Prefs.KeymapDuration.LongPress -> {
+                        cancelScrollwheelButtonLongPress()
+                        scrollwheelButtonLongPressRunnable =
+                            Runnable {
+                                scrollwheelButtonLongPressTriggered = executeScrollwheelButtonAction()
+                                consumedMappedKeyUps.add(SCROLLWHEEL_BUTTON_KEY_CODE)
+                                scrollwheelButtonLongPressRunnable = null
+                            }.also { runnable ->
+                                mainHandler.postDelayed(runnable, KEYMAP_LONG_PRESS_MS)
+                            }
+                        true
+                    }
+                }
+            }
+
+            KeyEvent.ACTION_UP -> {
+                when (prefs.scrollwheelButtonDuration) {
+                    Prefs.KeymapDuration.ShortPress -> executeScrollwheelButtonAction()
+
+                    Prefs.KeymapDuration.LongPress -> {
+                        cancelScrollwheelButtonLongPress()
+                        true
+                    }
+                }
+            }
+
+            else -> false
+        }
+    }
+
+    private fun handleScrollwheelBrightnessKeyEvent(event: KeyEvent): Boolean {
+        if (!prefs.scrollwheelBrightnessEnabled) return false
+
+        val brightnessDelta =
+            when (event.keyCode) {
+                SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE -> BRIGHTNESS_STEP
+                SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE -> -BRIGHTNESS_STEP
+                else -> return false
+            }
+
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+        if (event.repeatCount != 0) return true
+
+        val handled = adjustBrightness(brightnessDelta)
+        if (handled) {
+            consumedMappedKeyUps.add(event.keyCode)
+        }
+        return handled
+    }
+
+    private fun adjustBrightness(delta: Int): Boolean {
+        if (!Settings.System.canWrite(this)) {
+            promptForWriteSettingsPermission()
+            return true
+        }
+
+        val currentBrightness =
+            runCatching {
+                Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+            }.getOrDefault(DEFAULT_BRIGHTNESS)
+        val targetBrightness = (currentBrightness + delta).coerceIn(MIN_BRIGHTNESS, MAX_BRIGHTNESS)
+
+        return try {
+            Settings.System.putInt(
+                contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS_MODE,
+                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
+            )
+            Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
+        } catch (exception: Exception) {
+            Log.e(TAG, "adjustBrightness: write failed", exception)
+            false
+        }
+    }
+
+    private fun promptForWriteSettingsPermission() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastWriteSettingsPermissionPromptUptimeMs < WRITE_SETTINGS_PROMPT_COOLDOWN_MS) return
+        lastWriteSettingsPermissionPromptUptimeMs = now
+
+        showToast(this, getString(R.string.toast_brightness_permission_required))
+
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                    Uri.parse("package:$packageName"),
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+        } catch (exception: Exception) {
+            Log.e(TAG, "promptForWriteSettingsPermission: startActivity failed", exception)
+        }
+    }
+
+    private fun canExecuteCameraKeyAction(action: Action): Boolean =
+        when (action) {
+            Action.OpenApp -> {
+                val appModel = prefs.getCameraKeyApp()
+                appModel.appPackage.isNotBlank() && !isTargetAppForeground(appModel)
+            }
+
+            else -> false
+        }
+
+    private fun shouldHandleLightHomeFix(): Boolean =
+        !MainActivity.isLumaForeground() && currentForegroundPackage == LIGHT_OS_PACKAGE
+
+    private fun executeCameraKeyAction(): Boolean =
+        maybeVibrateAfterMappedAction(prefs.cameraKeyVibrate) {
+            when (prefs.getCameraKeyAction()) {
+            Action.OpenApp -> {
+                val appModel = prefs.getCameraKeyApp()
+                if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
+                    false
+                } else {
+                    launchAppModel(this, appModel)
+                }
+            }
+
+            else -> false
+        }
+        }
+
+    private fun executeScrollwheelButtonAction(): Boolean =
+        maybeVibrateAfterMappedAction(prefs.scrollwheelButtonVibrate) {
+            when (prefs.getScrollwheelButtonAction()) {
+                Action.Disabled -> false
+                Action.OpenApp -> {
+                    val appModel = prefs.getScrollwheelButtonApp()
+                    if (appModel.appPackage.isBlank()) {
+                        false
+                    } else {
+                        launchAppModel(this, appModel)
+                    }
+                }
+
+                Action.ToggleFlashlight -> toggleFlashlight()
+
+                else -> false
+            }
+        }
+
+    private inline fun maybeVibrateAfterMappedAction(
+        vibrate: Boolean,
+        action: () -> Boolean,
+    ): Boolean {
+        val handled = action()
+        if (handled && vibrate) {
+            performHapticFeedback(this)
+        }
+        return handled
+    }
+
+    private fun cancelCameraKeyLongPress() {
+        cameraKeyLongPressRunnable?.let(mainHandler::removeCallbacks)
+        cameraKeyLongPressRunnable = null
+    }
+
+    private fun cancelScrollwheelButtonLongPress() {
+        scrollwheelButtonLongPressRunnable?.let(mainHandler::removeCallbacks)
+        scrollwheelButtonLongPressRunnable = null
+        scrollwheelButtonLongPressTriggered = false
+    }
+
+    private fun registerTorchCallback() {
+        val callback =
+            object : CameraManager.TorchCallback() {
+                override fun onTorchModeChanged(
+                    cameraId: String,
+                    enabled: Boolean,
+                ) {
+                    if (cameraId == resolveTorchCameraId()) {
+                        torchEnabled = enabled
+                    }
+                }
+
+                override fun onTorchModeUnavailable(cameraId: String) {
+                    if (cameraId == resolveTorchCameraId()) {
+                        torchEnabled = false
+                    }
+                }
+            }
+        try {
+            cameraManager.registerTorchCallback(callback, mainHandler)
+            torchCallback = callback
+        } catch (exception: Exception) {
+            Log.e(TAG, "registerTorchCallback: failed", exception)
+        }
+    }
+
+    private fun unregisterTorchCallback() {
+        val callback = torchCallback ?: return
+        try {
+            cameraManager.unregisterTorchCallback(callback)
+        } catch (exception: Exception) {
+            Log.e(TAG, "unregisterTorchCallback: failed", exception)
+        } finally {
+            torchCallback = null
+        }
+    }
+
+    private fun resolveTorchCameraId(): String? {
+        torchCameraId?.let { return it }
+        val resolved =
+            runCatching {
+                cameraManager.cameraIdList.firstOrNull { cameraId ->
+                    val characteristics = cameraManager.getCameraCharacteristics(cameraId)
+                    characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+                }
+            }.getOrNull()
+        torchCameraId = resolved
+        return resolved
+    }
+
+    private fun toggleFlashlight(): Boolean {
+        val cameraId = resolveTorchCameraId() ?: return false
+        return try {
+            val enabled = !torchEnabled
+            cameraManager.setTorchMode(cameraId, enabled)
+            torchEnabled = enabled
+            true
+        } catch (exception: CameraAccessException) {
+            Log.e(TAG, "toggleFlashlight: camera access failed", exception)
+            showToast(this, getString(R.string.toast_unable_to_toggle_flashlight))
+            false
+        } catch (exception: SecurityException) {
+            Log.e(TAG, "toggleFlashlight: security failure", exception)
+            showToast(this, getString(R.string.toast_unable_to_toggle_flashlight))
+            false
+        } catch (exception: IllegalArgumentException) {
+            Log.e(TAG, "toggleFlashlight: invalid camera id", exception)
+            showToast(this, getString(R.string.toast_unable_to_toggle_flashlight))
+            false
+        }
+    }
+
+    private fun isTargetAppForeground(appModel: app.luma.data.AppModel): Boolean {
+        val targetPackage =
+            when {
+                appModel.entryType == AppEntryType.Tool || Tool.fromPackageName(appModel.appPackage) != null -> LIGHT_OS_PACKAGE
+                else -> appModel.appPackage
+            }
+        return currentForegroundPackage == targetPackage
     }
 
     private fun showToolLaunchMaskOnMain(isDark: Boolean) {
@@ -911,10 +1278,18 @@ class ActionService : AccessibilityService() {
     }
 
     private fun bringLumaToFrontUnderUnlockGate() {
+        launchLumaHome(suppressLauncherIntentHandling = true)
+    }
+
+    private fun launchLumaHomeFromShortcut() {
+        launchLumaHome(suppressLauncherIntentHandling = false)
+    }
+
+    private fun launchLumaHome(suppressLauncherIntentHandling: Boolean) {
         try {
-            startActivity(MainActivity.createUnlockGateHomeIntent(this))
+            startActivity(MainActivity.createLumaHomeIntent(this, suppressLauncherIntentHandling))
         } catch (exception: Exception) {
-            Log.e(TAG, "bringLumaToFrontUnderUnlockGate: startActivity failed", exception)
+            Log.e(TAG, "launchLumaHome: startActivity failed", exception)
         }
     }
 
@@ -1525,6 +1900,16 @@ class ActionService : AccessibilityService() {
         private const val SECURE_LOCK_MASK_GESTURE_START_Y_RATIO = 0.90f
         private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.14f
         private const val SECURE_LOCK_MASK_GESTURE_MAX_RETRIES = 1
+        private const val SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE = 317
+        private const val SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE = 318
+        private const val SCROLLWHEEL_BUTTON_KEY_CODE = 319
+        private const val CAMERA_KEY_CODE = 27
+        private const val KEYMAP_LONG_PRESS_MS = 450L
+        private const val MIN_BRIGHTNESS = 1
+        private const val MAX_BRIGHTNESS = 255
+        private const val DEFAULT_BRIGHTNESS = 128
+        private const val BRIGHTNESS_STEP = 20
+        private const val WRITE_SETTINGS_PROMPT_COOLDOWN_MS = 1500L
 
         private var instance: WeakReference<ActionService> = WeakReference(null)
         private val _unlockGateState = MutableStateFlow(UnlockGateUiSnapshot())

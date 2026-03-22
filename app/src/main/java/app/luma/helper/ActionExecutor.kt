@@ -60,6 +60,7 @@ fun executeSecondaryAction(
             true
         }
 
+        Action.ToggleFlashlight,
         Action.OpenApp,
         Action.Disabled,
         -> false

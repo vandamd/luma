@@ -30,6 +30,8 @@ class GestureActionFragment : Fragment() {
         const val SECTION_TYPE = "section_type"
         const val LOCKSCREEN_SHORTCUT = "lockscreen_shortcut"
         const val LOCKSCREEN_DATE_TAP = "lockscreen_date_tap"
+        const val CAMERA_KEY = "camera_key"
+        const val SCROLLWHEEL_BUTTON = "scrollwheel_button"
 
         private val gestureDisplayInfo =
             mapOf(
@@ -58,6 +60,8 @@ class GestureActionFragment : Fragment() {
     private var sectionType: StatusBarSectionType? = null
     private var lockscreenShortcut = false
     private var lockscreenDateTap = false
+    private var cameraKey = false
+    private var scrollwheelButton = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +74,8 @@ class GestureActionFragment : Fragment() {
         }
         lockscreenShortcut = arguments?.getBoolean(LOCKSCREEN_SHORTCUT, false) == true
         lockscreenDateTap = arguments?.getBoolean(LOCKSCREEN_DATE_TAP, false) == true
+        cameraKey = arguments?.getBoolean(CAMERA_KEY, false) == true
+        scrollwheelButton = arguments?.getBoolean(SCROLLWHEEL_BUTTON, false) == true
     }
 
     override fun onCreateView(
@@ -85,6 +91,10 @@ class GestureActionFragment : Fragment() {
                 ActionDisplayInfo(R.string.lockscreen_shortcut, AppDrawerFlag.SetLockscreenShortcut)
             } else if (lockscreenDateTap) {
                 ActionDisplayInfo(R.string.lockscreen_date_tap, AppDrawerFlag.SetLockscreenDateTap)
+            } else if (cameraKey) {
+                ActionDisplayInfo(R.string.keymaps_camera_shortcut, AppDrawerFlag.SetCameraKey)
+            } else if (scrollwheelButton) {
+                ActionDisplayInfo(R.string.keymaps_action, AppDrawerFlag.SetScrollwheelButton)
             } else {
                 null
             }
@@ -138,6 +148,10 @@ class GestureActionFragment : Fragment() {
                 prefs.getLockscreenShortcutAction()
             } else if (lockscreenDateTap) {
                 prefs.getLockscreenDateTapAction()
+            } else if (cameraKey) {
+                prefs.getCameraKeyAction()
+            } else if (scrollwheelButton) {
+                prefs.getScrollwheelButtonAction()
             } else {
                 null
             }
@@ -150,6 +164,10 @@ class GestureActionFragment : Fragment() {
                 prefs.setLockscreenShortcutAction(action)
             } else if (lockscreenDateTap) {
                 prefs.setLockscreenDateTapAction(action)
+            } else if (cameraKey) {
+                prefs.setCameraKeyAction(action)
+            } else if (scrollwheelButton) {
+                prefs.setScrollwheelButtonAction(action)
             } else {
                 null
             }
@@ -162,18 +180,32 @@ class GestureActionFragment : Fragment() {
                 prefs.getLockscreenShortcutApp().displayName
             } else if (lockscreenDateTap) {
                 prefs.getLockscreenDateTapApp().displayName
+            } else if (cameraKey) {
+                prefs.getCameraKeyApp().displayName
+            } else if (scrollwheelButton) {
+                prefs.getScrollwheelButtonApp().displayName
             } else {
                 null
             }
             ?: ""
 
     private fun availableActions(): Array<Action> =
-        if (lockscreenShortcut) {
-            Constants.Action.values().filterNot { it == Action.Disabled || it == Action.LockScreen }.toTypedArray()
+        if (cameraKey) {
+            arrayOf(Action.Disabled, Action.OpenApp)
+        } else if (scrollwheelButton) {
+            arrayOf(Action.Disabled, Action.OpenApp, Action.ToggleFlashlight)
+        } else if (lockscreenShortcut) {
+            Constants.Action
+                .values()
+                .filterNot { it == Action.Disabled || it == Action.LockScreen || it == Action.ToggleFlashlight }
+                .toTypedArray()
         } else if (lockscreenDateTap) {
-            Constants.Action.values().filterNot { it == Action.LockScreen }.toTypedArray()
+            Constants.Action
+                .values()
+                .filterNot { it == Action.LockScreen || it == Action.ToggleFlashlight }
+                .toTypedArray()
         } else {
-            Constants.Action.values()
+            Constants.Action.values().filterNot { it == Action.ToggleFlashlight }.toTypedArray()
         }
 
     private fun handleActionSelection(action: Action) {

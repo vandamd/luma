@@ -25,7 +25,16 @@
     <string name="settings_haptics">Haptics</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_miscellaneous">General</string>
+    <string name="settings_keymaps">Keymaps</string>
     <string name="settings_hidden_apps">Hidden Apps</string>
+    <string name="settings_scrollwheel_brightness">Scrollwheel brightness</string>
+    <string name="keymaps_camera_shortcut">Camera Shortcut</string>
+    <string name="keymaps_scrollwheel_button">Scrollwheel Press</string>
+    <string name="keymaps_action">Action</string>
+    <string name="keymaps_duration">Duration</string>
+    <string name="keymaps_duration_short_press">Short Press</string>
+    <string name="keymaps_duration_long_press">Long Press</string>
+    <string name="keymaps_vibrate">Vibrate</string>
     <string name="settings_default_launcher">Default Launcher</string>
     <string name="unlock_gate_message">Press Home for Luma</string>
     <string name="lockscreen_enabled">Enabled</string>
@@ -60,7 +69,9 @@
     <string name="action_show_recents">Recent Apps</string>
     <string name="action_show_notification_list">Notifications</string>
     <string name="action_disabled">Disabled</string>
+    <string name="option_none">None</string>
     <string name="action_open_app_name">Open %1$s</string>
+    <string name="action_toggle_flashlight">Toggle Flashlight</string>
 
     <!-- Gestures screen -->
 <string name="gesture_swipe_left">Swipe left</string>
@@ -193,6 +204,8 @@
     <string name="toast_unable_to_add_shortcut">Unable to add shortcut</string>
     <string name="toast_added_to_app_drawer">Added to app drawer</string>
     <string name="toast_volume_silent_requires_permission">Allow Do Not Disturb access to use Silent mode</string>
+    <string name="toast_brightness_permission_required">Allow modify system settings to change brightness</string>
+    <string name="toast_unable_to_toggle_flashlight">Unable to toggle flashlight</string>
 
     <!-- Misc -->
     <string name="app_count_status_bar_hint">You have the status bar enabled, I recommend using a maximum of 5 apps for it to look good :)</string>

@@ -7,5 +7,4 @@
     android:canRequestFilterKeyEvents="true"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
-    android:notificationTimeout="100"
-    android:packageNames="app.luma.debug,app.luma,com.lightos" />
+    android:notificationTimeout="100" />

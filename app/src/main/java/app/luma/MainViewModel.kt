@@ -1,26 +1,19 @@
 package app.luma
 
 import android.app.Application
-import android.content.ComponentName
 import android.content.Context
-import android.content.pm.LauncherApps
-import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import app.luma.R
 import app.luma.data.AppModel
-import app.luma.data.AppEntryType
 import app.luma.data.Constants
 import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
-import app.luma.data.Tool
 import app.luma.helper.getAppsList
 import app.luma.helper.getHiddenAppsList
-import app.luma.helper.launchLightOsRoute
-import app.luma.helper.showToast
+import app.luma.helper.launchAppModel
 import kotlinx.coroutines.launch
 
 class MainViewModel(
@@ -54,6 +47,18 @@ class MainViewModel(
 
             AppDrawerFlag.SetHomeApp -> {
                 prefs.setHomeAppModel(n, appModel)
+                true
+            }
+
+            AppDrawerFlag.SetCameraKey -> {
+                prefs.setCameraKeyAction(Constants.Action.OpenApp)
+                prefs.setCameraKeyApp(appModel)
+                true
+            }
+
+            AppDrawerFlag.SetScrollwheelButton -> {
+                prefs.setScrollwheelButtonAction(Constants.Action.OpenApp)
+                prefs.setScrollwheelButtonApp(appModel)
                 true
             }
 
@@ -121,80 +126,7 @@ class MainViewModel(
     private fun launchApp(
         appModel: AppModel,
         launchContext: Context? = null,
-    ): Boolean {
-        val packageName = appModel.appPackage
-        val appActivityName = appModel.appActivityName
-        val userHandle = appModel.user
-
-        val tool = Tool.fromPackageName(packageName)
-        if (appModel.entryType == AppEntryType.Tool || tool != null) {
-            return launchTool(tool ?: Tool.fromId(appActivityName) ?: return true, launchContext)
-        }
-
-        if (packageName == Constants.PINNED_SHORTCUT_PACKAGE || appModel.entryType == AppEntryType.PinnedShortcut) {
-            return launchPinnedShortcut(appActivityName)
-        }
-
-        val launcher = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-        val activityInfo = launcher.getActivityList(packageName, userHandle)
-
-        val component =
-            when (activityInfo.size) {
-                0 -> {
-                    showToast(appContext, appContext.getString(R.string.toast_app_not_found))
-                    return true
-                }
-
-                1 -> {
-                    ComponentName(packageName, activityInfo[0].name)
-                }
-
-                else -> {
-                    if (appActivityName.isNotEmpty()) {
-                        ComponentName(packageName, appActivityName)
-                    } else {
-                        ComponentName(packageName, activityInfo.last().name)
-                    }
-                }
-            }
-
-        try {
-            launcher.startMainActivity(component, userHandle, null, null)
-        } catch (e: SecurityException) {
-            try {
-                launcher.startMainActivity(component, android.os.Process.myUserHandle(), null, null)
-            } catch (e: Exception) {
-                showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
-            }
-        } catch (e: Exception) {
-            showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
-        }
-        return true
-    }
-
-    private fun launchTool(
-        tool: Tool,
-        launchContext: Context? = null,
-    ): Boolean = launchLightOsRoute(launchContext ?: appContext, tool.lightOsRoute)
-
-    private fun launchPinnedShortcut(payload: String): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
-            showToast(appContext, appContext.getString(R.string.toast_shortcuts_require_android))
-            return true
-        }
-
-        val parts = payload.split("|", limit = 2)
-        val shortcutPackage = parts.getOrNull(0) ?: return true
-        val shortcutId = parts.getOrNull(1) ?: return true
-
-        try {
-            val launcher = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-            launcher.startShortcut(shortcutPackage, shortcutId, null, null, android.os.Process.myUserHandle())
-        } catch (_: Exception) {
-            showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_shortcut))
-        }
-        return true
-    }
+    ): Boolean = launchAppModel(launchContext ?: appContext, appModel)
 
     fun getAppList(includeHidden: Boolean = false) {
         viewModelScope.launch {

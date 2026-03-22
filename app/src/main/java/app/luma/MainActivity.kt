@@ -106,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        setLumaForeground(false)
         ActionService.instance()?.setRepeatedHomeGateEligible(false)
         HomeCleanupHelper.setOnAppListCleanupCallback(null)
         super.onDestroy()
@@ -113,11 +114,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        setLumaForeground(true)
         updateSystemStatusBarVisibility(navController.currentDestination?.id)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
     override fun onPause() {
+        setLumaForeground(false)
         ActionService.instance()?.setRepeatedHomeGateEligible(false)
         super.onPause()
     }
@@ -423,7 +426,15 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_RUN_STATUS_BAR_SECTION = "app.luma.extra.RUN_STATUS_BAR_SECTION"
         private const val PENDING_UNLOCK_GATE_HOME_LAUNCH_TIMEOUT_MS = 3000L
         @Volatile
+        private var lumaForeground = false
+        @Volatile
         private var pendingUnlockGateHomeLaunchUntilUptimeMs = 0L
+
+        fun isLumaForeground(): Boolean = lumaForeground
+
+        private fun setLumaForeground(isForeground: Boolean) {
+            lumaForeground = isForeground
+        }
 
         private fun markPendingUnlockGateHomeLaunch() {
             pendingUnlockGateHomeLaunchUntilUptimeMs =
@@ -438,21 +449,32 @@ class MainActivity : AppCompatActivity() {
             return now <= deadline
         }
 
-        fun createUnlockGateHomeIntent(context: Context): Intent =
+        fun createLumaHomeIntent(
+            context: Context,
+            suppressLauncherIntentHandling: Boolean = false,
+        ): Intent =
             Intent(Intent.ACTION_MAIN).apply {
-                markPendingUnlockGateHomeLaunch()
+                if (suppressLauncherIntentHandling) {
+                    markPendingUnlockGateHomeLaunch()
+                }
                 setClass(context, MainActivity::class.java)
                 addCategory(Intent.CATEGORY_HOME)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                if (suppressLauncherIntentHandling) {
+                    putExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, true)
+                }
             }
 
+        fun createUnlockGateHomeIntent(context: Context): Intent =
+            createLumaHomeIntent(context, suppressLauncherIntentHandling = true)
+
         fun createLockscreenShortcutIntent(context: Context): Intent =
-            createUnlockGateHomeIntent(context).apply {
+            createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {
                 putExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, true)
             }
 
         fun createLockscreenDateTapIntent(context: Context): Intent =
-            createUnlockGateHomeIntent(context).apply {
+            createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {
                 putExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP, true)
             }
 
@@ -460,7 +482,7 @@ class MainActivity : AppCompatActivity() {
             context: Context,
             section: StatusBarSectionType,
         ): Intent =
-            createUnlockGateHomeIntent(context).apply {
+            createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {
                 putExtra(EXTRA_RUN_STATUS_BAR_SECTION, section.name)
             }
     }

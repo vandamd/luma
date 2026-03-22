@@ -49,6 +49,9 @@ class SettingsFragment : Fragment() {
                 SimpleTextButton(stringResource(R.string.settings_lockscreen)) {
                     findNavController().navigate(R.id.action_settingsFragment_to_lockscreenFragment)
                 }
+                SimpleTextButton(stringResource(R.string.settings_keymaps)) {
+                    findNavController().navigate(R.id.action_settingsFragment_to_keymapsFragment)
+                }
                 PrefsToggleTextButton(
                     title = stringResource(R.string.settings_show_volume_indicator),
                     initialValue = prefs.showVolumeIndicator,

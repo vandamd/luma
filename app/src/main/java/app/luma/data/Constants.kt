@@ -22,6 +22,8 @@ object Constants {
         LaunchApp,
         HiddenApps,
         SetHomeApp,
+        SetCameraKey,
+        SetScrollwheelButton,
         SetSwipeLeft,
         SetSwipeRight,
         SetSwipeUp,
@@ -44,6 +46,7 @@ object Constants {
         ShowNotificationList(R.string.action_show_notification_list),
         ShowRecents(R.string.action_show_recents),
         LockScreen(R.string.action_lock_screen),
+        ToggleFlashlight(R.string.action_toggle_flashlight),
         OpenQuickSettings(R.string.action_quick_settings),
         ShowNotification(R.string.action_show_notifications),
         ;

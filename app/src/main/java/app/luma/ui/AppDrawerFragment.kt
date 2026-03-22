@@ -213,6 +213,8 @@ class AppDrawerFragment : Fragment() {
     private fun shouldAllowHiddenAppsToggle(): Boolean =
         when (flag) {
             AppDrawerFlag.SetHomeApp,
+            AppDrawerFlag.SetCameraKey,
+            AppDrawerFlag.SetScrollwheelButton,
             AppDrawerFlag.SetSwipeLeft,
             AppDrawerFlag.SetSwipeRight,
             AppDrawerFlag.SetSwipeUp,

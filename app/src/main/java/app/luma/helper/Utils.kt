@@ -43,6 +43,17 @@ private const val LIGHT_OS_MAIN_ACTIVITY = "com.lightos.MainActivity"
 fun performHapticFeedback(context: Context) {
     try {
         if (!Prefs.getInstance(context).hapticsEnabled) return
+        vibrateDevice(context)
+    } catch (e: Exception) {
+        // Continue if haptic feedback fails
+    }
+}
+
+fun vibrateDevice(
+    context: Context,
+    durationMs: Long = 42L,
+): Boolean =
+    runCatching {
         val vibrator =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager =
@@ -52,11 +63,9 @@ fun performHapticFeedback(context: Context) {
                 @Suppress("DEPRECATION")
                 context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             }
-        vibrator.vibrate(VibrationEffect.createOneShot(42, VibrationEffect.DEFAULT_AMPLITUDE))
-    } catch (e: Exception) {
-        // Continue if haptic feedback fails
-    }
-}
+        vibrator.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
+        true
+    }.getOrDefault(false)
 
 fun performAppTapHapticFeedback(context: Context) {
     if (Prefs.getInstance(context).hapticsAppTapEnabled) {
@@ -116,6 +125,73 @@ fun launchLightOsRoute(
         context.startActivity(intent)
     } catch (_: Exception) {
         actionService?.cancelToolLaunchMask()
+        showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
+    }
+    return true
+}
+
+fun launchAppModel(
+    context: Context,
+    appModel: AppModel,
+): Boolean {
+    val appContext = context.applicationContext
+    val packageName = appModel.appPackage
+    val appActivityName = appModel.appActivityName
+    val userHandle = appModel.user
+
+    val tool = Tool.fromPackageName(packageName)
+    if (appModel.entryType == AppEntryType.Tool || tool != null) {
+        return launchLightOsRoute(context, (tool ?: Tool.fromId(appActivityName) ?: return true).lightOsRoute)
+    }
+
+    if (packageName == Constants.PINNED_SHORTCUT_PACKAGE || appModel.entryType == AppEntryType.PinnedShortcut) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
+            showToast(appContext, appContext.getString(R.string.toast_shortcuts_require_android))
+            return true
+        }
+
+        val parts = appActivityName.split("|", limit = 2)
+        val shortcutPackage = parts.getOrNull(0) ?: return true
+        val shortcutId = parts.getOrNull(1) ?: return true
+
+        try {
+            val launcher = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+            launcher.startShortcut(shortcutPackage, shortcutId, null, null, android.os.Process.myUserHandle())
+        } catch (_: Exception) {
+            showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_shortcut))
+        }
+        return true
+    }
+
+    val launcher = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+    val activityInfo = launcher.getActivityList(packageName, userHandle)
+
+    val component =
+        when (activityInfo.size) {
+            0 -> {
+                showToast(appContext, appContext.getString(R.string.toast_app_not_found))
+                return true
+            }
+
+            1 -> ComponentName(packageName, activityInfo[0].name)
+
+            else ->
+                if (appActivityName.isNotEmpty()) {
+                    ComponentName(packageName, appActivityName)
+                } else {
+                    ComponentName(packageName, activityInfo.last().name)
+                }
+        }
+
+    try {
+        launcher.startMainActivity(component, userHandle, null, null)
+    } catch (_: SecurityException) {
+        try {
+            launcher.startMainActivity(component, android.os.Process.myUserHandle(), null, null)
+        } catch (_: Exception) {
+            showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
+        }
+    } catch (_: Exception) {
         showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
     }
     return true
