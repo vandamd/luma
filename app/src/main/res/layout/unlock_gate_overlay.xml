@@ -96,17 +96,17 @@
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
         </LinearLayout>
 
@@ -119,17 +119,17 @@
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
         </LinearLayout>
 
@@ -142,17 +142,17 @@
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
             <View
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_margin="36dp" />
+                android:layout_margin="40dp" />
 
         </LinearLayout>
 
