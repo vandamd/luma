@@ -717,6 +717,7 @@ class HomeFragment :
 
     private fun scheduleVolumeIndicatorUiUpdate(state: VolumeIndicatorState) {
         pendingVolumeIndicatorState = state
+        ActionService.instance()?.showUnlockGateVolumeIndicator(state.labelRes, state.progress)
         binding.root.removeCallbacks(applyVolumeIndicatorRunnable)
         binding.root.postOnAnimation(applyVolumeIndicatorRunnable)
     }
@@ -738,6 +739,7 @@ class HomeFragment :
     private fun hideVolumeIndicator() {
         volumeIndicatorHideJob?.cancel()
         volumeIndicatorHideJob = null
+        ActionService.instance()?.hideUnlockGateVolumeIndicator()
 
         if (_binding == null) return
 

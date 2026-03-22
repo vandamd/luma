@@ -82,6 +82,9 @@ class ActionService : AccessibilityService() {
     private var unlockGateBluetoothReceiver: BroadcastReceiver? = null
     private var unlockGateWifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var unlockGateTelephonyCallback: TelephonyCallback? = null
+    private var unlockGateVolumeIndicatorVisible = false
+    private var unlockGateVolumeIndicatorLabelRes = R.string.volume_indicator_ringer
+    private var unlockGateVolumeIndicatorProgress = 0f
     private var secureLockMaskGestureAttempt = 0
     private val consumedMappedKeyUps = mutableSetOf<Int>()
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
@@ -180,6 +183,32 @@ class ActionService : AccessibilityService() {
                     minDelayMs = delayMs,
                 ),
             )
+        }
+    }
+
+    fun showUnlockGateVolumeIndicator(
+        labelRes: Int,
+        progress: Float,
+    ) {
+        runOnMainThread {
+            unlockGateVolumeIndicatorVisible = true
+            unlockGateVolumeIndicatorLabelRes = labelRes
+            unlockGateVolumeIndicatorProgress = progress.coerceIn(0f, 1f)
+            unlockGateView?.let { view ->
+                updateSecureLockMaskStatusBar(view)
+                applyUnlockGateVolumeIndicator(view)
+            }
+        }
+    }
+
+    fun hideUnlockGateVolumeIndicator() {
+        runOnMainThread {
+            if (!unlockGateVolumeIndicatorVisible) return@runOnMainThread
+            unlockGateVolumeIndicatorVisible = false
+            unlockGateView?.let { view ->
+                updateSecureLockMaskStatusBar(view)
+                applyUnlockGateVolumeIndicator(view)
+            }
         }
     }
 
@@ -670,6 +699,7 @@ class ActionService : AccessibilityService() {
 
     private fun cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility: Boolean = false) {
         secureLockMaskGestureAttempt = 0
+        unlockGateVolumeIndicatorVisible = false
         unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility)
         cancelUnlockGateCallbacks()
         stopUnlockGateStatusBarMonitors()
@@ -927,6 +957,7 @@ class ActionService : AccessibilityService() {
         resetUnlockGateViewState(view)
         updateUnlockGateTextAppearance(view, isDark)
         updateSecureLockMaskStatusBar(view)
+        applyUnlockGateVolumeIndicator(view)
         updateUnlockGateText(view)
         updateUnlockGateContentLayout(view)
         scheduleNextUnlockGateClockTick(view)
@@ -1140,6 +1171,7 @@ class ActionService : AccessibilityService() {
 
     private fun removeUnlockGateViewOnMain() {
         val view = unlockGateView ?: return
+        unlockGateVolumeIndicatorVisible = false
         view.animate().setListener(null)
         view.animate().cancel()
         resetUnlockGateViewState(view)
@@ -1594,8 +1626,54 @@ class ActionService : AccessibilityService() {
     private fun shouldShowUnlockGateStatusBar(): Boolean =
         unlockGateStateMachine.snapshot.visible &&
             unlockGateStateMachine.state.phase != UnlockGatePhase.AwaitingCredential &&
+            !shouldShowUnlockGateVolumeIndicator() &&
             !unlockGateStateMachine.state.prefersHomeStatusBar &&
             prefs.isStatusBarVisibleOnLockscreen()
+
+    private fun shouldShowUnlockGateVolumeIndicator(): Boolean =
+        unlockGateVolumeIndicatorVisible &&
+            (
+                unlockGateStateMachine.state.phase == UnlockGatePhase.UnlockGateVisible ||
+                    unlockGateStateMachine.state.phase == UnlockGatePhase.Dismissing
+            )
+
+    private fun applyUnlockGateVolumeIndicator(view: View) {
+        val indicator = view.findViewById<LinearLayout>(R.id.volumeIndicator)
+        val shouldShow = shouldShowUnlockGateVolumeIndicator()
+        indicator.visibility = if (shouldShow) View.VISIBLE else View.GONE
+        val label = indicator.findViewById<TextView>(R.id.volumeIndicatorLabel)
+        if (!shouldShow) {
+            label.isClickable = false
+            label.isFocusable = false
+            label.setOnClickListener(null)
+            return
+        }
+
+        val textColor = unlockGateTextColor(view)
+        label.apply {
+            setText(unlockGateVolumeIndicatorLabelRes)
+            setTextColor(textColor)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                performAppTapHapticFeedback(this@ActionService)
+                if (launchLightOsRoute(this@ActionService, NOTIFICATION_SETTINGS_LIGHT_ROUTE)) {
+                    dispatchUnlockGateEventOnMain(
+                        UnlockGateEvent.DismissRequested(
+                            nowUptimeMs = SystemClock.uptimeMillis(),
+                            minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                        ),
+                    )
+                }
+            }
+        }
+        indicator.findViewById<View>(R.id.volumeIndicatorTrackLine).setBackgroundColor(textColor)
+        indicator.findViewById<View>(R.id.volumeIndicatorFill).apply {
+            setBackgroundColor(textColor)
+            pivotX = 0f
+            scaleX = unlockGateVolumeIndicatorProgress
+        }
+    }
 
     private fun unlockGateTextColor(view: View): Int = view.findViewById<TextView>(R.id.unlockGateClock).currentTextColor
 
@@ -1887,6 +1965,7 @@ class ActionService : AccessibilityService() {
         private const val MIN_MASK_VISIBILITY_MS = 200L
         private const val HARD_TIMEOUT_MS = 900L
         private const val TOOL_LAUNCH_MASK_WINDOW_TITLE = "Luma Tool Launch Mask"
+        private const val NOTIFICATION_SETTINGS_LIGHT_ROUTE = "notificationsettings"
         private const val UNLOCK_GATE_MIN_VISIBILITY_MS = 150L
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
