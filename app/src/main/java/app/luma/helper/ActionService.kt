@@ -288,6 +288,9 @@ class ActionService : AccessibilityService() {
         if (unlockGatePhase != UnlockGatePhase.Idle) {
             if (unlockGatePhase == UnlockGatePhase.SecureMask) {
                 if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    // The gate can finish dismissing before HOME key up arrives. Remember to
+                    // consume that key up so the default launcher does not win the race.
+                    consumedMappedKeyUps.add(KeyEvent.KEYCODE_HOME)
                     runOnMainThread {
                         dismissSecureLockMaskWithGestureOnMain()
                     }
@@ -301,6 +304,9 @@ class ActionService : AccessibilityService() {
                 return true
             }
             if (event.action == KeyEvent.ACTION_DOWN) {
+                // The gate can finish dismissing before HOME key up arrives. Remember to
+                // consume that key up so the default launcher does not win the race.
+                consumedMappedKeyUps.add(KeyEvent.KEYCODE_HOME)
                 runOnMainThread {
                     bringLumaToFrontUnderUnlockGate()
                     dispatchUnlockGateEventOnMain(
@@ -326,6 +332,21 @@ class ActionService : AccessibilityService() {
                     )
                 }
                 return true
+            }
+            return true
+        }
+
+        if (prefs.lockscreenGateEnabled && unlockGateStateMachine.state.repeatedHomeGateEligible) {
+            if (event.action != KeyEvent.ACTION_DOWN) return false
+            if (event.repeatCount != 0) return true
+
+            runOnMainThread {
+                dispatchUnlockGateEventOnMain(
+                    UnlockGateEvent.HomeKeyDown(
+                        nowUptimeMs = SystemClock.uptimeMillis(),
+                        gateEnabled = prefs.lockscreenGateEnabled,
+                    ),
+                )
             }
             return true
         }
@@ -521,7 +542,8 @@ class ActionService : AccessibilityService() {
         }
 
     private fun shouldHandleLightHomeFix(): Boolean =
-        !MainActivity.isLumaForeground() && currentForegroundPackage == LIGHT_OS_PACKAGE
+        !keyguardManager.isDeviceLocked &&
+            getDefaultLauncherPackage(this) == LIGHT_OS_PACKAGE
 
     private fun executeCameraKeyAction(): Boolean =
         maybeVibrateAfterMappedAction(prefs.cameraKeyVibrate) {
