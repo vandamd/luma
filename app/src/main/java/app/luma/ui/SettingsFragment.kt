@@ -40,23 +40,20 @@ class SettingsFragment : Fragment() {
             )
 
             ContentContainer {
-                    SimpleTextButton(stringResource(R.string.settings_miscellaneous)) {
-                        findNavController().navigate(R.id.action_settingsFragment_to_miscellaneousFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_homescreen)) {
-                        findNavController().navigate(R.id.action_settingsFragment_to_homescreenFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_lockscreen)) {
-                        findNavController().navigate(R.id.action_settingsFragment_to_lockscreenFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_status_bar)) {
-                        findNavController().navigate(R.id.action_settingsFragment_to_statusBarFragment)
-                    }
-                    PrefsToggleTextButton(
-                        title = stringResource(R.string.settings_show_volume_indicator),
-                        initialValue = prefs.showVolumeIndicator,
-                        onValueChange = { prefs.showVolumeIndicator = it },
-                    )
+                SimpleTextButton(stringResource(R.string.settings_miscellaneous)) {
+                    findNavController().navigate(R.id.action_settingsFragment_to_miscellaneousFragment)
+                }
+                SimpleTextButton(stringResource(R.string.settings_homescreen)) {
+                    findNavController().navigate(R.id.action_settingsFragment_to_homescreenFragment)
+                }
+                SimpleTextButton(stringResource(R.string.settings_lockscreen)) {
+                    findNavController().navigate(R.id.action_settingsFragment_to_lockscreenFragment)
+                }
+                PrefsToggleTextButton(
+                    title = stringResource(R.string.settings_show_volume_indicator),
+                    initialValue = prefs.showVolumeIndicator,
+                    onValueChange = { prefs.showVolumeIndicator = it },
+                )
             }
         }
     }

@@ -15,6 +15,7 @@ import androidx.navigation.fragment.findNavController
 import app.luma.R
 import app.luma.data.Constants
 import app.luma.data.Prefs
+import app.luma.data.StatusBarSectionType
 import app.luma.helper.formatLockscreenDateText
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
@@ -27,6 +28,9 @@ class LockscreenFragment : Fragment() {
     private lateinit var prefs: Prefs
     private val actionState = mutableStateOf(Constants.Action.OpenApp)
     private val dateTapActionState = mutableStateOf(Constants.Action.Disabled)
+    private val connectivityActionState = mutableStateOf(Constants.Action.Disabled)
+    private val batteryActionState = mutableStateOf(Constants.Action.Disabled)
+    private val timeFormatState = mutableStateOf(Prefs.TimeFormat.TwentyFourHour)
     private val hasNotificationPermission = mutableStateOf(false)
     private val notificationIndicatorState = mutableStateOf(true)
     private val dateFormatState = mutableStateOf(Prefs.LockscreenDateFormat.ShortWeekday)
@@ -41,6 +45,9 @@ class LockscreenFragment : Fragment() {
         hasNotificationPermission.value = hasNotificationListenerPermission()
         actionState.value = prefs.getLockscreenShortcutAction()
         dateTapActionState.value = prefs.getLockscreenDateTapAction()
+        connectivityActionState.value = prefs.getSectionAction(StatusBarSectionType.CELLULAR)
+        batteryActionState.value = prefs.getSectionAction(StatusBarSectionType.BATTERY)
+        timeFormatState.value = prefs.timeFormat
         notificationIndicatorState.value = prefs.lockscreenClockNotificationIndicator
         dateFormatState.value = prefs.lockscreenDateFormat
     }
@@ -102,10 +109,41 @@ class LockscreenFragment : Fragment() {
                         onValueChange = { prefs.lockscreenDateEnabled = it },
                     )
                     SelectorButton(
+                        label = stringResource(R.string.status_bar_time_format),
+                        value =
+                            when (timeFormatState.value) {
+                                Prefs.TimeFormat.Standard -> stringResource(R.string.status_bar_time_standard)
+                                Prefs.TimeFormat.TwentyFourHour -> stringResource(R.string.status_bar_time_24h)
+                            },
+                        onClick = {
+                            findNavController().navigate(R.id.action_lockscreenFragment_to_timeFormatFragment)
+                        },
+                    )
+                    SelectorButton(
                         label = stringResource(R.string.lockscreen_date_format),
                         value = formatLockscreenDateText(dateFormatState.value),
                         onClick = {
                             findNavController().navigate(R.id.action_lockscreenFragment_to_lockscreenDateFormatFragment)
+                        },
+                    )
+                    SelectorButton(
+                        label = stringResource(R.string.status_bar_connectivity_tap),
+                        value = actionDisplayValue(connectivityActionState.value, prefs, StatusBarSectionType.CELLULAR),
+                        onClick = {
+                            findNavController().navigate(
+                                R.id.action_lockscreenFragment_to_gestureActionFragment,
+                                bundleOf(GestureActionFragment.SECTION_TYPE to StatusBarSectionType.CELLULAR.name),
+                            )
+                        },
+                    )
+                    SelectorButton(
+                        label = stringResource(R.string.status_bar_battery_tap),
+                        value = actionDisplayValue(batteryActionState.value, prefs, StatusBarSectionType.BATTERY),
+                        onClick = {
+                            findNavController().navigate(
+                                R.id.action_lockscreenFragment_to_gestureActionFragment,
+                                bundleOf(GestureActionFragment.SECTION_TYPE to StatusBarSectionType.BATTERY.name),
+                            )
                         },
                     )
                     SelectorButton(

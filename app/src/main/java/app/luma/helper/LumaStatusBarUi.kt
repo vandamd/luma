@@ -32,11 +32,9 @@ object LumaStatusBarUi {
 
     fun clockPlaceholder(prefs: Prefs): String {
         val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
-        val showSeconds = prefs.showSeconds
         val hour = if (is24Hour || prefs.leadingZero) "00" else "12"
         return buildString {
             append("$hour:00")
-            if (showSeconds) append(":00")
             if (!is24Hour) append(" AM")
         }
     }

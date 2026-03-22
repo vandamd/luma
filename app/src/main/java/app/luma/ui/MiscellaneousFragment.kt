@@ -43,17 +43,14 @@ class MiscellaneousFragment : Fragment() {
             )
 
             ContentContainer {
-                    SimpleTextButton(stringResource(R.string.settings_appearance)) {
-                        findNavController().navigate(R.id.action_miscellaneousFragment_to_appearanceFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_time)) {
-                        findNavController().navigate(R.id.action_miscellaneousFragment_to_timeFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_haptics)) {
-                        findNavController().navigate(R.id.action_miscellaneousFragment_to_hapticsFragment)
-                    }
-                    SimpleTextButton(stringResource(R.string.settings_hidden_apps)) { showHiddenApps() }
-                    SimpleTextButton(stringResource(R.string.settings_default_launcher)) { openDefaultLauncherSettings() }
+                SimpleTextButton(stringResource(R.string.settings_appearance)) {
+                    findNavController().navigate(R.id.action_miscellaneousFragment_to_appearanceFragment)
+                }
+                SimpleTextButton(stringResource(R.string.settings_haptics)) {
+                    findNavController().navigate(R.id.action_miscellaneousFragment_to_hapticsFragment)
+                }
+                SimpleTextButton(stringResource(R.string.settings_hidden_apps)) { showHiddenApps() }
+                SimpleTextButton(stringResource(R.string.settings_default_launcher)) { openDefaultLauncherSettings() }
             }
         }
     }

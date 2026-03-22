@@ -11,7 +11,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.app.KeyguardManager
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.WifiManager
 import android.graphics.Path
 import android.os.BatteryManager
@@ -24,6 +26,9 @@ import android.graphics.PorterDuff
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.provider.Settings
+import android.telephony.SignalStrength
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.KeyEvent
@@ -66,6 +71,10 @@ class ActionService : AccessibilityService() {
     private var unlockGateDismissRunnable: Runnable? = null
     private var unlockGateClockRunnable: Runnable? = null
     private var unlockGateReceiver: BroadcastReceiver? = null
+    private var unlockGateBatteryReceiver: BroadcastReceiver? = null
+    private var unlockGateBluetoothReceiver: BroadcastReceiver? = null
+    private var unlockGateWifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    private var unlockGateTelephonyCallback: TelephonyCallback? = null
     private var repeatedHomeGateEligible = false
     private var ignoreNextHomeUpForUnlockGate = false
     private var wakeUnlockGateArmed = false
@@ -450,6 +459,7 @@ class ActionService : AccessibilityService() {
         secureLockMaskVisible = false
         secureLockMaskGestureInFlight = false
         secureLockMaskGestureAttempt = 0
+        stopUnlockGateStatusBarMonitors()
 
         val view = unlockGateView ?: return
         view.animate().setListener(null)
@@ -991,20 +1001,24 @@ class ActionService : AccessibilityService() {
 
     private fun updateSecureLockMaskStatusBar(view: View) {
         val statusBar = view.findViewById<View>(R.id.unlockGateStatusBar)
-        val shouldShow = unlockGateVisible && !unlockGatePrefersHomeStatusBar && prefs.isStatusBarVisibleOnLockscreen()
+        val shouldShow = shouldShowUnlockGateStatusBar()
         statusBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
-        if (!shouldShow) return
+        if (!shouldShow) {
+            stopUnlockGateStatusBarMonitors()
+            return
+        }
 
         bindStatusBarSectionTapAction(view, R.id.statusConnectivityLayout, StatusBarSectionType.CELLULAR)
         bindStatusBarSectionTapAction(view, R.id.statusBatteryLayout, StatusBarSectionType.BATTERY)
 
-        val textColor = view.findViewById<TextView>(R.id.unlockGateClock).currentTextColor
+        val textColor = unlockGateTextColor(view)
         view.findViewById<TextView>(R.id.statusNetworkType).setTextColor(textColor)
         view.findViewById<TextView>(R.id.statusBatteryText).setTextColor(textColor)
 
         updateSecureLockMaskStatusBarClock(view)
         updateSecureLockMaskBatteryStatus(view, textColor)
         updateSecureLockMaskConnectivityStatus(view, textColor)
+        syncUnlockGateStatusBarMonitors()
     }
 
     private fun updateSecureLockMaskStatusBarClock(view: View) {
@@ -1015,6 +1029,7 @@ class ActionService : AccessibilityService() {
     private fun updateSecureLockMaskBatteryStatus(
         view: View,
         textColor: Int,
+        batteryIntent: Intent? = null,
     ) {
         val batteryLayout = view.findViewById<LinearLayout>(R.id.statusBatteryLayout)
         val batteryText = view.findViewById<TextView>(R.id.statusBatteryText)
@@ -1027,7 +1042,7 @@ class ActionService : AccessibilityService() {
             return
         }
 
-        val sticky = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val sticky = batteryIntent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         if (sticky == null) {
             batteryText.visibility = View.GONE
             batteryIcon.visibility = View.GONE
@@ -1116,6 +1131,244 @@ class ActionService : AccessibilityService() {
                 bluetoothIcon.visibility == View.VISIBLE
         connectivityLayout.visibility = if (anyVisible) View.VISIBLE else View.INVISIBLE
         LumaStatusBarUi.updateSectionBaseline(connectivityLayout)
+    }
+
+    private fun shouldShowUnlockGateStatusBar(): Boolean =
+        unlockGateVisible && !unlockGatePrefersHomeStatusBar && prefs.isStatusBarVisibleOnLockscreen()
+
+    private fun unlockGateTextColor(view: View): Int = view.findViewById<TextView>(R.id.unlockGateClock).currentTextColor
+
+    private fun refreshUnlockGateBatteryStatus(batteryIntent: Intent? = null) {
+        val view = unlockGateView ?: return
+        if (!shouldShowUnlockGateStatusBar()) return
+        updateSecureLockMaskBatteryStatus(view, unlockGateTextColor(view), batteryIntent)
+    }
+
+    private fun refreshUnlockGateConnectivityStatus() {
+        val view = unlockGateView ?: return
+        if (!shouldShowUnlockGateStatusBar()) return
+        updateSecureLockMaskConnectivityStatus(view, unlockGateTextColor(view))
+    }
+
+    private fun syncUnlockGateStatusBarMonitors() {
+        if (!shouldShowUnlockGateStatusBar()) {
+            stopUnlockGateStatusBarMonitors()
+            return
+        }
+
+        if (prefs.batteryPercentage || prefs.batteryIcon) {
+            startUnlockGateBatteryMonitor()
+        } else {
+            stopUnlockGateBatteryMonitor()
+        }
+
+        if (prefs.cellularEnabled) {
+            startUnlockGateCellularMonitor()
+        } else {
+            stopUnlockGateCellularMonitor()
+        }
+
+        if (prefs.wifiEnabled) {
+            startUnlockGateWifiMonitor()
+        } else {
+            stopUnlockGateWifiMonitor()
+        }
+
+        if (prefs.bluetoothEnabled) {
+            startUnlockGateBluetoothMonitor()
+        } else {
+            stopUnlockGateBluetoothMonitor()
+        }
+    }
+
+    private fun stopUnlockGateStatusBarMonitors() {
+        stopUnlockGateBatteryMonitor()
+        stopUnlockGateCellularMonitor()
+        stopUnlockGateWifiMonitor()
+        stopUnlockGateBluetoothMonitor()
+    }
+
+    private fun startUnlockGateBatteryMonitor() {
+        if (unlockGateBatteryReceiver != null) return
+
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+                    if (intent == null) return
+                    runOnMainThread {
+                        refreshUnlockGateBatteryStatus(intent)
+                    }
+                }
+            }
+
+        try {
+            val sticky = registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            unlockGateBatteryReceiver = receiver
+            sticky?.let(::refreshUnlockGateBatteryStatus)
+        } catch (exception: Exception) {
+            Log.e(TAG, "startUnlockGateBatteryMonitor: registerReceiver failed", exception)
+        }
+    }
+
+    private fun stopUnlockGateBatteryMonitor() {
+        val receiver = unlockGateBatteryReceiver ?: return
+        try {
+            unregisterReceiver(receiver)
+        } catch (exception: Exception) {
+            Log.e(TAG, "stopUnlockGateBatteryMonitor: unregisterReceiver failed", exception)
+        } finally {
+            unlockGateBatteryReceiver = null
+        }
+    }
+
+    private fun startUnlockGateCellularMonitor() {
+        if (unlockGateTelephonyCallback != null) return
+
+        val telephonyManager = getSystemService(TelephonyManager::class.java) ?: return
+        updateUnlockGateCellularSnapshot(telephonyManager)
+        refreshUnlockGateConnectivityStatus()
+
+        val callback =
+            object :
+                TelephonyCallback(),
+                TelephonyCallback.SignalStrengthsListener,
+                TelephonyCallback.DataConnectionStateListener {
+                override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
+                    val level = signalStrength.level.coerceIn(0, 4)
+                    runOnMainThread {
+                        prefs.lastCellularSignalLevel = level
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+
+                override fun onDataConnectionStateChanged(
+                    state: Int,
+                    networkType: Int,
+                ) {
+                    runOnMainThread {
+                        prefs.lastCellularNetworkType = networkType
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+            }
+
+        try {
+            telephonyManager.registerTelephonyCallback(mainExecutor, callback)
+            unlockGateTelephonyCallback = callback
+        } catch (exception: SecurityException) {
+            Log.w(TAG, "startUnlockGateCellularMonitor: registerTelephonyCallback failed", exception)
+        }
+    }
+
+    private fun stopUnlockGateCellularMonitor() {
+        val callback = unlockGateTelephonyCallback ?: return
+        val telephonyManager = getSystemService(TelephonyManager::class.java)
+        try {
+            telephonyManager?.unregisterTelephonyCallback(callback)
+        } catch (exception: Exception) {
+            Log.e(TAG, "stopUnlockGateCellularMonitor: unregisterTelephonyCallback failed", exception)
+        } finally {
+            unlockGateTelephonyCallback = null
+        }
+    }
+
+    private fun updateUnlockGateCellularSnapshot(telephonyManager: TelephonyManager) {
+        try {
+            telephonyManager.signalStrength?.let {
+                prefs.lastCellularSignalLevel = it.level.coerceIn(0, 4)
+            }
+        } catch (_: SecurityException) {
+        }
+        try {
+            prefs.lastCellularNetworkType = telephonyManager.dataNetworkType
+        } catch (_: SecurityException) {
+        }
+    }
+
+    private fun startUnlockGateWifiMonitor() {
+        if (unlockGateWifiNetworkCallback != null) return
+
+        val callback =
+            object : ConnectivityManager.NetworkCallback() {
+                override fun onCapabilitiesChanged(
+                    network: Network,
+                    networkCapabilities: NetworkCapabilities,
+                ) {
+                    runOnMainThread {
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+
+                override fun onLost(network: Network) {
+                    runOnMainThread {
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+            }
+
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request =
+            NetworkRequest
+                .Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .build()
+        try {
+            connectivityManager.registerNetworkCallback(request, callback)
+            unlockGateWifiNetworkCallback = callback
+            refreshUnlockGateConnectivityStatus()
+        } catch (exception: Exception) {
+            Log.e(TAG, "startUnlockGateWifiMonitor: registerNetworkCallback failed", exception)
+        }
+    }
+
+    private fun stopUnlockGateWifiMonitor() {
+        val callback = unlockGateWifiNetworkCallback ?: return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        try {
+            connectivityManager.unregisterNetworkCallback(callback)
+        } catch (exception: Exception) {
+            Log.e(TAG, "stopUnlockGateWifiMonitor: unregisterNetworkCallback failed", exception)
+        } finally {
+            unlockGateWifiNetworkCallback = null
+        }
+    }
+
+    private fun startUnlockGateBluetoothMonitor() {
+        if (unlockGateBluetoothReceiver != null) return
+
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+                    runOnMainThread {
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+            }
+
+        try {
+            registerReceiver(receiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+            unlockGateBluetoothReceiver = receiver
+            refreshUnlockGateConnectivityStatus()
+        } catch (exception: Exception) {
+            Log.e(TAG, "startUnlockGateBluetoothMonitor: registerReceiver failed", exception)
+        }
+    }
+
+    private fun stopUnlockGateBluetoothMonitor() {
+        val receiver = unlockGateBluetoothReceiver ?: return
+        try {
+            unregisterReceiver(receiver)
+        } catch (exception: Exception) {
+            Log.e(TAG, "stopUnlockGateBluetoothMonitor: unregisterReceiver failed", exception)
+        } finally {
+            unlockGateBluetoothReceiver = null
+        }
     }
 
     private fun scheduleNextUnlockGateClockTick(view: View) {

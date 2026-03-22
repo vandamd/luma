@@ -12,7 +12,6 @@ fun formatClockText(
     appendNotificationIndicator: Boolean = false,
 ): String {
     val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
-    val showSeconds = prefs.showSeconds
     val hour =
         if (is24Hour) {
             calendar.get(Calendar.HOUR_OF_DAY)
@@ -20,7 +19,6 @@ fun formatClockText(
             calendar.get(Calendar.HOUR).let { if (it == 0) 12 else it }
         }
     val minute = calendar.get(Calendar.MINUTE)
-    val second = calendar.get(Calendar.SECOND)
     val hourText =
         if (is24Hour || prefs.leadingZero) {
             "%02d".format(hour)
@@ -30,7 +28,6 @@ fun formatClockText(
 
     return buildString {
         append("$hourText:${"%02d".format(minute)}")
-        if (showSeconds) append(":${"%02d".format(second)}")
         if (!is24Hour) append(if (calendar.get(Calendar.AM_PM) == Calendar.AM) " AM" else " PM")
         if (appendNotificationIndicator && LumaNotificationListener.getActiveNotificationPackages().isNotEmpty()) {
             append("*")
