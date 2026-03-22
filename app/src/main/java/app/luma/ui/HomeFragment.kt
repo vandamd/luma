@@ -161,7 +161,6 @@ class HomeFragment :
     private var clockJob: Job? = null
     private var notificationDotView: TextView? = null
     private var volumeIndicatorHideJob: Job? = null
-    private var restoreFirstRunTipsAfterVolumeIndicator = false
     private var audioManager: AudioManager? = null
     private var notificationManager: NotificationManager? = null
     private var volumeWorkerThread: HandlerThread? = null
@@ -205,7 +204,6 @@ class HomeFragment :
         super.onDestroyView()
         volumeIndicatorHideJob?.cancel()
         volumeIndicatorHideJob = null
-        restoreFirstRunTipsAfterVolumeIndicator = false
         volumeWorkerHandler?.removeCallbacksAndMessages(null)
         volumeWorkerThread?.quitSafely()
         volumeWorkerHandler = null
@@ -712,14 +710,6 @@ class HomeFragment :
             return
         }
 
-        val wasVisible = binding.volumeIndicator.visibility == View.VISIBLE
-        if (!wasVisible) {
-            restoreFirstRunTipsAfterVolumeIndicator = binding.firstRunTips.visibility == View.VISIBLE
-            if (restoreFirstRunTipsAfterVolumeIndicator) {
-                binding.firstRunTips.visibility = View.GONE
-            }
-        }
-
         binding.volumeIndicator.visibility = View.VISIBLE
         scheduleVolumeIndicatorUiUpdate(state)
         restartVolumeIndicatorHideTimer()
@@ -754,10 +744,6 @@ class HomeFragment :
         binding.root.removeCallbacks(applyVolumeIndicatorRunnable)
         pendingVolumeIndicatorState = null
         binding.volumeIndicator.visibility = View.GONE
-        if (restoreFirstRunTipsAfterVolumeIndicator) {
-            binding.firstRunTips.visibility = View.VISIBLE
-        }
-        restoreFirstRunTipsAfterVolumeIndicator = false
     }
 
     private fun observeNotificationChanges() {
