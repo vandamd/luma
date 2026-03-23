@@ -110,15 +110,16 @@ private const val HAPTICS_APP_TAP_ENABLED = "haptics_app_tap_enabled"
 private const val HAPTICS_LONG_PRESS_ENABLED = "haptics_long_press_enabled"
 private const val HAPTICS_GESTURE_ACTIONS_ENABLED = "haptics_gesture_actions_enabled"
 private const val HAPTICS_STATUS_BAR_PRESS_ENABLED = "haptics_status_bar_press_enabled"
+private const val HAPTICS_KEYMAPS_ENABLED = "haptics_keymaps_enabled"
 private const val SCROLLWHEEL_BRIGHTNESS_ENABLED = "scrollwheel_brightness_enabled"
-private const val CAMERA_KEY_ACTION = "camera_key_action"
-private const val CAMERA_KEY_APP = "camera_key_app"
-private const val CAMERA_KEY_DURATION = "camera_key_duration"
-private const val CAMERA_KEY_VIBRATE = "camera_key_vibrate"
-private const val SCROLLWHEEL_BUTTON_ACTION = "scrollwheel_button_action"
-private const val SCROLLWHEEL_BUTTON_APP = "scrollwheel_button_app"
-private const val SCROLLWHEEL_BUTTON_DURATION = "scrollwheel_button_duration"
-private const val SCROLLWHEEL_BUTTON_VIBRATE = "scrollwheel_button_vibrate"
+private const val CAMERA_KEY_PRESS_ACTION = "camera_key_press_action"
+private const val CAMERA_KEY_PRESS_APP = "camera_key_press_app"
+private const val CAMERA_KEY_LONG_PRESS_ACTION = "camera_key_long_press_action"
+private const val CAMERA_KEY_LONG_PRESS_APP = "camera_key_long_press_app"
+private const val SCROLLWHEEL_BUTTON_PRESS_ACTION = "scrollwheel_button_press_action"
+private const val SCROLLWHEEL_BUTTON_PRESS_APP = "scrollwheel_button_press_app"
+private const val SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION = "scrollwheel_button_long_press_action"
+private const val SCROLLWHEEL_BUTTON_LONG_PRESS_APP = "scrollwheel_button_long_press_app"
 private const val SHOW_HIDDEN_APPS_IN_HOME_PICKER = "show_hidden_apps_in_home_picker"
 private const val SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
 private const val SHOW_APP_DRAWER_PIN_ICONS = "show_app_drawer_pin_icons"
@@ -148,8 +149,6 @@ class Prefs(
     enum class TimeFormat { Standard, TwentyFourHour }
 
     enum class ThemeMode { Dark, Light, Automatic }
-
-    enum class KeymapDuration { ShortPress, LongPress }
 
     // Legacy combined setting kept for preference migration.
     enum class StatusBarMode { Enabled, None, AndroidStatusBar }
@@ -446,79 +445,88 @@ class Prefs(
         storeAction(gestureActionKey(type, scope), action)
     }
 
-    fun getCameraKeyAction(): Constants.Action {
-        val action = loadAction(CAMERA_KEY_ACTION, Constants.Action.Disabled)
-        return if (action == Constants.Action.OpenApp || action == Constants.Action.Disabled) {
-            action
-        } else {
-            Constants.Action.Disabled
-        }
+    fun getCameraKeyPressAction(): Constants.Action {
+        val action = loadAction(CAMERA_KEY_PRESS_ACTION, Constants.Action.Disabled)
+        return if (action == Constants.Action.OpenApp || action == Constants.Action.Disabled) action else Constants.Action.Disabled
     }
 
-    fun setCameraKeyAction(action: Constants.Action) {
-        val resolvedAction =
-            if (action == Constants.Action.OpenApp || action == Constants.Action.Disabled) {
+    fun setCameraKeyPressAction(action: Constants.Action) {
+        storeAction(
+            CAMERA_KEY_PRESS_ACTION,
+            if (action == Constants.Action.OpenApp ||
+                action == Constants.Action.Disabled
+            ) {
                 action
             } else {
                 Constants.Action.Disabled
-            }
-        storeAction(CAMERA_KEY_ACTION, resolvedAction)
+            },
+        )
     }
 
-    fun getCameraKeyApp(): AppModel = loadApp(CAMERA_KEY_APP)
+    fun getCameraKeyPressApp(): AppModel = loadApp(CAMERA_KEY_PRESS_APP)
 
-    fun setCameraKeyApp(appModel: AppModel) {
-        storeApp(CAMERA_KEY_APP, appModel)
+    fun setCameraKeyPressApp(appModel: AppModel) {
+        storeApp(CAMERA_KEY_PRESS_APP, appModel)
     }
 
-    var cameraKeyDuration: KeymapDuration
-        get() = enumPref(CAMERA_KEY_DURATION, KeymapDuration.ShortPress)
-        set(value) = prefs.edit().putString(CAMERA_KEY_DURATION, value.name).apply()
+    fun getCameraKeyLongPressAction(): Constants.Action {
+        val action = loadAction(CAMERA_KEY_LONG_PRESS_ACTION, Constants.Action.Disabled)
+        return if (action == Constants.Action.OpenApp || action == Constants.Action.Disabled) action else Constants.Action.Disabled
+    }
 
-    var cameraKeyVibrate: Boolean
-        get() = prefs.getBoolean(CAMERA_KEY_VIBRATE, false)
-        set(value) = prefs.edit().putBoolean(CAMERA_KEY_VIBRATE, value).apply()
+    fun setCameraKeyLongPressAction(action: Constants.Action) {
+        storeAction(
+            CAMERA_KEY_LONG_PRESS_ACTION,
+            if (action == Constants.Action.OpenApp ||
+                action == Constants.Action.Disabled
+            ) {
+                action
+            } else {
+                Constants.Action.Disabled
+            },
+        )
+    }
 
-    fun getScrollwheelButtonAction(): Constants.Action {
-        val action = loadAction(SCROLLWHEEL_BUTTON_ACTION, Constants.Action.Disabled)
-        return if (
-            action == Constants.Action.Disabled ||
-            action == Constants.Action.OpenApp ||
+    fun getCameraKeyLongPressApp(): AppModel = loadApp(CAMERA_KEY_LONG_PRESS_APP)
+
+    fun setCameraKeyLongPressApp(appModel: AppModel) {
+        storeApp(CAMERA_KEY_LONG_PRESS_APP, appModel)
+    }
+
+    private fun validateScrollwheelAction(action: Constants.Action): Constants.Action =
+        if (action == Constants.Action.Disabled || action == Constants.Action.OpenApp ||
             action == Constants.Action.ToggleFlashlight
         ) {
             action
         } else {
             Constants.Action.Disabled
         }
+
+    fun getScrollwheelButtonPressAction(): Constants.Action =
+        validateScrollwheelAction(loadAction(SCROLLWHEEL_BUTTON_PRESS_ACTION, Constants.Action.Disabled))
+
+    fun setScrollwheelButtonPressAction(action: Constants.Action) {
+        storeAction(SCROLLWHEEL_BUTTON_PRESS_ACTION, validateScrollwheelAction(action))
     }
 
-    fun setScrollwheelButtonAction(action: Constants.Action) {
-        val resolvedAction =
-            if (
-                action == Constants.Action.Disabled ||
-                action == Constants.Action.OpenApp ||
-                action == Constants.Action.ToggleFlashlight
-            ) {
-                action
-            } else {
-                Constants.Action.Disabled
-            }
-        storeAction(SCROLLWHEEL_BUTTON_ACTION, resolvedAction)
+    fun getScrollwheelButtonPressApp(): AppModel = loadApp(SCROLLWHEEL_BUTTON_PRESS_APP)
+
+    fun setScrollwheelButtonPressApp(appModel: AppModel) {
+        storeApp(SCROLLWHEEL_BUTTON_PRESS_APP, appModel)
     }
 
-    fun getScrollwheelButtonApp(): AppModel = loadApp(SCROLLWHEEL_BUTTON_APP)
+    fun getScrollwheelButtonLongPressAction(): Constants.Action =
+        validateScrollwheelAction(loadAction(SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION, Constants.Action.Disabled))
 
-    fun setScrollwheelButtonApp(appModel: AppModel) {
-        storeApp(SCROLLWHEEL_BUTTON_APP, appModel)
+    fun setScrollwheelButtonLongPressAction(action: Constants.Action) {
+        storeAction(SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION, validateScrollwheelAction(action))
     }
 
-    var scrollwheelButtonDuration: KeymapDuration
-        get() = enumPref(SCROLLWHEEL_BUTTON_DURATION, KeymapDuration.ShortPress)
-        set(value) = prefs.edit().putString(SCROLLWHEEL_BUTTON_DURATION, value.name).apply()
+    fun getScrollwheelButtonLongPressApp(): AppModel = loadApp(SCROLLWHEEL_BUTTON_LONG_PRESS_APP)
 
-    var scrollwheelButtonVibrate: Boolean
-        get() = prefs.getBoolean(SCROLLWHEEL_BUTTON_VIBRATE, false)
-        set(value) = prefs.edit().putBoolean(SCROLLWHEEL_BUTTON_VIBRATE, value).apply()
+    fun setScrollwheelButtonLongPressApp(appModel: AppModel) {
+        storeApp(SCROLLWHEEL_BUTTON_LONG_PRESS_APP, appModel)
+    }
 
     fun isToolEnabled(tool: Tool): Boolean = prefs.getBoolean(tool.prefKey, tool == Tool.Phone || tool == Tool.Settings)
 
@@ -830,6 +838,10 @@ class Prefs(
     var hapticsStatusBarPressEnabled: Boolean
         get() = prefs.getBoolean(HAPTICS_STATUS_BAR_PRESS_ENABLED, true)
         set(value) = prefs.edit().putBoolean(HAPTICS_STATUS_BAR_PRESS_ENABLED, value).apply()
+
+    var hapticsKeymapsEnabled: Boolean
+        get() = prefs.getBoolean(HAPTICS_KEYMAPS_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(HAPTICS_KEYMAPS_ENABLED, value).apply()
 
     var scrollwheelBrightnessEnabled: Boolean
         get() = prefs.getBoolean(SCROLLWHEEL_BRIGHTNESS_ENABLED, false)

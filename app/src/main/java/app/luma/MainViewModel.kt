@@ -44,44 +44,78 @@ class MainViewModel(
         launchContext: Context? = null,
     ): Boolean =
         when (flag) {
-            AppDrawerFlag.LaunchApp, AppDrawerFlag.HiddenApps -> launchApp(appModel, launchContext)
+            AppDrawerFlag.LaunchApp, AppDrawerFlag.HiddenApps -> {
+                launchApp(appModel, launchContext)
+            }
 
             AppDrawerFlag.SetHomeApp -> {
                 prefs.setHomeAppModel(n, appModel)
                 true
             }
 
-            AppDrawerFlag.SetCameraKey -> {
-                prefs.setCameraKeyAction(Constants.Action.OpenApp)
-                prefs.setCameraKeyApp(appModel)
+            AppDrawerFlag.SetCameraKeyPress -> {
+                prefs.setCameraKeyPressAction(Constants.Action.OpenApp)
+                prefs.setCameraKeyPressApp(appModel)
                 true
             }
 
-            AppDrawerFlag.SetScrollwheelButton -> {
-                prefs.setScrollwheelButtonAction(Constants.Action.OpenApp)
-                prefs.setScrollwheelButtonApp(appModel)
+            AppDrawerFlag.SetCameraKeyLongPress -> {
+                prefs.setCameraKeyLongPressAction(Constants.Action.OpenApp)
+                prefs.setCameraKeyLongPressApp(appModel)
                 true
             }
 
-            AppDrawerFlag.SetSwipeLeft -> setGestureApp(GestureType.SWIPE_LEFT, appModel, GestureScope.Homescreen)
+            AppDrawerFlag.SetScrollwheelButtonPress -> {
+                prefs.setScrollwheelButtonPressAction(Constants.Action.OpenApp)
+                prefs.setScrollwheelButtonPressApp(appModel)
+                true
+            }
 
-            AppDrawerFlag.SetSwipeRight -> setGestureApp(GestureType.SWIPE_RIGHT, appModel, GestureScope.Homescreen)
+            AppDrawerFlag.SetScrollwheelButtonLongPress -> {
+                prefs.setScrollwheelButtonLongPressAction(Constants.Action.OpenApp)
+                prefs.setScrollwheelButtonLongPressApp(appModel)
+                true
+            }
 
-            AppDrawerFlag.SetSwipeUp -> setGestureApp(GestureType.SWIPE_UP, appModel, GestureScope.Homescreen)
+            AppDrawerFlag.SetSwipeLeft -> {
+                setGestureApp(GestureType.SWIPE_LEFT, appModel, GestureScope.Homescreen)
+            }
 
-            AppDrawerFlag.SetSwipeDown -> setGestureApp(GestureType.SWIPE_DOWN, appModel, GestureScope.Homescreen)
+            AppDrawerFlag.SetSwipeRight -> {
+                setGestureApp(GestureType.SWIPE_RIGHT, appModel, GestureScope.Homescreen)
+            }
 
-            AppDrawerFlag.SetDoubleTap -> setGestureApp(GestureType.DOUBLE_TAP, appModel, GestureScope.Homescreen)
+            AppDrawerFlag.SetSwipeUp -> {
+                setGestureApp(GestureType.SWIPE_UP, appModel, GestureScope.Homescreen)
+            }
 
-            AppDrawerFlag.SetLockscreenSwipeLeft -> setGestureApp(GestureType.SWIPE_LEFT, appModel, GestureScope.Lockscreen)
+            AppDrawerFlag.SetSwipeDown -> {
+                setGestureApp(GestureType.SWIPE_DOWN, appModel, GestureScope.Homescreen)
+            }
 
-            AppDrawerFlag.SetLockscreenSwipeRight -> setGestureApp(GestureType.SWIPE_RIGHT, appModel, GestureScope.Lockscreen)
+            AppDrawerFlag.SetDoubleTap -> {
+                setGestureApp(GestureType.DOUBLE_TAP, appModel, GestureScope.Homescreen)
+            }
 
-            AppDrawerFlag.SetLockscreenSwipeUp -> setGestureApp(GestureType.SWIPE_UP, appModel, GestureScope.Lockscreen)
+            AppDrawerFlag.SetLockscreenSwipeLeft -> {
+                setGestureApp(GestureType.SWIPE_LEFT, appModel, GestureScope.Lockscreen)
+            }
 
-            AppDrawerFlag.SetLockscreenSwipeDown -> setGestureApp(GestureType.SWIPE_DOWN, appModel, GestureScope.Lockscreen)
+            AppDrawerFlag.SetLockscreenSwipeRight -> {
+                setGestureApp(GestureType.SWIPE_RIGHT, appModel, GestureScope.Lockscreen)
+            }
 
-            AppDrawerFlag.SetLockscreenDoubleTap -> setGestureApp(GestureType.DOUBLE_TAP, appModel, GestureScope.Lockscreen)
+            AppDrawerFlag.SetLockscreenSwipeUp -> {
+                setGestureApp(GestureType.SWIPE_UP, appModel, GestureScope.Lockscreen)
+            }
+
+            AppDrawerFlag.SetLockscreenSwipeDown -> {
+                setGestureApp(GestureType.SWIPE_DOWN, appModel, GestureScope.Lockscreen)
+            }
+
+            AppDrawerFlag.SetLockscreenDoubleTap -> {
+                setGestureApp(GestureType.DOUBLE_TAP, appModel, GestureScope.Lockscreen)
+            }
 
             AppDrawerFlag.SetStatusBarCellular -> {
                 prefs.setSectionAction(StatusBarSectionType.CELLULAR, Constants.Action.OpenApp)

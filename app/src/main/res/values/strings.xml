@@ -29,13 +29,10 @@
     <string name="settings_keymaps">Keymaps</string>
     <string name="settings_hidden_apps">Hidden Apps</string>
     <string name="settings_scrollwheel_brightness">Scrollwheel Brightness</string>
-    <string name="keymaps_camera_shortcut">Camera Shortcut</string>
-    <string name="keymaps_scrollwheel_button">Scrollwheel Press</string>
-    <string name="keymaps_action">Action</string>
-    <string name="keymaps_duration">Duration</string>
-    <string name="keymaps_duration_short_press">Short Press</string>
-    <string name="keymaps_duration_long_press">Long Press</string>
-    <string name="keymaps_vibrate">Vibrate</string>
+    <string name="keymaps_camera_press">Camera Press</string>
+    <string name="keymaps_camera_long_press">Camera Long Press</string>
+    <string name="keymaps_scrollwheel_press">Scrollwheel Press</string>
+    <string name="keymaps_scrollwheel_long_press">Scrollwheel Long Press</string>
     <string name="settings_default_launcher">Default Launcher</string>
     <string name="unlock_gate_message">Press Home for Luma</string>
     <string name="lockscreen_enabled">Enabled</string>
@@ -89,6 +86,7 @@
     <string name="haptics_long_press">Long Press</string>
     <string name="haptics_gesture_actions">Gesture Actions</string>
     <string name="haptics_status_bar_press">Status Bar Press</string>
+    <string name="haptics_keymaps">Keymaps</string>
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">Page Indicator Position</string>

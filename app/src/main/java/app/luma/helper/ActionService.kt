@@ -51,6 +51,7 @@ import androidx.core.content.ContextCompat
 import app.luma.MainActivity
 import app.luma.R
 import app.luma.data.AppEntryType
+import app.luma.data.AppModel
 import app.luma.data.Constants.Action
 import app.luma.data.GestureScope
 import app.luma.data.GestureType
@@ -97,9 +98,10 @@ class ActionService : AccessibilityService() {
     private var torchCameraId: String? = null
     private var torchEnabled = false
     private var torchCallback: CameraManager.TorchCallback? = null
-    private var cameraKeyLongPressRunnable: Runnable? = null
-    private var scrollwheelButtonLongPressRunnable: Runnable? = null
-    private var scrollwheelButtonLongPressTriggered = false
+    private var cameraKeyDownTime = 0L
+    private var scrollwheelKeyDownTime = 0L
+    private var cameraLongPressFired = false
+    private var scrollwheelLongPressFired = false
 
     override fun onServiceConnected() {
         configureServiceInfo()
@@ -111,8 +113,8 @@ class ActionService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         consumedMappedKeyUps.clear()
-        cancelCameraKeyLongPress()
-        cancelScrollwheelButtonLongPress()
+        mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+        mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         secureLockMaskGestureAttempt = 0
@@ -124,8 +126,8 @@ class ActionService : AccessibilityService() {
 
     override fun onDestroy() {
         consumedMappedKeyUps.clear()
-        cancelCameraKeyLongPress()
-        cancelScrollwheelButtonLongPress()
+        mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+        mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         secureLockMaskGestureAttempt = 0
@@ -256,8 +258,8 @@ class ActionService : AccessibilityService() {
 
     override fun onInterrupt() {
         consumedMappedKeyUps.clear()
-        cancelCameraKeyLongPress()
-        cancelScrollwheelButtonLongPress()
+        mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+        mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
         secureLockMaskGestureAttempt = 0
@@ -378,45 +380,40 @@ class ActionService : AccessibilityService() {
     private fun handleCameraKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != CAMERA_KEY_CODE) return false
 
-        val action = prefs.getCameraKeyAction()
-        if (action == Action.Disabled) return false
+        val pressAction = prefs.getCameraKeyPressAction()
+        val longPressAction = prefs.getCameraKeyLongPressAction()
+
+        if (pressAction == Action.Disabled && longPressAction == Action.Disabled) return false
 
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
-                if (!canExecuteCameraKeyAction(action)) return false
                 if (event.repeatCount != 0) return true
+                consumedMappedKeyUps.remove(CAMERA_KEY_CODE)
+                mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+                cameraKeyDownTime = SystemClock.uptimeMillis()
+                cameraLongPressFired = false
 
-                when (prefs.cameraKeyDuration) {
-                    Prefs.KeymapDuration.ShortPress -> {
-                        true
-                    }
-
-                    Prefs.KeymapDuration.LongPress -> {
-                        cancelCameraKeyLongPress()
-                        cameraKeyLongPressRunnable =
-                            Runnable {
-                                if (executeCameraKeyAction()) {
-                                    consumedMappedKeyUps.add(CAMERA_KEY_CODE)
-                                }
-                                cameraKeyLongPressRunnable = null
-                            }.also { runnable ->
-                                mainHandler.postDelayed(runnable, KEYMAP_LONG_PRESS_MS)
+                if (longPressAction != Action.Disabled) {
+                    val downTime = cameraKeyDownTime
+                    val runnable =
+                        Runnable {
+                            if (cameraKeyDownTime == downTime) {
+                                executeKeymapAction(longPressAction, { prefs.getCameraKeyLongPressApp() }, CAMERA_KEY_CODE)
+                                cameraLongPressFired = true
                             }
-                        true
-                    }
+                        }
+                    mainHandler.postAtTime(runnable, CAMERA_KEY_CODE, downTime + KEYMAP_LONG_PRESS_MS)
                 }
+                true
             }
 
             KeyEvent.ACTION_UP -> {
-                when (prefs.cameraKeyDuration) {
-                    Prefs.KeymapDuration.ShortPress -> {
-                        executeCameraKeyAction()
-                    }
-
-                    Prefs.KeymapDuration.LongPress -> {
-                        cancelCameraKeyLongPress()
-                        true
-                    }
+                mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+                cameraKeyDownTime = 0L
+                if (!cameraLongPressFired && pressAction != Action.Disabled) {
+                    executeKeymapAction(pressAction, { prefs.getCameraKeyPressApp() }, CAMERA_KEY_CODE)
+                } else {
+                    true
                 }
             }
 
@@ -429,44 +426,44 @@ class ActionService : AccessibilityService() {
     private fun handleScrollwheelButtonKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != SCROLLWHEEL_BUTTON_KEY_CODE) return false
 
-        val action = prefs.getScrollwheelButtonAction()
-        if (action == Action.Disabled) return false
+        val pressAction = prefs.getScrollwheelButtonPressAction()
+        val longPressAction = prefs.getScrollwheelButtonLongPressAction()
+
+        if (pressAction == Action.Disabled && longPressAction == Action.Disabled) return false
 
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount != 0) return true
+                consumedMappedKeyUps.remove(SCROLLWHEEL_BUTTON_KEY_CODE)
+                mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+                scrollwheelKeyDownTime = SystemClock.uptimeMillis()
+                scrollwheelLongPressFired = false
 
-                scrollwheelButtonLongPressTriggered = false
-                when (prefs.scrollwheelButtonDuration) {
-                    Prefs.KeymapDuration.ShortPress -> {
-                        true
-                    }
-
-                    Prefs.KeymapDuration.LongPress -> {
-                        cancelScrollwheelButtonLongPress()
-                        scrollwheelButtonLongPressRunnable =
-                            Runnable {
-                                scrollwheelButtonLongPressTriggered = executeScrollwheelButtonAction()
-                                consumedMappedKeyUps.add(SCROLLWHEEL_BUTTON_KEY_CODE)
-                                scrollwheelButtonLongPressRunnable = null
-                            }.also { runnable ->
-                                mainHandler.postDelayed(runnable, KEYMAP_LONG_PRESS_MS)
+                if (longPressAction != Action.Disabled) {
+                    val downTime = scrollwheelKeyDownTime
+                    val runnable =
+                        Runnable {
+                            if (scrollwheelKeyDownTime == downTime) {
+                                executeKeymapAction(
+                                    longPressAction,
+                                    { prefs.getScrollwheelButtonLongPressApp() },
+                                    SCROLLWHEEL_BUTTON_KEY_CODE,
+                                )
+                                scrollwheelLongPressFired = true
                             }
-                        true
-                    }
+                        }
+                    mainHandler.postAtTime(runnable, SCROLLWHEEL_BUTTON_KEY_CODE, downTime + KEYMAP_LONG_PRESS_MS)
                 }
+                true
             }
 
             KeyEvent.ACTION_UP -> {
-                when (prefs.scrollwheelButtonDuration) {
-                    Prefs.KeymapDuration.ShortPress -> {
-                        executeScrollwheelButtonAction()
-                    }
-
-                    Prefs.KeymapDuration.LongPress -> {
-                        cancelScrollwheelButtonLongPress()
-                        true
-                    }
+                mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+                scrollwheelKeyDownTime = 0L
+                if (!scrollwheelLongPressFired && pressAction != Action.Disabled) {
+                    executeKeymapAction(pressAction, { prefs.getScrollwheelButtonPressApp() }, SCROLLWHEEL_BUTTON_KEY_CODE)
+                } else {
+                    true
                 }
             }
 
@@ -542,59 +539,23 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun canExecuteCameraKeyAction(action: Action): Boolean =
-        when (action) {
-            Action.OpenApp -> {
-                val appModel = prefs.getCameraKeyApp()
-                appModel.appPackage.isNotBlank() && !isTargetAppForeground(appModel)
-            }
-
-            else -> {
-                false
-            }
-        }
-
     private fun shouldHandleLightHomeFix(): Boolean =
         !keyguardManager.isDeviceLocked &&
             getDefaultLauncherPackage(this) == LIGHT_OS_PACKAGE
 
-    private fun executeCameraKeyAction(): Boolean =
-        maybeVibrateAfterMappedAction(prefs.cameraKeyVibrate) {
-            when (prefs.getCameraKeyAction()) {
+    private fun executeKeymapAction(
+        action: Action,
+        getApp: () -> AppModel,
+        keyCode: Int,
+    ): Boolean {
+        val handled =
+            when (action) {
                 Action.OpenApp -> {
                     if (unlockGateStateMachine.state.phase == UnlockGatePhase.SecureMask) {
                         false
                     } else {
-                        val appModel = prefs.getCameraKeyApp()
+                        val appModel = getApp()
                         if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
-                            false
-                        } else {
-                            val launched = launchAppModel(this, appModel)
-                            if (launched) dismissUnlockGateIfNeeded()
-                            launched
-                        }
-                    }
-                }
-
-                else -> {
-                    false
-                }
-            }
-        }
-
-    private fun executeScrollwheelButtonAction(): Boolean =
-        maybeVibrateAfterMappedAction(prefs.scrollwheelButtonVibrate) {
-            when (prefs.getScrollwheelButtonAction()) {
-                Action.Disabled -> {
-                    false
-                }
-
-                Action.OpenApp -> {
-                    if (unlockGateStateMachine.state.phase == UnlockGatePhase.SecureMask) {
-                        false
-                    } else {
-                        val appModel = prefs.getScrollwheelButtonApp()
-                        if (appModel.appPackage.isBlank()) {
                             false
                         } else {
                             val launched = launchAppModel(this, appModel)
@@ -612,28 +573,13 @@ class ActionService : AccessibilityService() {
                     false
                 }
             }
-        }
-
-    private inline fun maybeVibrateAfterMappedAction(
-        vibrate: Boolean,
-        action: () -> Boolean,
-    ): Boolean {
-        val handled = action()
-        if (handled && vibrate) {
-            performHapticFeedback(this)
+        if (handled) {
+            consumedMappedKeyUps.add(keyCode)
+            if (prefs.hapticsKeymapsEnabled) {
+                performHapticFeedback(this)
+            }
         }
         return handled
-    }
-
-    private fun cancelCameraKeyLongPress() {
-        cameraKeyLongPressRunnable?.let(mainHandler::removeCallbacks)
-        cameraKeyLongPressRunnable = null
-    }
-
-    private fun cancelScrollwheelButtonLongPress() {
-        scrollwheelButtonLongPressRunnable?.let(mainHandler::removeCallbacks)
-        scrollwheelButtonLongPressRunnable = null
-        scrollwheelButtonLongPressTriggered = false
     }
 
     private fun registerTorchCallback() {

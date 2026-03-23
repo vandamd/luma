@@ -137,38 +137,7 @@
     <fragment
         android:id="@+id/keymapsFragment"
         android:name="app.luma.ui.KeymapsFragment"
-        android:label="KeymapsFragment">
-        <action
-            android:id="@+id/action_keymapsFragment_to_cameraShortcutFragment"
-            app:destination="@id/cameraShortcutFragment" />
-        <action
-            android:id="@+id/action_keymapsFragment_to_scrollwheelButtonFragment"
-            app:destination="@id/scrollwheelButtonFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/cameraShortcutFragment"
-        android:name="app.luma.ui.CameraShortcutFragment"
-        android:label="CameraShortcutFragment">
-        <action
-            android:id="@+id/action_cameraShortcutFragment_to_cameraShortcutDurationFragment"
-            app:destination="@id/cameraShortcutDurationFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/cameraShortcutDurationFragment"
-        android:name="app.luma.ui.CameraShortcutDurationFragment"
-        android:label="CameraShortcutDurationFragment" />
-    <fragment
-        android:id="@+id/scrollwheelButtonFragment"
-        android:name="app.luma.ui.ScrollwheelButtonFragment"
-        android:label="ScrollwheelButtonFragment">
-        <action
-            android:id="@+id/action_scrollwheelButtonFragment_to_scrollwheelButtonDurationFragment"
-            app:destination="@id/scrollwheelButtonDurationFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/scrollwheelButtonDurationFragment"
-        android:name="app.luma.ui.ScrollwheelButtonDurationFragment"
-        android:label="ScrollwheelButtonDurationFragment" />
+        android:label="KeymapsFragment" />
     <fragment
         android:id="@+id/homescreenFragment"
         android:name="app.luma.ui.HomescreenFragment"

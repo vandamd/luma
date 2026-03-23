@@ -221,9 +221,7 @@ class AppDrawerFragment : Fragment() {
         }
     }
 
-    private fun populateAppList(
-        apps: List<AppModel>,
-    ) {
+    private fun populateAppList(apps: List<AppModel>) {
         appAdapter.setAppList(apps.toMutableList())
         appAdapter.updateNotifications(LumaNotificationListener.getActiveNotificationPackages())
     }
@@ -231,8 +229,10 @@ class AppDrawerFragment : Fragment() {
     private fun shouldAllowHiddenAppsToggle(): Boolean =
         when (flag) {
             AppDrawerFlag.SetHomeApp,
-            AppDrawerFlag.SetCameraKey,
-            AppDrawerFlag.SetScrollwheelButton,
+            AppDrawerFlag.SetCameraKeyPress,
+            AppDrawerFlag.SetCameraKeyLongPress,
+            AppDrawerFlag.SetScrollwheelButtonPress,
+            AppDrawerFlag.SetScrollwheelButtonLongPress,
             AppDrawerFlag.SetSwipeLeft,
             AppDrawerFlag.SetSwipeRight,
             AppDrawerFlag.SetSwipeUp,
