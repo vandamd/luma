@@ -388,6 +388,7 @@ class ActionService : AccessibilityService() {
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount != 0) return true
+                if (isCameraKeyTargetForeground(pressAction, longPressAction)) return false
                 consumedMappedKeyUps.remove(CAMERA_KEY_CODE)
                 mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
                 cameraKeyDownTime = SystemClock.uptimeMillis()
@@ -434,6 +435,7 @@ class ActionService : AccessibilityService() {
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount != 0) return true
+                if (isKeyTargetForeground(pressAction, { prefs.getScrollwheelButtonPressApp() })) return false
                 consumedMappedKeyUps.remove(SCROLLWHEEL_BUTTON_KEY_CODE)
                 mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
                 scrollwheelKeyDownTime = SystemClock.uptimeMillis()
@@ -653,6 +655,22 @@ class ActionService : AccessibilityService() {
             false
         }
     }
+
+    private fun isCameraKeyTargetForeground(
+        pressAction: Action,
+        longPressAction: Action,
+    ): Boolean {
+        val pressTargetsForeground =
+            pressAction == Action.OpenApp && isTargetAppForeground(prefs.getCameraKeyPressApp())
+        val longPressTargetsForeground =
+            longPressAction == Action.OpenApp && isTargetAppForeground(prefs.getCameraKeyLongPressApp())
+        return pressTargetsForeground || longPressTargetsForeground
+    }
+
+    private fun isKeyTargetForeground(
+        action: Action,
+        getApp: () -> app.luma.data.AppModel,
+    ): Boolean = action == Action.OpenApp && isTargetAppForeground(getApp())
 
     private fun isTargetAppForeground(appModel: app.luma.data.AppModel): Boolean {
         val targetPackage =
