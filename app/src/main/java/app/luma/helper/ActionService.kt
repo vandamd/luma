@@ -107,6 +107,7 @@ class ActionService : AccessibilityService() {
         configureServiceInfo()
         registerUnlockGateReceiver()
         registerTorchCallback()
+        MediaSessionHelper.init(this)
         instance = WeakReference(this)
         publishUnlockGateState()
     }
@@ -1000,7 +1001,6 @@ class ActionService : AccessibilityService() {
         updateSecureLockMaskStatusBar(view)
         applyUnlockGateVolumeIndicator(view)
         updateUnlockGateText(view)
-        updateUnlockGateContentLayout(view)
         scheduleNextUnlockGateClockTick(view)
 
         when (state.phase) {
@@ -1042,36 +1042,38 @@ class ActionService : AccessibilityService() {
 
         val shouldAddView = !view.isAttachedToWindow && view.windowToken == null && view.parent == null
 
-        return if (shouldAddView) {
-            try {
-                windowManager.addView(view, layoutParams)
-                true
-            } catch (exception: Exception) {
-                if (exception is IllegalStateException && exception.message?.contains("already been added") == true) {
-                    if (tryUpdateUnlockGateViewLayoutOnMain(view, layoutParams, logPrefix = "renderUnlockGateStateOnMain recover")) {
-                        return true
+        val result =
+            if (shouldAddView) {
+                try {
+                    windowManager.addView(view, layoutParams)
+                    true
+                } catch (exception: Exception) {
+                    if (exception is IllegalStateException && exception.message?.contains("already been added") == true) {
+                        if (tryUpdateUnlockGateViewLayoutOnMain(view, layoutParams, logPrefix = "renderUnlockGateStateOnMain recover")) {
+                            return true
+                        }
                     }
+                    Log.e(TAG, "renderUnlockGateStateOnMain: addView failed", exception)
+                    forceRemoveUnlockGateViewInstanceOnMain(view)
+                    unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility = false)
+                    cancelUnlockGateCallbacks()
+                    stopUnlockGateStatusBarMonitors()
+                    publishUnlockGateState()
+                    false
                 }
-                Log.e(TAG, "renderUnlockGateStateOnMain: addView failed", exception)
-                forceRemoveUnlockGateViewInstanceOnMain(view)
-                unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility = false)
-                cancelUnlockGateCallbacks()
-                stopUnlockGateStatusBarMonitors()
-                publishUnlockGateState()
-                false
-            }
-        } else {
-            if (tryUpdateUnlockGateViewLayoutOnMain(view, layoutParams, logPrefix = "renderUnlockGateStateOnMain")) {
-                true
             } else {
-                forceRemoveUnlockGateViewInstanceOnMain(view)
-                unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility = false)
-                cancelUnlockGateCallbacks()
-                stopUnlockGateStatusBarMonitors()
-                publishUnlockGateState()
-                false
+                if (tryUpdateUnlockGateViewLayoutOnMain(view, layoutParams, logPrefix = "renderUnlockGateStateOnMain")) {
+                    true
+                } else {
+                    forceRemoveUnlockGateViewInstanceOnMain(view)
+                    unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility = false)
+                    cancelUnlockGateCallbacks()
+                    stopUnlockGateStatusBarMonitors()
+                    publishUnlockGateState()
+                    false
+                }
             }
-        }
+        return result
     }
 
     private fun updateUnlockGateVisibleMode(
@@ -1113,6 +1115,7 @@ class ActionService : AccessibilityService() {
                 }
             }
         }
+        setupMediaButtonHandlers(view)
         bindUnlockGateGestureListeners(view)
     }
 
@@ -1154,6 +1157,46 @@ class ActionService : AccessibilityService() {
             isClickable = false
             isFocusable = false
         }
+        if (!blank) {
+            setupMediaButtonHandlers(view)
+        }
+    }
+
+    private fun setupMediaButtonHandlers(view: View) {
+        view.findViewById<ImageView>(R.id.unlockGateMediaPlayPause).apply {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                performAppTapHapticFeedback(this@ActionService)
+                MediaSessionHelper.togglePlayPause()
+            }
+        }
+        view.findViewById<ImageView>(R.id.unlockGateMediaPrev).apply {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                performAppTapHapticFeedback(this@ActionService)
+                val info = MediaSessionHelper.mediaInfo.value
+                if (info?.isPodcast == true) {
+                    MediaSessionHelper.rewind()
+                } else {
+                    MediaSessionHelper.skipToPrevious()
+                }
+            }
+        }
+        view.findViewById<ImageView>(R.id.unlockGateMediaNext).apply {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                performAppTapHapticFeedback(this@ActionService)
+                val info = MediaSessionHelper.mediaInfo.value
+                if (info?.isPodcast == true) {
+                    MediaSessionHelper.fastForward()
+                } else {
+                    MediaSessionHelper.skipToNext()
+                }
+            }
+        }
     }
 
     private fun updateUnlockGateAwaitingCredentialMode(
@@ -1174,6 +1217,7 @@ class ActionService : AccessibilityService() {
         view.findViewById<TextView>(R.id.unlockGateClock).visibility = View.GONE
         view.findViewById<TextView>(R.id.unlockGateDate).visibility = View.GONE
         view.findViewById<View>(R.id.unlockGateHomeButton).visibility = View.GONE
+        view.findViewById<View>(R.id.unlockGateMediaControls).visibility = View.GONE
     }
 
     private fun restoreUnlockGatePrimaryContent(view: View) {
@@ -1185,6 +1229,9 @@ class ActionService : AccessibilityService() {
                 View.GONE
             }
         view.findViewById<View>(R.id.unlockGateHomeButton).visibility = View.VISIBLE
+        if (MediaSessionHelper.mediaInfo.value != null) {
+            view.findViewById<View>(R.id.unlockGateMediaControls).visibility = View.VISIBLE
+        }
     }
 
     private fun setUnlockGatePatternGridVisible(
@@ -1576,6 +1623,12 @@ class ActionService : AccessibilityService() {
         val textColor = if (isDark) Color.WHITE else Color.BLACK
         view.findViewById<TextView>(R.id.unlockGateClock).setTextColor(textColor)
         view.findViewById<TextView>(R.id.unlockGateDate).setTextColor(textColor)
+        val iconTint = if (isDark) Color.WHITE else Color.BLACK
+        for (id in listOf(R.id.unlockGateMediaPrev, R.id.unlockGateMediaPlayPause, R.id.unlockGateMediaNext)) {
+            val iv = view.findViewById<ImageView>(id)
+            @Suppress("DEPRECATION")
+            iv.setColorFilter(iconTint, PorterDuff.Mode.SRC_IN)
+        }
     }
 
     private fun updateUnlockGateText(view: View) {
@@ -1584,6 +1637,7 @@ class ActionService : AccessibilityService() {
             phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing
         val clockView = view.findViewById<TextView>(R.id.unlockGateClock)
         val dateView = view.findViewById<TextView>(R.id.unlockGateDate)
+        val mediaControlsView = view.findViewById<LinearLayout>(R.id.unlockGateMediaControls)
 
         clockView.text =
             formatClockText(
@@ -1593,6 +1647,7 @@ class ActionService : AccessibilityService() {
         if (phase == UnlockGatePhase.AwaitingCredential) {
             clockView.visibility = View.GONE
             dateView.visibility = View.GONE
+            mediaControlsView.visibility = View.GONE
             return
         }
 
@@ -1612,17 +1667,27 @@ class ActionService : AccessibilityService() {
                 isFocusable = false
             }
         }
-    }
+        val mediaInfo = MediaSessionHelper.mediaInfo.value
+        if (mediaInfo != null) {
+            val playPauseView = view.findViewById<ImageView>(R.id.unlockGateMediaPlayPause)
+            playPauseView.setImageResource(
+                if (mediaInfo.isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play,
+            )
 
-    private fun updateUnlockGateContentLayout(view: View) {
-        val clockView = view.findViewById<TextView>(R.id.unlockGateClock)
-        val dateView = view.findViewById<TextView>(R.id.unlockGateDate)
-        val donutOffsetPx = resources.displayMetrics.density * UNLOCK_GATE_HOME_BUTTON_SIZE_DP
-        val baseTranslationY = -(currentUnlockGateTopInsetPx() / 2f) - donutOffsetPx
-        val dateGapPx = resources.displayMetrics.density * UNLOCK_GATE_DATE_GAP_DP
-        val dateCenterOffsetPx = ((clockView.lineHeight + dateView.lineHeight) / 2f) + dateGapPx
-        clockView.translationY = baseTranslationY
-        dateView.translationY = baseTranslationY - dateCenterOffsetPx
+            val prevView = view.findViewById<ImageView>(R.id.unlockGateMediaPrev)
+            val nextView = view.findViewById<ImageView>(R.id.unlockGateMediaNext)
+            if (mediaInfo.isPodcast) {
+                prevView.setImageResource(R.drawable.ic_media_replay_10)
+                nextView.setImageResource(R.drawable.ic_media_forward_10)
+            } else {
+                prevView.setImageResource(R.drawable.ic_media_skip_previous)
+                nextView.setImageResource(R.drawable.ic_media_skip_next)
+            }
+
+            mediaControlsView.visibility = View.VISIBLE
+        } else {
+            mediaControlsView.visibility = View.GONE
+        }
     }
 
     private fun resetUnlockGateViewState(view: View) {
@@ -1637,6 +1702,10 @@ class ActionService : AccessibilityService() {
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateDate))
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateHomeButton))
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateStatusBar))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaControls))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaPrev))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaPlayPause))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaNext))
         clearUnlockGateGestureTarget(view.findViewById(R.id.statusConnectivityLayout))
         clearUnlockGateGestureTarget(view.findViewById(R.id.statusClockLayout))
         clearUnlockGateGestureTarget(view.findViewById(R.id.statusBatteryLayout))
@@ -2181,9 +2250,7 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_MIN_VISIBILITY_MS = 150L
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
-        private const val UNLOCK_GATE_HOME_BUTTON_SIZE_DP = 30f
         private const val ICON_SCALE = 1.25f
-        private const val UNLOCK_GATE_DATE_GAP_DP = 30f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"
         private const val SECURE_LOCK_MASK_GESTURE_DISPATCH_DELAY_MS = 96L
