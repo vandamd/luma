@@ -1091,6 +1091,7 @@ class ActionService : AccessibilityService() {
             }
 
         resetUnlockGateViewState(view)
+        MediaSessionHelper.refresh()
         updateUnlockGateTextAppearance(view, isDark)
         updateSecureLockMaskStatusBar(view)
         applyUnlockGateVolumeIndicator(view)
