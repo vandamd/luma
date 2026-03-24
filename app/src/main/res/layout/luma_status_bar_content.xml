@@ -3,13 +3,14 @@
 
     <LinearLayout
         android:id="@+id/statusConnectivityLayout"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
         android:gravity="start"
         android:baselineAligned="true"
         android:baselineAlignedChildIndex="0"
         android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:paddingBottom="32dp"
         android:visibility="invisible">
 
         <TextView
@@ -19,21 +20,21 @@
             android:layout_marginEnd="4dp"
             android:fontFamily="@font/public_sans"
             android:textColor="?attr/primaryColor"
-            android:textSize="13sp"
+            android:textSize="15sp"
             android:visibility="invisible" />
 
         <ImageView
             android:id="@+id/statusSignal"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
             android:baselineAlignBottom="true"
             android:visibility="gone"
             android:src="@drawable/signal_4" />
 
         <ImageView
             android:id="@+id/statusWifi"
-            android:layout_width="12dp"
-            android:layout_height="10dp"
+            android:layout_width="14dp"
+            android:layout_height="12dp"
             android:layout_marginStart="6dp"
             android:baselineAlignBottom="true"
             android:scaleType="fitXY"
@@ -42,8 +43,8 @@
 
         <ImageView
             android:id="@+id/statusBluetooth"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
             android:layout_marginStart="6dp"
             android:baselineAlignBottom="true"
             android:visibility="gone"
@@ -51,32 +52,21 @@
 
     </LinearLayout>
 
-    <app.luma.ui.BaselineFrameLayout
-        android:id="@+id/statusClockLayout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:clipChildren="false">
-
-        <TextView
-            android:id="@+id/statusClock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:fontFamily="@font/public_sans"
-            android:textColor="?attr/primaryColor"
-            android:textSize="19.4sp" />
-
-    </app.luma.ui.BaselineFrameLayout>
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <LinearLayout
         android:id="@+id/statusBatteryLayout"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
         android:gravity="end"
         android:baselineAligned="true"
         android:baselineAlignedChildIndex="0"
         android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:paddingBottom="32dp"
         android:visibility="invisible">
 
         <TextView
@@ -86,12 +76,12 @@
             android:layout_marginEnd="4dp"
             android:fontFamily="@font/public_sans"
             android:textColor="?attr/primaryColor"
-            android:textSize="16sp" />
+            android:textSize="18sp" />
 
         <ImageView
             android:id="@+id/statusBattery"
-            android:layout_width="15dp"
-            android:layout_height="10dp"
+            android:layout_width="18dp"
+            android:layout_height="12dp"
             android:baselineAlignBottom="true"
             android:scaleType="fitEnd"
             android:src="@drawable/battery_full" />

@@ -1645,7 +1645,6 @@ class ActionService : AccessibilityService() {
             preserveSingleTap = true,
             onPress = { performStatusBarPressHapticFeedback(this) },
         )
-        bindUnlockGateGestureTarget(view.findViewById(R.id.statusClockLayout))
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.statusBatteryLayout),
             preserveSingleTap = true,
@@ -1803,7 +1802,6 @@ class ActionService : AccessibilityService() {
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaPlayPause))
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaNext))
         clearUnlockGateGestureTarget(view.findViewById(R.id.statusConnectivityLayout))
-        clearUnlockGateGestureTarget(view.findViewById(R.id.statusClockLayout))
         clearUnlockGateGestureTarget(view.findViewById(R.id.statusBatteryLayout))
         clearUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicator))
         clearUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicatorLabel))
@@ -1859,15 +1857,9 @@ class ActionService : AccessibilityService() {
         view.findViewById<TextView>(R.id.statusNetworkType).setTextColor(textColor)
         view.findViewById<TextView>(R.id.statusBatteryText).setTextColor(textColor)
 
-        updateSecureLockMaskStatusBarClock(view)
         updateSecureLockMaskBatteryStatus(view, textColor)
         updateSecureLockMaskConnectivityStatus(view, textColor)
         syncUnlockGateStatusBarMonitors()
-    }
-
-    private fun updateSecureLockMaskStatusBarClock(view: View) {
-        val clockLayout = view.findViewById<View>(R.id.statusClockLayout)
-        clockLayout.visibility = View.GONE
     }
 
     private fun updateSecureLockMaskBatteryStatus(

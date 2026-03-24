@@ -77,12 +77,6 @@ private val FragmentHomeBinding.statusBatteryText: TextView
 private val FragmentHomeBinding.statusBluetooth: ImageView
     get() = statusBar.findViewById(R.id.statusBluetooth)
 
-private val FragmentHomeBinding.statusClock: TextView
-    get() = statusBar.findViewById(R.id.statusClock)
-
-private val FragmentHomeBinding.statusClockLayout: BaselineFrameLayout
-    get() = statusBar.findViewById(R.id.statusClockLayout)
-
 private val FragmentHomeBinding.statusConnectivityLayout: LinearLayout
     get() = statusBar.findViewById(R.id.statusConnectivityLayout)
 
@@ -162,8 +156,6 @@ class HomeFragment :
     private var bluetoothReceiver: BroadcastReceiver? = null
     private var telephonyCallback: TelephonyCallback? = null
     private var wifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
-    private var clockJob: Job? = null
-    private var notificationDotView: TextView? = null
     private var volumeIndicatorHideJob: Job? = null
     private var audioManager: AudioManager? = null
     private var notificationManager: NotificationManager? = null
@@ -218,7 +210,6 @@ class HomeFragment :
         pendingVolumeIndicatorState = null
         volumeApplyGeneration = 0L
         _binding?.root?.removeCallbacks(applyVolumeIndicatorRunnable)
-        notificationDotView = null
         isUnlockGateVisible = false
         _binding = null
     }
@@ -245,7 +236,6 @@ class HomeFragment :
         initSwipeTouchListener()
         initStatusBarClickListeners()
         initVolumeIndicator()
-        observeNotificationChanges()
         observeUnlockGateClockVisibility()
         binding.touchArea.post { syncUnlockGateHomeContentTop() }
     }
@@ -263,7 +253,6 @@ class HomeFragment :
         applyStatusBarVisibility()
         startBatteryMonitor()
         startConnectivityMonitors()
-        startClock()
         syncRepeatedHomeGateEligibility()
         syncUnlockGateHomeContentTop()
     }
@@ -272,7 +261,6 @@ class HomeFragment :
         super.onPause()
         HomeCleanupHelper.setOnHomeCleanupCallback(null)
         hideVolumeIndicator()
-        stopClock()
         stopBatteryMonitor()
         stopConnectivityMonitors()
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility(null)
@@ -499,7 +487,6 @@ class HomeFragment :
 
     private fun applyStatusBarVisibility() {
         binding.statusBar.visibility = if (shouldShowLumaStatusBarNow()) View.VISIBLE else View.GONE
-        updateNotificationDot(LumaNotificationListener.getActiveNotificationPackages().isNotEmpty())
     }
 
     private fun syncUnlockGateHomeContentTop() {
@@ -513,7 +500,6 @@ class HomeFragment :
                     0
                 }
             ActionService.instance()?.setUnlockGateHomeContentTop(contentTop)
-            updateClockDisplay()
         }
     }
 
@@ -747,249 +733,25 @@ class HomeFragment :
         binding.volumeIndicator.visibility = View.GONE
     }
 
-    private fun observeNotificationChanges() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            var lastPackages: Set<String> = emptySet()
-            LumaNotificationListener.changeVersion.collect {
-                val current = LumaNotificationListener.getActiveNotificationPackages()
-                if (current != lastPackages) {
-                    lastPackages = current
-                    refreshAppNames()
-                    updateNotificationDot(current.isNotEmpty())
-                }
-            }
-        }
-    }
-
     private fun observeUnlockGateClockVisibility() {
         viewLifecycleOwner.lifecycleScope.launch {
             ActionService.unlockGateState.collect { snapshot ->
                 if (_binding == null) return@collect
                 isUnlockGateVisible = snapshot.visible
                 applyStatusBarVisibility()
-                updateClockDisplay()
             }
         }
     }
-
-    private fun createNotificationDot(): TextView =
-        TextView(requireContext()).apply {
-            typeface = resources.getFont(R.font.public_sans)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            val ta = requireContext().obtainStyledAttributes(intArrayOf(R.attr.primaryColor))
-            setTextColor(ta.getColor(0, 0))
-            ta.recycle()
-            text = "∗"
-            visibility = View.GONE
-        }
-
-    private fun hasDotIn(layout: ViewGroup): Boolean =
-        notificationDotView?.let { it.parent == layout && it.visibility == View.VISIBLE } == true
 
     private fun ImageView.showTinted(icon: Int) {
-        LumaStatusBarUi.showTinted(this, icon, binding.statusClock.currentTextColor)
-    }
-
-    private fun detachDot(
-        dot: View,
-        parent: ViewGroup?,
-    ) {
-        parent?.removeView(dot)
-        if (parent == binding.statusBatteryLayout) {
-            binding.statusBatteryLayout.baselineAlignedChildIndex = 0
-        }
-    }
-
-    private fun updateNotificationDot(hasNotifications: Boolean) {
-        val show = hasNotifications && shouldShowLumaStatusBarNow() && prefs.showStatusBarNotificationIndicator
-        val dot = notificationDotView ?: createNotificationDot().also { notificationDotView = it }
-        val oldParent = dot.parent as? ViewGroup
-
-        if (!show) {
-            if (dot.visibility != View.GONE) {
-                detachDot(dot, oldParent)
-                dot.visibility = View.GONE
-                refreshSectionVisibility(oldParent)
-            }
-            return
-        }
-
-        when (prefs.notificationIndicatorSection) {
-            Prefs.NotificationIndicatorSection.Time -> {
-                if (prefs.timeEnabled) {
-                    binding.statusClock.visibility = View.VISIBLE
-                } else {
-                    binding.statusClock.text = clockPlaceholder()
-                    binding.statusClock.visibility = View.INVISIBLE
-                }
-            }
-
-            Prefs.NotificationIndicatorSection.Connectivity -> {
-                binding.statusConnectivityLayout.visibility = View.VISIBLE
-            }
-
-            Prefs.NotificationIndicatorSection.Battery -> {
-                binding.statusBatteryLayout.visibility = View.VISIBLE
-            }
-        }
-
-        val targetParent: ViewGroup =
-            when (prefs.notificationIndicatorSection) {
-                Prefs.NotificationIndicatorSection.Connectivity -> binding.statusConnectivityLayout
-                Prefs.NotificationIndicatorSection.Time -> binding.statusClockLayout
-                Prefs.NotificationIndicatorSection.Battery -> binding.statusBatteryLayout
-            }
-        if (oldParent == targetParent && dot.visibility == View.VISIBLE) {
-            repositionClockDot()
-            return
-        }
-
-        detachDot(dot, oldParent)
-
-        dot.visibility = View.VISIBLE
-        val section = prefs.notificationIndicatorSection
-        val dotSize =
-            when (section) {
-                Prefs.NotificationIndicatorSection.Connectivity -> 13f
-                Prefs.NotificationIndicatorSection.Time -> 19.4f
-                Prefs.NotificationIndicatorSection.Battery -> 16f
-            }
-        dot.setTextSize(TypedValue.COMPLEX_UNIT_SP, dotSize)
-        val anyConnectivityEnabled = prefs.cellularEnabled || prefs.wifiEnabled || prefs.bluetoothEnabled
-        val before =
-            when (section) {
-                Prefs.NotificationIndicatorSection.Connectivity -> {
-                    if (anyConnectivityEnabled) {
-                        prefs.notificationIndicatorAlignment == Prefs.NotificationIndicatorAlignment.Before
-                    } else {
-                        true
-                    }
-                }
-
-                Prefs.NotificationIndicatorSection.Battery -> {
-                    if (prefs.batteryPercentage || prefs.batteryIcon) {
-                        prefs.notificationIndicatorAlignment == Prefs.NotificationIndicatorAlignment.Before
-                    } else {
-                        false
-                    }
-                }
-
-                Prefs.NotificationIndicatorSection.Time -> {
-                    prefs.notificationIndicatorAlignment == Prefs.NotificationIndicatorAlignment.Before
-                }
-            }
-        val marginLp =
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-        val dp4 = (4 * resources.displayMetrics.density).toInt()
-
-        when (section) {
-            Prefs.NotificationIndicatorSection.Connectivity -> {
-                dot.translationX = 0f
-                if (before) {
-                    marginLp.marginEnd = dp4
-                    binding.statusConnectivityLayout.addView(dot, 0, marginLp)
-                } else {
-                    marginLp.marginStart = dp4
-                    binding.statusConnectivityLayout.addView(dot, marginLp)
-                }
-                binding.statusConnectivityLayout.visibility = View.VISIBLE
-            }
-
-            Prefs.NotificationIndicatorSection.Time -> {
-                val frameLp =
-                    FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        if (prefs.timeEnabled) Gravity.BOTTOM else Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
-                    )
-                binding.statusClockLayout.addView(dot, frameLp)
-                dot.post {
-                    if (_binding == null) return@post
-                    dot.translationX =
-                        if (prefs.timeEnabled) {
-                            if (before) -(dot.width + dp4).toFloat() else (binding.statusClock.width + dp4).toFloat()
-                        } else {
-                            0f
-                        }
-                }
-            }
-
-            Prefs.NotificationIndicatorSection.Battery -> {
-                dot.translationX = 0f
-                if (before) {
-                    marginLp.marginEnd = dp4
-                    binding.statusBatteryLayout.addView(dot, 0, marginLp)
-                    binding.statusBatteryLayout.baselineAlignedChildIndex =
-                        binding.statusBatteryLayout.indexOfChild(binding.statusBatteryText)
-                } else {
-                    marginLp.marginStart = dp4
-                    binding.statusBatteryLayout.addView(dot, marginLp)
-                }
-                binding.statusBatteryLayout.visibility = View.VISIBLE
-            }
-        }
-        refreshSectionVisibility(oldParent)
-    }
-
-    private fun refreshSectionVisibility(oldParent: ViewGroup?) {
-        if (oldParent == binding.statusConnectivityLayout && !hasDotIn(binding.statusConnectivityLayout)) {
-            val anyEnabled = prefs.cellularEnabled || prefs.wifiEnabled || prefs.bluetoothEnabled
-            binding.statusConnectivityLayout.visibility = if (anyEnabled) View.VISIBLE else View.INVISIBLE
-        }
-        if (oldParent == binding.statusBatteryLayout && !hasDotIn(binding.statusBatteryLayout)) {
-            val anyBatteryEnabled = prefs.batteryPercentage || prefs.batteryIcon
-            if (!anyBatteryEnabled) {
-                binding.statusBatteryText.visibility = View.GONE
-                binding.statusBattery.visibility = View.GONE
-            }
-            binding.statusBatteryLayout.visibility = if (anyBatteryEnabled) View.VISIBLE else View.INVISIBLE
-        }
+        val color = binding.statusBatteryText.currentTextColor
+        LumaStatusBarUi.showTinted(this, icon, color)
     }
 
     private fun primeStatusBar() {
         applyStatusBarVisibility()
-        updateClockDisplay()
         primeBatteryState()
         primeConnectivityState()
-    }
-
-    private fun startClock() {
-        clockJob =
-            viewLifecycleOwner.lifecycleScope.launch {
-                while (true) {
-                    updateClockDisplay()
-                    val now = System.currentTimeMillis()
-                    delay(1000 - (now % 1000))
-                }
-            }
-    }
-
-    private fun updateClockDisplay() {
-        binding.statusClock.text = formatClockText(prefs)
-        binding.statusClockLayout.visibility = View.GONE
-    }
-
-    private fun shouldHideClockForUnlockGate(): Boolean = isUnlockGateVisible
-
-    private fun clockPlaceholder(): String = LumaStatusBarUi.clockPlaceholder(prefs)
-
-    private fun stopClock() {
-        clockJob?.cancel()
-        clockJob = null
-    }
-
-    private fun repositionClockDot() {
-        val dot = notificationDotView ?: return
-        if (dot.parent != binding.statusClockLayout || dot.visibility != View.VISIBLE) return
-        val before = prefs.notificationIndicatorAlignment == Prefs.NotificationIndicatorAlignment.Before
-        val dp4 = (4 * resources.displayMetrics.density).toInt()
-        binding.statusClock.post {
-            if (_binding == null) return@post
-            dot.translationX = if (before) -(dot.width + dp4).toFloat() else (binding.statusClock.width + dp4).toFloat()
-        }
     }
 
     private fun primeBatteryState() {
@@ -997,8 +759,7 @@ class HomeFragment :
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
             updateSectionBaseline(binding.statusBatteryLayout)
-            binding.statusBatteryLayout.visibility =
-                if (hasDotIn(binding.statusBatteryLayout)) View.VISIBLE else View.INVISIBLE
+            binding.statusBatteryLayout.visibility = View.INVISIBLE
             return
         }
         binding.statusBatteryLayout.visibility = View.VISIBLE
@@ -1013,8 +774,7 @@ class HomeFragment :
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
             updateSectionBaseline(binding.statusBatteryLayout)
-            binding.statusBatteryLayout.visibility =
-                if (hasDotIn(binding.statusBatteryLayout)) View.VISIBLE else View.INVISIBLE
+            binding.statusBatteryLayout.visibility = View.INVISIBLE
             return
         }
         binding.statusBatteryLayout.visibility = View.VISIBLE
@@ -1059,7 +819,7 @@ class HomeFragment :
         binding.statusBattery.setImageResource(icon)
         binding.statusBattery.scaleType = if (charging) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.FIT_END
         binding.statusBattery.scaleX = if (charging) 1f else -1f
-        binding.statusBattery.setColorFilter(binding.statusClock.currentTextColor)
+        binding.statusBattery.setColorFilter(binding.statusBatteryText.currentTextColor)
     }
 
     private fun startConnectivityMonitors() {
@@ -1081,16 +841,14 @@ class HomeFragment :
 
     private fun primeConnectivityState() {
         if (!prefs.showsLumaStatusBarAnywhere()) {
-            binding.statusConnectivityLayout.visibility =
-                if (hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
+            binding.statusConnectivityLayout.visibility = View.INVISIBLE
             return
         }
         val anyEnabled = prefs.cellularEnabled || prefs.wifiEnabled || prefs.bluetoothEnabled
         if (!anyEnabled) {
             binding.statusNetworkType.text = "LTE"
         }
-        binding.statusConnectivityLayout.visibility =
-            if (anyEnabled || hasDotIn(binding.statusConnectivityLayout)) View.VISIBLE else View.INVISIBLE
+        binding.statusConnectivityLayout.visibility = if (anyEnabled) View.VISIBLE else View.INVISIBLE
         if (prefs.cellularEnabled) {
             primeCellularState()
         } else {
