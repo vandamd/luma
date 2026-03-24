@@ -1632,7 +1632,7 @@ class ActionService : AccessibilityService() {
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.unlockGateDate),
             preserveSingleTap = true,
-            onPress = { performAppTapHapticFeedback(this) },
+            onPress = { if (prefs.getLockscreenDateTapAction() != Action.Disabled) performAppTapHapticFeedback(this) },
         )
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.unlockGateHomeButton),
@@ -1643,12 +1643,12 @@ class ActionService : AccessibilityService() {
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.statusConnectivityLayout),
             preserveSingleTap = true,
-            onPress = { performStatusBarPressHapticFeedback(this) },
+            onPress = { if (canHandleStatusBarSectionTap(StatusBarSectionType.CELLULAR)) performStatusBarPressHapticFeedback(this) },
         )
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.statusBatteryLayout),
             preserveSingleTap = true,
-            onPress = { performStatusBarPressHapticFeedback(this) },
+            onPress = { if (canHandleStatusBarSectionTap(StatusBarSectionType.BATTERY)) performStatusBarPressHapticFeedback(this) },
         )
         bindUnlockGateGestureTarget(view.findViewById(R.id.volumeIndicator))
         bindUnlockGateGestureTarget(
