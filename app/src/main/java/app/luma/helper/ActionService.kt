@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.app.KeyguardManager
+import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -18,6 +19,7 @@ import android.graphics.drawable.GradientDrawable
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -69,6 +71,8 @@ class ActionService : AccessibilityService() {
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private val keyguardManager by lazy { getSystemService(KEYGUARD_SERVICE) as KeyguardManager }
     private val cameraManager by lazy { getSystemService(CAMERA_SERVICE) as CameraManager }
+    private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
+    private val notificationManager by lazy { getSystemService(NOTIFICATION_SERVICE) as NotificationManager }
     private val prefs by lazy { Prefs.getInstance(this) }
     private val overlayInflater by lazy {
         LayoutInflater.from(ContextThemeWrapper(this, R.style.AppTheme))
@@ -91,6 +95,7 @@ class ActionService : AccessibilityService() {
     private var unlockGateVolumeIndicatorVisible = false
     private var unlockGateVolumeIndicatorLabelRes = R.string.volume_indicator_ringer
     private var unlockGateVolumeIndicatorProgress = 0f
+    private var unlockGateVolumeIndicatorHideRunnable: Runnable? = null
     private var secureLockMaskGestureAttempt = 0
     private val consumedMappedKeyUps = mutableSetOf<Int>()
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
@@ -216,6 +221,10 @@ class ActionService : AccessibilityService() {
                 updateSecureLockMaskStatusBar(view)
                 applyUnlockGateVolumeIndicator(view)
             }
+            unlockGateVolumeIndicatorHideRunnable?.let { mainHandler.removeCallbacks(it) }
+            val hideRunnable = Runnable { hideUnlockGateVolumeIndicator() }
+            unlockGateVolumeIndicatorHideRunnable = hideRunnable
+            mainHandler.postDelayed(hideRunnable, VOLUME_INDICATOR_HIDE_DELAY_MS)
         }
     }
 
@@ -223,6 +232,8 @@ class ActionService : AccessibilityService() {
         runOnMainThread {
             if (!unlockGateVolumeIndicatorVisible) return@runOnMainThread
             unlockGateVolumeIndicatorVisible = false
+            unlockGateVolumeIndicatorHideRunnable?.let { mainHandler.removeCallbacks(it) }
+            unlockGateVolumeIndicatorHideRunnable = null
             unlockGateView?.let { view ->
                 updateSecureLockMaskStatusBar(view)
                 applyUnlockGateVolumeIndicator(view)
@@ -280,6 +291,10 @@ class ActionService : AccessibilityService() {
         }
 
         if (handleCameraKeyEvent(event)) {
+            return true
+        }
+
+        if (handleVolumeKeyEvent(event)) {
             return true
         }
 
@@ -494,6 +509,83 @@ class ActionService : AccessibilityService() {
             consumedMappedKeyUps.add(event.keyCode)
         }
         return handled
+    }
+
+    private fun handleVolumeKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode != KeyEvent.KEYCODE_VOLUME_UP && event.keyCode != KeyEvent.KEYCODE_VOLUME_DOWN) return false
+
+        val phase = unlockGateStateMachine.state.phase
+        if (phase != UnlockGatePhase.SecureMask && phase != UnlockGatePhase.AwaitingCredential) return false
+
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+
+        val isVolumeUp = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
+        val isMusicActive = audioManager.isMusicActive
+
+        if (isMusicActive) {
+            val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            val targetVolume =
+                if (isVolumeUp) {
+                    (currentVolume + 1).coerceAtMost(maxVolume)
+                } else {
+                    (currentVolume - 1).coerceAtLeast(0)
+                }
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume, 0)
+            val progress = if (maxVolume <= 0) 0f else targetVolume.toFloat() / maxVolume.toFloat()
+            showUnlockGateVolumeIndicator(R.string.volume_indicator_media, progress)
+        } else {
+            val maxRingVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING).coerceAtLeast(1)
+            val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)
+
+            when (audioManager.ringerMode) {
+                AudioManager.RINGER_MODE_VIBRATE -> {
+                    if (isVolumeUp) {
+                        audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
+                        audioManager.setStreamVolume(AudioManager.STREAM_RING, 1, 0)
+                        showUnlockGateVolumeIndicator(R.string.volume_indicator_ringer, 1f / maxRingVolume)
+                    } else {
+                        if (notificationManager.isNotificationPolicyAccessGranted) {
+                            audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                            showUnlockGateVolumeIndicator(R.string.volume_indicator_silent, 0f)
+                        } else {
+                            showUnlockGateVolumeIndicator(R.string.volume_indicator_vibrate, 0f)
+                        }
+                    }
+                }
+
+                AudioManager.RINGER_MODE_SILENT -> {
+                    if (isVolumeUp) {
+                        audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
+                        showUnlockGateVolumeIndicator(R.string.volume_indicator_vibrate, 0f)
+                    } else {
+                        showUnlockGateVolumeIndicator(R.string.volume_indicator_silent, 0f)
+                    }
+                }
+
+                else -> {
+                    val targetVolume =
+                        if (isVolumeUp) {
+                            if (currentVolume == 0) 1 else (currentVolume + 1).coerceAtMost(maxRingVolume)
+                        } else {
+                            if (currentVolume > 1) {
+                                currentVolume - 1
+                            } else {
+                                0
+                            }
+                        }
+                    if (targetVolume == 0 && !isVolumeUp) {
+                        audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
+                        showUnlockGateVolumeIndicator(R.string.volume_indicator_vibrate, 0f)
+                    } else {
+                        audioManager.setStreamVolume(AudioManager.STREAM_RING, targetVolume, 0)
+                        val progress = targetVolume.toFloat() / maxRingVolume.toFloat()
+                        showUnlockGateVolumeIndicator(R.string.volume_indicator_ringer, progress)
+                    }
+                }
+            }
+        }
+        return true
     }
 
     private fun adjustBrightness(delta: Int): Boolean {
@@ -735,6 +827,8 @@ class ActionService : AccessibilityService() {
     private fun cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility: Boolean = false) {
         secureLockMaskGestureAttempt = 0
         unlockGateVolumeIndicatorVisible = false
+        unlockGateVolumeIndicatorHideRunnable?.let { mainHandler.removeCallbacks(it) }
+        unlockGateVolumeIndicatorHideRunnable = null
         unlockGateStateMachine.forceIdle(clearRepeatedHomeGateEligibility)
         cancelUnlockGateCallbacks()
         stopUnlockGateStatusBarMonitors()
@@ -1264,6 +1358,8 @@ class ActionService : AccessibilityService() {
     private fun removeUnlockGateViewOnMain() {
         val view = unlockGateView ?: return
         unlockGateVolumeIndicatorVisible = false
+        unlockGateVolumeIndicatorHideRunnable?.let { mainHandler.removeCallbacks(it) }
+        unlockGateVolumeIndicatorHideRunnable = null
         view.animate().setListener(null)
         view.animate().cancel()
         resetUnlockGateViewState(view)
@@ -1889,21 +1985,17 @@ class ActionService : AccessibilityService() {
             prefs.isStatusBarVisibleOnLockscreen()
 
     private fun shouldShowUnlockGateVolumeIndicator(): Boolean =
-        unlockGateVolumeIndicatorVisible &&
-            (
-                unlockGateStateMachine.state.phase == UnlockGatePhase.UnlockGateVisible ||
-                    unlockGateStateMachine.state.phase == UnlockGatePhase.Dismissing
-            )
+        unlockGateVolumeIndicatorVisible && unlockGateStateMachine.state.phase != UnlockGatePhase.Idle
 
     private fun applyUnlockGateVolumeIndicator(view: View) {
         val indicator = view.findViewById<LinearLayout>(R.id.volumeIndicator)
         val shouldShow = shouldShowUnlockGateVolumeIndicator()
         indicator.visibility = if (shouldShow) View.VISIBLE else View.GONE
         val label = indicator.findViewById<TextView>(R.id.volumeIndicatorLabel)
+        label.isClickable = false
+        label.isFocusable = false
+        label.setOnClickListener(null)
         if (!shouldShow) {
-            label.isClickable = false
-            label.isFocusable = false
-            label.setOnClickListener(null)
             return
         }
 
@@ -1911,18 +2003,6 @@ class ActionService : AccessibilityService() {
         label.apply {
             setText(unlockGateVolumeIndicatorLabelRes)
             setTextColor(textColor)
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                if (launchLightOsRoute(this@ActionService, NOTIFICATION_SETTINGS_LIGHT_ROUTE)) {
-                    dispatchUnlockGateEventOnMain(
-                        UnlockGateEvent.DismissRequested(
-                            nowUptimeMs = SystemClock.uptimeMillis(),
-                            minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
-                        ),
-                    )
-                }
-            }
         }
         indicator.findViewById<View>(R.id.volumeIndicatorTrackLine).setBackgroundColor(textColor)
         indicator.findViewById<View>(R.id.volumeIndicatorFill).apply {
@@ -2250,6 +2330,7 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_MIN_VISIBILITY_MS = 150L
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
+        private const val VOLUME_INDICATOR_HIDE_DELAY_MS = 1500L
         private const val ICON_SCALE = 1.25f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"
