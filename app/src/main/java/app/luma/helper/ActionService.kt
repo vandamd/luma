@@ -107,6 +107,8 @@ class ActionService : AccessibilityService() {
     private var scrollwheelKeyDownTime = 0L
     private var cameraLongPressFired = false
     private var scrollwheelLongPressFired = false
+    private var homeKeyDownTime = 0L
+    private var homeLongPressFired = false
 
     override fun onServiceConnected() {
         configureServiceInfo()
@@ -121,6 +123,7 @@ class ActionService : AccessibilityService() {
         consumedMappedKeyUps.clear()
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+        mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         secureLockMaskGestureAttempt = 0
@@ -134,6 +137,7 @@ class ActionService : AccessibilityService() {
         consumedMappedKeyUps.clear()
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+        mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         secureLockMaskGestureAttempt = 0
@@ -302,12 +306,42 @@ class ActionService : AccessibilityService() {
             return false
         }
 
+        return handleHomeKeyEvent(event)
+    }
+
+    private fun handleHomeKeyEvent(event: KeyEvent): Boolean {
         val unlockGatePhase = unlockGateStateMachine.state.phase
         if (unlockGatePhase != UnlockGatePhase.Idle) {
+            if (event.repeatCount != 0) {
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                consumedMappedKeyUps.remove(KeyEvent.KEYCODE_HOME)
+                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+                homeKeyDownTime = SystemClock.uptimeMillis()
+                homeLongPressFired = false
+
+                val downTime = homeKeyDownTime
+                val runnable =
+                    Runnable {
+                        if (homeKeyDownTime == downTime) {
+                            toggleFlashlight()
+                            homeLongPressFired = true
+                        }
+                    }
+                mainHandler.postDelayed(runnable, HOME_LONG_PRESS_TOKEN, KEYMAP_LONG_PRESS_MS)
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_UP) {
+                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+                homeKeyDownTime = 0L
+                if (homeLongPressFired) {
+                    return true
+                }
+            }
+
             if (unlockGatePhase == UnlockGatePhase.SecureMask) {
-                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                    // The gate can finish dismissing before HOME key up arrives. Remember to
-                    // consume that key up so the default launcher does not win the race.
+                if (event.action == KeyEvent.ACTION_UP) {
                     consumedMappedKeyUps.add(KeyEvent.KEYCODE_HOME)
                     runOnMainThread {
                         dismissSecureLockMaskWithGestureOnMain()
@@ -318,10 +352,10 @@ class ActionService : AccessibilityService() {
             if (unlockGatePhase == UnlockGatePhase.AwaitingCredential) {
                 return true
             }
-            if (event.repeatCount != 0) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
                 return true
             }
-            if (event.action == KeyEvent.ACTION_DOWN) {
+            if (event.action == KeyEvent.ACTION_UP) {
                 // The gate can finish dismissing before HOME key up arrives. Remember to
                 // consume that key up so the default launcher does not win the race.
                 consumedMappedKeyUps.add(KeyEvent.KEYCODE_HOME)
@@ -336,61 +370,65 @@ class ActionService : AccessibilityService() {
                 }
                 return true
             }
-            if (event.action == KeyEvent.ACTION_UP) {
-                val shouldConsume = unlockGateStateMachine.state.ignoreNextHomeUp
-                if (!shouldConsume) {
-                    return true
+            return true
+        }
+
+        return when (event.action) {
+            KeyEvent.ACTION_DOWN -> {
+                if (event.repeatCount != 0) return true
+                consumedMappedKeyUps.remove(KeyEvent.KEYCODE_HOME)
+                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+                homeKeyDownTime = SystemClock.uptimeMillis()
+                homeLongPressFired = false
+
+                val downTime = homeKeyDownTime
+                val runnable =
+                    Runnable {
+                        if (homeKeyDownTime == downTime) {
+                            toggleFlashlight()
+                            homeLongPressFired = true
+                        }
+                    }
+                mainHandler.postDelayed(runnable, HOME_LONG_PRESS_TOKEN, KEYMAP_LONG_PRESS_MS)
+                true
+            }
+
+            KeyEvent.ACTION_UP -> {
+                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+                homeKeyDownTime = 0L
+                if (!homeLongPressFired) {
+                    if (unlockGateStateMachine.state.repeatedHomeGateEligible) {
+                        runOnMainThread {
+                            dispatchUnlockGateEventOnMain(
+                                UnlockGateEvent.HomeKeyDown(
+                                    nowUptimeMs = SystemClock.uptimeMillis(),
+                                    gateEnabled = true,
+                                ),
+                            )
+                        }
+                    } else if (shouldHandleLightHomeFix()) {
+                        consumedMappedKeyUps.add(KeyEvent.KEYCODE_HOME)
+                        runOnMainThread {
+                            launchLumaHomeFromShortcut()
+                        }
+                    } else {
+                        runOnMainThread {
+                            dispatchUnlockGateEventOnMain(
+                                UnlockGateEvent.HomeKeyDown(
+                                    nowUptimeMs = SystemClock.uptimeMillis(),
+                                    gateEnabled = true,
+                                ),
+                            )
+                        }
+                    }
                 }
-                runOnMainThread {
-                    dispatchUnlockGateEventOnMain(
-                        UnlockGateEvent.HomeKeyUp(
-                            nowUptimeMs = SystemClock.uptimeMillis(),
-                            minDelayMs = UNLOCK_GATE_HIDE_DELAY_MS,
-                        ),
-                    )
-                }
-                return true
+                true
             }
-            return true
-        }
 
-        if (unlockGateStateMachine.state.repeatedHomeGateEligible) {
-            if (event.action != KeyEvent.ACTION_DOWN) return false
-            if (event.repeatCount != 0) return true
-
-            runOnMainThread {
-                dispatchUnlockGateEventOnMain(
-                    UnlockGateEvent.HomeKeyDown(
-                        nowUptimeMs = SystemClock.uptimeMillis(),
-                        gateEnabled = true,
-                    ),
-                )
+            else -> {
+                false
             }
-            return true
         }
-
-        if (shouldHandleLightHomeFix()) {
-            if (event.action != KeyEvent.ACTION_DOWN) return false
-            if (event.repeatCount != 0) return true
-            consumedMappedKeyUps.add(KeyEvent.KEYCODE_HOME)
-            runOnMainThread {
-                launchLumaHomeFromShortcut()
-            }
-            return true
-        }
-
-        if (event.action != KeyEvent.ACTION_DOWN) return false
-        if (event.repeatCount != 0) return true
-
-        runOnMainThread {
-            dispatchUnlockGateEventOnMain(
-                UnlockGateEvent.HomeKeyDown(
-                    nowUptimeMs = SystemClock.uptimeMillis(),
-                    gateEnabled = true,
-                ),
-            )
-        }
-        return unlockGateStateMachine.state.repeatedHomeGateEligible
     }
 
     private fun handleCameraKeyEvent(event: KeyEvent): Boolean {
@@ -2338,6 +2376,7 @@ class ActionService : AccessibilityService() {
         private const val SCROLLWHEEL_BUTTON_KEY_CODE = 319
         private const val CAMERA_KEY_CODE = 27
         private const val KEYMAP_LONG_PRESS_MS = 450L
+        private val HOME_LONG_PRESS_TOKEN = Object()
         private const val MIN_BRIGHTNESS = 1
         private const val MAX_BRIGHTNESS = 255
         private const val DEFAULT_BRIGHTNESS = 128
