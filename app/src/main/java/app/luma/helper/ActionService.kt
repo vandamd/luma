@@ -330,7 +330,11 @@ class ActionService : AccessibilityService() {
                     Runnable {
                         if (homeKeyDownTime == downTime) {
                             if (unlockGateStateMachine.state.phase != UnlockGatePhase.Idle) {
-                                openLastUsedApp()
+                                if (isRinging()) {
+                                    launchLightOsRoute(this@ActionService, "call")
+                                } else {
+                                    openLastUsedApp()
+                                }
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.DismissRequested(
                                         nowUptimeMs = SystemClock.uptimeMillis(),
@@ -338,7 +342,11 @@ class ActionService : AccessibilityService() {
                                     ),
                                 )
                             } else {
-                                openLastUsedApp()
+                                if (isRinging()) {
+                                    launchLightOsRoute(this@ActionService, "call")
+                                } else {
+                                    openLastUsedApp()
+                                }
                             }
                             homeLongPressFired = true
                         }
@@ -399,7 +407,11 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            openLastUsedApp()
+                            if (isRinging()) {
+                                launchLightOsRoute(this@ActionService, "call")
+                            } else {
+                                openLastUsedApp()
+                            }
                             homeLongPressFired = true
                         }
                     }
@@ -813,6 +825,14 @@ class ActionService : AccessibilityService() {
             false
         }
     }
+
+    private fun isRinging(): Boolean =
+        try {
+            val tm = getSystemService(TelephonyManager::class.java) ?: return false
+            tm.callState == TelephonyManager.CALL_STATE_RINGING
+        } catch (_: SecurityException) {
+            false
+        }
 
     private fun isCameraKeyTargetForeground(
         pressAction: Action,

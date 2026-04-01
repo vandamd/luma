@@ -1,9 +1,12 @@
 package app.luma.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -11,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import app.luma.R
@@ -25,6 +29,12 @@ import app.luma.ui.compose.SettingsComposable.SimpleTextButton
 class SettingsFragment : Fragment() {
     private lateinit var prefs: Prefs
     private val hasAccessibilityPermission = mutableStateOf(false)
+    private val hasPhonePermission = mutableStateOf(false)
+
+    private val phonePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            hasPhonePermission.value = granted
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +44,11 @@ class SettingsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         hasAccessibilityPermission.value = isAccessibilityEnabled(requireContext())
+        hasPhonePermission.value =
+            ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.READ_PHONE_STATE,
+            ) == PackageManager.PERMISSION_GRANTED
     }
 
     override fun onCreateView(
@@ -59,6 +74,11 @@ class SettingsFragment : Fragment() {
                     )
                     SimpleTextButton(stringResource(R.string.accessibility_grant)) {
                         openAccessibilitySettings(requireContext())
+                    }
+                }
+                if (!hasPhonePermission.value) {
+                    SimpleTextButton("Grant Phone Permission") {
+                        phonePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
                     }
                 }
                 SimpleTextButton(stringResource(R.string.settings_miscellaneous)) {
