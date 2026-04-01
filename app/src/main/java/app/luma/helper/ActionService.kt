@@ -100,6 +100,7 @@ class ActionService : AccessibilityService() {
     private val consumedMappedKeyUps = mutableSetOf<Int>()
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
     private var currentForegroundPackage: String? = null
+    private var lastForegroundPackage: String? = null
     private var torchCameraId: String? = null
     private var torchEnabled = false
     private var torchCallback: CameraManager.TorchCallback? = null
@@ -257,6 +258,9 @@ class ActionService : AccessibilityService() {
                 eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
                 eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
             ) {
+                if (packageName != currentForegroundPackage && currentForegroundPackage != null) {
+                    lastForegroundPackage = currentForegroundPackage
+                }
                 currentForegroundPackage = packageName
             }
 
@@ -325,7 +329,17 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            toggleFlashlight()
+                            if (unlockGateStateMachine.state.phase != UnlockGatePhase.Idle) {
+                                openLastUsedApp()
+                                dispatchUnlockGateEventOnMain(
+                                    UnlockGateEvent.DismissRequested(
+                                        nowUptimeMs = SystemClock.uptimeMillis(),
+                                        minDelayMs = 150L,
+                                    ),
+                                )
+                            } else {
+                                openLastUsedApp()
+                            }
                             homeLongPressFired = true
                         }
                     }
@@ -385,7 +399,7 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            toggleFlashlight()
+                            openLastUsedApp()
                             homeLongPressFired = true
                         }
                     }
@@ -783,6 +797,19 @@ class ActionService : AccessibilityService() {
         } catch (exception: IllegalArgumentException) {
             Log.e(TAG, "toggleFlashlight: invalid camera id", exception)
             showToast(this, getString(R.string.toast_unable_to_toggle_flashlight))
+            false
+        }
+    }
+
+    private fun openLastUsedApp(): Boolean {
+        val pkg = lastForegroundPackage ?: return false
+        if (pkg == packageName) return false
+        val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return false
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            startActivity(intent)
+            true
+        } catch (_: Exception) {
             false
         }
     }
