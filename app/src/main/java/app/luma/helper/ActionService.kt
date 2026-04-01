@@ -266,10 +266,12 @@ class ActionService : AccessibilityService() {
                 eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
                 eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
             ) {
-                if (packageName != currentForegroundPackage && currentForegroundPackage != null) {
-                    lastForegroundPackage = currentForegroundPackage
+                if (packageName != this.packageName) {
+                    if (packageName != currentForegroundPackage && currentForegroundPackage != null) {
+                        lastForegroundPackage = currentForegroundPackage
+                    }
+                    currentForegroundPackage = packageName
                 }
-                currentForegroundPackage = packageName
             }
 
             if (toolLaunchMaskView != null && packageName == LIGHT_OS_PACKAGE) {
@@ -599,7 +601,9 @@ class ActionService : AccessibilityService() {
 
         val phase = unlockGateStateMachine.state.phase
 
-        if (phase == UnlockGatePhase.Idle && (currentForegroundPackage != packageName || volumeOnlyOverlayView != null)) {
+        if (phase == UnlockGatePhase.Idle && currentForegroundPackage != LIGHT_OS_PACKAGE &&
+            currentForegroundPackage != packageName
+        ) {
             val isVolumeUp = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
             val isMusicActive = audioManager.isMusicActive
             val labelRes: Int
