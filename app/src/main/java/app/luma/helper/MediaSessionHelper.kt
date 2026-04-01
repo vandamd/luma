@@ -87,7 +87,8 @@ object MediaSessionHelper {
             c.playbackState?.state == PlaybackState.STATE_PLAYING
         } ?: controllers.firstOrNull { c ->
             val s = c.playbackState?.state
-            s == PlaybackState.STATE_PAUSED || s == PlaybackState.STATE_BUFFERING
+            val isPaused = s == PlaybackState.STATE_PAUSED || s == PlaybackState.STATE_BUFFERING
+            isPaused && LumaNotificationListener.hasActiveMediaNotification(c.packageName)
         }
     }
 
@@ -142,7 +143,8 @@ object MediaSessionHelper {
                 controller.playbackState?.state == PlaybackState.STATE_PLAYING
             } ?: controllers.firstOrNull { controller ->
                 val state = controller.playbackState?.state
-                state == PlaybackState.STATE_PAUSED || state == PlaybackState.STATE_BUFFERING
+                val isPaused = state == PlaybackState.STATE_PAUSED || state == PlaybackState.STATE_BUFFERING
+                isPaused && LumaNotificationListener.hasActiveMediaNotification(controller.packageName)
             }
 
         if (active == null) {

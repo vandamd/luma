@@ -58,6 +58,18 @@ class LumaNotificationListener : NotificationListenerService() {
         fun dismissNotification(key: String) {
             instance.get()?.cancelNotification(key)
         }
+
+        fun hasActiveMediaNotification(packageName: String): Boolean {
+            val svc = instance.get() ?: return false
+            return svc.activeNotifications.any {
+                val template = it.notification.extras.getString(Notification.EXTRA_TEMPLATE) ?: ""
+                it.packageName == packageName &&
+                    (
+                        it.notification.category == Notification.CATEGORY_TRANSPORT ||
+                            template.contains("MediaStyle")
+                    )
+            }
+        }
     }
 
     override fun onCreate() {
