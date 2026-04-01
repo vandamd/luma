@@ -91,6 +91,8 @@ object MediaSessionHelper {
         }
     }
 
+    fun getActiveMediaPackageName(): String? = activeController()?.packageName
+
     private fun refreshSessions() {
         val msm = mediaSessionManager ?: return
         val component = listenerComponent ?: return

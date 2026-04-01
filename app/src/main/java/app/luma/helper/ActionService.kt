@@ -333,13 +333,25 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            if (isRinging()) {
+                            if (isInCall()) {
                                 launchLightOsRoute(this@ActionService, "call")
-                            } else if (currentForegroundPackage == packageName) {
-                                openLastUsedApp()
                             } else {
-                                launchLumaHome(suppressLauncherIntentHandling = true)
+                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName()
+                                if (mediaPkg != null) {
+                                    val targetPkg = resolveMediaAppPackage(mediaPkg)
+                                    openAppByPackage(targetPkg)
+                                } else if (currentForegroundPackage == packageName) {
+                                    openLastUsedApp()
+                                } else {
+                                    launchLumaHome(suppressLauncherIntentHandling = true)
+                                }
                             }
+                            dispatchUnlockGateEventOnMain(
+                                UnlockGateEvent.DismissRequested(
+                                    nowUptimeMs = SystemClock.uptimeMillis(),
+                                    minDelayMs = 150L,
+                                ),
+                            )
                             homeLongPressFired = true
                         }
                     }
@@ -399,12 +411,18 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            if (isRinging()) {
+                            if (isInCall()) {
                                 launchLightOsRoute(this@ActionService, "call")
-                            } else if (currentForegroundPackage == packageName) {
-                                openLastUsedApp()
                             } else {
-                                launchLumaHome(suppressLauncherIntentHandling = true)
+                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName()
+                                if (mediaPkg != null) {
+                                    val targetPkg = resolveMediaAppPackage(mediaPkg)
+                                    openAppByPackage(targetPkg)
+                                } else if (currentForegroundPackage == packageName) {
+                                    openLastUsedApp()
+                                } else {
+                                    launchLumaHome(suppressLauncherIntentHandling = true)
+                                }
                             }
                             homeLongPressFired = true
                         }
@@ -807,8 +825,32 @@ class ActionService : AccessibilityService() {
         }
     }
 
+    private fun resolveMediaAppPackage(mediaPkg: String): String =
+        when (mediaPkg) {
+            "com.spotify.music" -> {
+                if (isPackageInstalled("com.vandam.echo")) "com.vandam.echo" else mediaPkg
+            }
+
+            else -> {
+                mediaPkg
+            }
+        }
+
+    private fun isPackageInstalled(pkg: String): Boolean =
+        try {
+            packageManager.getPackageInfo(pkg, 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
+
     private fun openLastUsedApp(): Boolean {
         val pkg = lastForegroundPackage ?: return false
+        if (pkg == packageName) return false
+        return openAppByPackage(pkg)
+    }
+
+    private fun openAppByPackage(pkg: String): Boolean {
         if (pkg == packageName) return false
         val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -820,10 +862,11 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun isRinging(): Boolean =
+    private fun isInCall(): Boolean =
         try {
             val tm = getSystemService(TelephonyManager::class.java) ?: return false
-            tm.callState == TelephonyManager.CALL_STATE_RINGING
+            val state = tm.callState
+            state == TelephonyManager.CALL_STATE_RINGING || state == TelephonyManager.CALL_STATE_OFFHOOK
         } catch (_: SecurityException) {
             false
         }
