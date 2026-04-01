@@ -97,6 +97,8 @@ class ActionService : AccessibilityService() {
     private var unlockGateVolumeIndicatorLabelRes = R.string.volume_indicator_ringer
     private var unlockGateVolumeIndicatorProgress = 0f
     private var unlockGateVolumeIndicatorHideRunnable: Runnable? = null
+    private var volumeOnlyOverlayView: View? = null
+    private var volumeOnlyOverlayHideRunnable: Runnable? = null
     private var secureLockMaskGestureAttempt = 0
     private val consumedMappedKeyUps = mutableSetOf<Int>()
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
@@ -129,6 +131,7 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
+        hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
@@ -144,6 +147,7 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
+        hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
@@ -286,6 +290,7 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
+        hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
     }
 
@@ -590,10 +595,88 @@ class ActionService : AccessibilityService() {
     private fun handleVolumeKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != KeyEvent.KEYCODE_VOLUME_UP && event.keyCode != KeyEvent.KEYCODE_VOLUME_DOWN) return false
 
-        val phase = unlockGateStateMachine.state.phase
-        if (phase != UnlockGatePhase.SecureMask && phase != UnlockGatePhase.AwaitingCredential) return false
-
         if (event.action != KeyEvent.ACTION_DOWN) return false
+
+        val phase = unlockGateStateMachine.state.phase
+
+        if (phase == UnlockGatePhase.Idle && (currentForegroundPackage != packageName || volumeOnlyOverlayView != null)) {
+            val isVolumeUp = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
+            val isMusicActive = audioManager.isMusicActive
+            val labelRes: Int
+            val progress: Float
+
+            if (isMusicActive) {
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val targetVolume =
+                    if (isVolumeUp) {
+                        (currentVolume + 1).coerceAtMost(maxVolume)
+                    } else {
+                        (currentVolume - 1).coerceAtLeast(0)
+                    }
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume, 0)
+                labelRes = R.string.volume_indicator_media
+                progress = if (maxVolume <= 0) 0f else targetVolume.toFloat() / maxVolume.toFloat()
+            } else {
+                val maxRingVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING).coerceAtLeast(1)
+                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)
+
+                when (audioManager.ringerMode) {
+                    AudioManager.RINGER_MODE_VIBRATE -> {
+                        if (isVolumeUp) {
+                            audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
+                            audioManager.setStreamVolume(AudioManager.STREAM_RING, 1, 0)
+                            labelRes = R.string.volume_indicator_ringer
+                            progress = 1f / maxRingVolume
+                        } else {
+                            if (notificationManager.isNotificationPolicyAccessGranted) {
+                                audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                            }
+                            labelRes =
+                                if (notificationManager.isNotificationPolicyAccessGranted) {
+                                    R.string.volume_indicator_silent
+                                } else {
+                                    R.string.volume_indicator_vibrate
+                                }
+                            progress = 0f
+                        }
+                    }
+
+                    AudioManager.RINGER_MODE_SILENT -> {
+                        if (isVolumeUp) {
+                            audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
+                            labelRes = R.string.volume_indicator_vibrate
+                        } else {
+                            labelRes = R.string.volume_indicator_silent
+                        }
+                        progress = 0f
+                    }
+
+                    else -> {
+                        val targetVolume =
+                            if (isVolumeUp) {
+                                if (currentVolume == 0) 1 else (currentVolume + 1).coerceAtMost(maxRingVolume)
+                            } else {
+                                if (currentVolume > 1) currentVolume - 1 else 0
+                            }
+                        if (targetVolume == 0 && !isVolumeUp) {
+                            audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
+                            labelRes = R.string.volume_indicator_vibrate
+                            progress = 0f
+                        } else {
+                            audioManager.setStreamVolume(AudioManager.STREAM_RING, targetVolume, 0)
+                            labelRes = R.string.volume_indicator_ringer
+                            progress = targetVolume.toFloat() / maxRingVolume.toFloat()
+                        }
+                    }
+                }
+            }
+
+            showVolumeOnlyOverlay(labelRes, progress)
+            return true
+        }
+
+        if (phase != UnlockGatePhase.SecureMask && phase != UnlockGatePhase.AwaitingCredential) return false
 
         val isVolumeUp = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
         val isMusicActive = audioManager.isMusicActive
@@ -1206,6 +1289,8 @@ class ActionService : AccessibilityService() {
             return true
         }
 
+        hideVolumeOnlyOverlay()
+
         val isDark = prefs.isDarkTheme()
         val view =
             unlockGateView ?: overlayInflater.inflate(R.layout.unlock_gate_overlay, null).also {
@@ -1589,6 +1674,82 @@ class ActionService : AccessibilityService() {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
                 this.title = title
             }
+
+    private fun createVolumeOnlyOverlayLayoutParams(): WindowManager.LayoutParams =
+        WindowManager
+            .LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                title = VOLUME_ONLY_OVERLAY_WINDOW_TITLE
+            }
+
+    private fun showVolumeOnlyOverlay(
+        labelRes: Int,
+        progress: Float,
+    ) {
+        runOnMainThread {
+            val isDark = prefs.isDarkTheme()
+            val textColor = if (isDark) Color.WHITE else Color.BLACK
+            val view =
+                volumeOnlyOverlayView ?: overlayInflater.inflate(R.layout.volume_only_overlay, null).also {
+                    volumeOnlyOverlayView = it
+                }
+
+            val indicator = view.findViewById<LinearLayout>(R.id.volumeIndicator)
+            indicator.visibility = View.VISIBLE
+            val label = indicator.findViewById<TextView>(R.id.volumeIndicatorLabel)
+            label.setText(labelRes)
+            label.setTextColor(textColor)
+            label.isClickable = false
+            label.isFocusable = false
+            indicator.findViewById<View>(R.id.volumeIndicatorTrackLine).setBackgroundColor(textColor)
+            indicator.findViewById<View>(R.id.volumeIndicatorFill).apply {
+                setBackgroundColor(textColor)
+                pivotX = 0f
+                scaleX = progress.coerceIn(0f, 1f)
+            }
+
+            val layoutParams = createVolumeOnlyOverlayLayoutParams()
+            if (!view.isAttachedToWindow) {
+                try {
+                    windowManager.addView(view, layoutParams)
+                } catch (_: Exception) {
+                }
+            } else {
+                try {
+                    windowManager.updateViewLayout(view, layoutParams)
+                } catch (_: Exception) {
+                }
+            }
+
+            volumeOnlyOverlayHideRunnable?.let { mainHandler.removeCallbacks(it) }
+            val hideRunnable = Runnable { hideVolumeOnlyOverlay() }
+            volumeOnlyOverlayHideRunnable = hideRunnable
+            mainHandler.postDelayed(hideRunnable, VOLUME_INDICATOR_HIDE_DELAY_MS)
+        }
+    }
+
+    private fun hideVolumeOnlyOverlay() {
+        runOnMainThread {
+            volumeOnlyOverlayHideRunnable?.let { mainHandler.removeCallbacks(it) }
+            volumeOnlyOverlayHideRunnable = null
+            val view = volumeOnlyOverlayView ?: return@runOnMainThread
+            volumeOnlyOverlayView = null
+            if (!view.isAttachedToWindow) return@runOnMainThread
+            try {
+                windowManager.removeView(view)
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     private fun currentUnlockGateTopInsetPx(): Int =
         unlockGateStateMachine.state.let { state ->
@@ -2491,6 +2652,7 @@ class ActionService : AccessibilityService() {
         private const val ICON_SCALE = 1.25f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"
+        private const val VOLUME_ONLY_OVERLAY_WINDOW_TITLE = "Luma Volume Overlay"
         private const val SECURE_LOCK_MASK_GESTURE_DISPATCH_DELAY_MS = 96L
         private const val SECURE_LOCK_MASK_GESTURE_RETRY_DELAY_MS = 160L
         private const val SECURE_LOCK_MASK_GESTURE_DURATION_MS = 320L
