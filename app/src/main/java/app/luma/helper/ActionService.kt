@@ -104,6 +104,7 @@ class ActionService : AccessibilityService() {
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
     private var currentForegroundPackage: String? = null
     private var lastForegroundPackage: String? = null
+    private var lumaInForeground = false
     private var torchCameraId: String? = null
     private var torchEnabled = false
     private var torchCallback: CameraManager.TorchCallback? = null
@@ -271,6 +272,12 @@ class ActionService : AccessibilityService() {
                         lastForegroundPackage = currentForegroundPackage
                     }
                     currentForegroundPackage = packageName
+                    lumaInForeground = false
+                } else {
+                    if (currentForegroundPackage != null) {
+                        lastForegroundPackage = currentForegroundPackage
+                    }
+                    lumaInForeground = true
                 }
             }
 
@@ -347,7 +354,7 @@ class ActionService : AccessibilityService() {
                                 if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
-                                } else if (currentForegroundPackage == packageName) {
+                                } else if (lumaInForeground) {
                                     openLastUsedApp()
                                 } else {
                                     launchLumaHome(suppressLauncherIntentHandling = true)
@@ -425,7 +432,7 @@ class ActionService : AccessibilityService() {
                                 if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
-                                } else if (currentForegroundPackage == packageName) {
+                                } else if (lumaInForeground) {
                                     openLastUsedApp()
                                 } else {
                                     launchLumaHome(suppressLauncherIntentHandling = true)
