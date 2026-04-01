@@ -92,6 +92,7 @@ class ActionService : AccessibilityService() {
     private var unlockGateBluetoothReceiver: BroadcastReceiver? = null
     private var unlockGateWifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var unlockGateTelephonyCallback: TelephonyCallback? = null
+    private var incomingCallCallback: IncomingCallCallback? = null
     private var unlockGateVolumeIndicatorVisible = false
     private var unlockGateVolumeIndicatorLabelRes = R.string.volume_indicator_ringer
     private var unlockGateVolumeIndicatorProgress = 0f
@@ -118,6 +119,7 @@ class ActionService : AccessibilityService() {
         MediaSessionHelper.init(this)
         instance = WeakReference(this)
         publishUnlockGateState()
+        startIncomingCallMonitor()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -130,6 +132,7 @@ class ActionService : AccessibilityService() {
         secureLockMaskGestureAttempt = 0
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
+        stopIncomingCallMonitor()
         instance = WeakReference(null)
         return super.onUnbind(intent)
     }
@@ -144,6 +147,7 @@ class ActionService : AccessibilityService() {
         secureLockMaskGestureAttempt = 0
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
+        stopIncomingCallMonitor()
         instance = WeakReference(null)
         super.onDestroy()
     }
@@ -329,24 +333,12 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            if (unlockGateStateMachine.state.phase != UnlockGatePhase.Idle) {
-                                if (isRinging()) {
-                                    launchLightOsRoute(this@ActionService, "call")
-                                } else {
-                                    openLastUsedApp()
-                                }
-                                dispatchUnlockGateEventOnMain(
-                                    UnlockGateEvent.DismissRequested(
-                                        nowUptimeMs = SystemClock.uptimeMillis(),
-                                        minDelayMs = 150L,
-                                    ),
-                                )
+                            if (isRinging()) {
+                                launchLightOsRoute(this@ActionService, "call")
+                            } else if (currentForegroundPackage == packageName) {
+                                openLastUsedApp()
                             } else {
-                                if (isRinging()) {
-                                    launchLightOsRoute(this@ActionService, "call")
-                                } else {
-                                    openLastUsedApp()
-                                }
+                                launchLumaHome(suppressLauncherIntentHandling = true)
                             }
                             homeLongPressFired = true
                         }
@@ -409,8 +401,10 @@ class ActionService : AccessibilityService() {
                         if (homeKeyDownTime == downTime) {
                             if (isRinging()) {
                                 launchLightOsRoute(this@ActionService, "call")
-                            } else {
+                            } else if (currentForegroundPackage == packageName) {
                                 openLastUsedApp()
+                            } else {
+                                launchLumaHome(suppressLauncherIntentHandling = true)
                             }
                             homeLongPressFired = true
                         }
@@ -2242,6 +2236,48 @@ class ActionService : AccessibilityService() {
         }
     }
 
+    private fun startIncomingCallMonitor() {
+        if (incomingCallCallback != null) return
+        val telephonyManager = getSystemService(TelephonyManager::class.java) ?: return
+        val callback =
+            IncomingCallCallback(
+                onRinging = {
+                    handleIncomingRinging()
+                },
+            )
+        try {
+            telephonyManager.registerTelephonyCallback(mainExecutor, callback)
+            incomingCallCallback = callback
+        } catch (exception: SecurityException) {
+            Log.w(TAG, "startIncomingCallMonitor: registerTelephonyCallback failed", exception)
+        }
+    }
+
+    private fun stopIncomingCallMonitor() {
+        val callback = incomingCallCallback ?: return
+        val telephonyManager = getSystemService(TelephonyManager::class.java)
+        try {
+            telephonyManager?.unregisterTelephonyCallback(callback)
+        } catch (exception: Exception) {
+            Log.e(TAG, "stopIncomingCallMonitor: unregisterTelephonyCallback failed", exception)
+        } finally {
+            incomingCallCallback = null
+        }
+    }
+
+    private fun handleIncomingRinging() {
+        val phase = unlockGateStateMachine.state.phase
+        if (phase != UnlockGatePhase.Idle) {
+            dispatchUnlockGateEventOnMain(
+                UnlockGateEvent.DismissRequested(
+                    nowUptimeMs = SystemClock.uptimeMillis(),
+                    minDelayMs = 150L,
+                ),
+            )
+        }
+        launchLightOsRoute(this, "call")
+    }
+
     private fun startUnlockGateWifiMonitor() {
         if (unlockGateWifiNetworkCallback != null) return
 
@@ -2439,5 +2475,21 @@ class ActionService : AccessibilityService() {
         val unlockGateShowingHomeStatusBar: StateFlow<Boolean> = _unlockGateShowingHomeStatusBar.asStateFlow()
 
         fun instance(): ActionService? = instance.get()
+    }
+
+    private class IncomingCallCallback(
+        private val onRinging: () -> Unit,
+    ) : TelephonyCallback(),
+        TelephonyCallback.CallStateListener {
+        private var wasRinging = false
+
+        override fun onCallStateChanged(state: Int) {
+            if (state == TelephonyManager.CALL_STATE_RINGING && !wasRinging) {
+                wasRinging = true
+                onRinging()
+            } else if (state != TelephonyManager.CALL_STATE_RINGING) {
+                wasRinging = false
+            }
+        }
     }
 }
