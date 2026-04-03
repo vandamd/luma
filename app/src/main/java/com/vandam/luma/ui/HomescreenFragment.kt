@@ -53,7 +53,7 @@ class HomescreenFragment : Fragment() {
 
             ContentContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
-                    SimpleTextButton(stringResource(R.string.settings_gestures)) {
+                    SimpleTextButton(stringResource(R.string.settings_shortcuts)) {
                         findNavController().navigate(R.id.action_homescreenFragment_to_gesturesFragment)
                     }
                     SimpleTextButton(stringResource(R.string.homescreen_reorder_tools)) {

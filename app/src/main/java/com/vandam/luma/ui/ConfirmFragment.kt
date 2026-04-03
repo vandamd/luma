@@ -45,7 +45,7 @@ class ConfirmFragment : Fragment() {
             )
             MessageText(
                 text = message,
-                modifier = Modifier.padding(start = 37.dp),
+                modifier = Modifier.padding(horizontal = 37.dp),
             )
             val context = LocalContext.current
             Box(

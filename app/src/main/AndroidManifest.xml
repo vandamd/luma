@@ -28,6 +28,7 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:taskAffinity=""
+            android:theme="@style/Theme.Luma.SplashScreen"
             android:windowSoftInputMode="stateHidden"
             android:exported="true">
             <intent-filter>

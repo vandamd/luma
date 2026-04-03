@@ -3,6 +3,7 @@ package com.vandam.luma.helper
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -12,8 +13,11 @@ import androidx.core.content.FileProvider
 import com.vandam.luma.BuildConfig
 import com.vandam.luma.LumaApplication
 import com.vandam.luma.R
+import com.vandam.luma.data.AndroidLauncherApp
+import com.vandam.luma.data.InstalledManagedApp
 import com.vandam.luma.data.ManagedApp
 import com.vandam.luma.data.ManagedAppCatalog
+import com.vandam.luma.data.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,7 +34,31 @@ import java.net.URL
 
 object ManagedAppManager {
     private const val LOG_TAG = "ManagedAppManager"
+    private const val LIGHT_OS_PACKAGE_PREFIX = "com.lightos"
     private const val SYNC_INSTALLED_APPS_MUTATION = "accounts:syncInstalledApps"
+    private val androidAppLabelOverrides =
+        mapOf(
+            "com.android.settings|com.android.settings.Settings" to "System",
+        )
+    private val hiddenAndroidAppKeys =
+        setOf(
+            "com.android.camera2|com.android.camera.CameraLauncher",
+            "com.android.calendar|com.android.calendar.AllInOneActivity",
+            "com.android.deskclock|com.android.deskclock.DeskClock",
+            "com.android.contacts|com.android.contacts.activities.PeopleActivity",
+            "at.bitfire.davdroid|at.bitfire.davdroid.ui.AccountsActivity",
+            "com.android.documentsui|com.android.documentsui.LauncherActivity",
+            "com.android.mms|com.android.mms.ui.ConversationList",
+            "com.android.music|com.android.music.MusicBrowserActivity",
+            "com.android.music|com.android.music.VideoBrowserActivity",
+            "com.android.dialer|com.android.dialer.main.impl.MainActivity",
+            "com.android.quicksearchbox|com.android.quicksearchbox.SearchActivity",
+            "org.codeaurora.snapcam|com.android.camera.CameraLauncher",
+            "com.android.soundrecorder|com.android.soundrecorder.SoundRecorder",
+            "com.android.gallery3d|com.android.gallery3d.app.GalleryActivity",
+            "com.android.gallery3d|com.android.gallery3d.app.MovieActivity",
+            "org.chromium.webview_shell|org.chromium.webview_shell.WebViewBrowserActivity",
+        )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val pendingActions = ArrayDeque<PendingAction>()
     private val json = Json { ignoreUnknownKeys = true }
@@ -51,41 +79,38 @@ object ManagedAppManager {
     private var lastReportedDashboardAccountNumber: String? = null
 
     @Volatile
-    private var lastReportedInstalledAppIds: List<String>? = null
+    private var lastReportedInstalledManagedApps: List<InstalledManagedApp>? = null
+
+    @Volatile
+    private var lastReportedInstalledAndroidApps: List<AndroidLauncherApp>? = null
 
     fun reconcileEnabledApps(
         context: Context,
         previousEnabledAppIds: List<String>?,
         enabledAppIds: List<String>,
+        requestedAppUpdateVersions: Map<String, String> = emptyMap(),
     ) {
         val previousIds = previousEnabledAppIds?.toSet().orEmpty()
         val enabledIds = enabledAppIds.toSet()
 
-        if (previousEnabledAppIds == null) {
-            enabledAppIds.forEach { appId ->
-                val managedApp = ManagedAppCatalog.fromId(appId) ?: return@forEach
-                if (!isPackageInstalled(context, managedApp.packageName)) {
-                    enqueueAction(PendingAction.InstallOrUpdate(appId = appId))
-                }
-            }
-        } else {
+        if (previousEnabledAppIds != null) {
             previousIds
                 .subtract(enabledIds)
                 .sorted()
                 .forEach { appId ->
                     enqueueAction(PendingAction.Uninstall(appId = appId))
                 }
-
-            enabledIds
-                .subtract(previousIds)
-                .sorted()
-                .forEach { appId ->
-                    val managedApp = ManagedAppCatalog.fromId(appId) ?: return@forEach
-                    if (!isPackageInstalled(context, managedApp.packageName)) {
-                        enqueueAction(PendingAction.InstallOrUpdate(appId = appId))
-                    }
-                }
         }
+
+        enabledIds
+            .sorted()
+            .forEach { appId ->
+                maybeEnqueueManagedAppInstallOrUpdate(
+                    context = context,
+                    appId = appId,
+                    requestedVersionName = requestedAppUpdateVersions[appId],
+                )
+            }
 
         processNext(context)
     }
@@ -103,11 +128,13 @@ object ManagedAppManager {
         dashboardSyncJob?.cancel()
         dashboardSyncJob =
             scope.launch {
-                val installedAppIds = ManagedAppCatalog.installedIds(appContext)
+                val installedManagedApps = getInstalledManagedApps(appContext)
+                val installedAndroidApps = getInstalledAndroidApps(appContext)
 
                 if (
                     lastReportedDashboardAccountNumber == accountNumber &&
-                    lastReportedInstalledAppIds == installedAppIds
+                    lastReportedInstalledManagedApps == installedManagedApps &&
+                    lastReportedInstalledAndroidApps == installedAndroidApps
                 ) {
                     return@launch
                 }
@@ -119,17 +146,58 @@ object ManagedAppManager {
                             args =
                                 mapOf(
                                     "accountNumber" to accountNumber,
-                                    "installedAppIds" to installedAppIds,
+                                    "installedManagedApps" to
+                                        installedManagedApps.map { app ->
+                                            mapOf(
+                                                "appId" to app.appId,
+                                                "versionName" to app.versionName,
+                                            )
+                                        },
+                                    "installedAndroidApps" to
+                                        installedAndroidApps.map { app ->
+                                            mapOf(
+                                                "label" to app.label,
+                                                "packageName" to app.packageName,
+                                                "activityName" to app.activityName,
+                                            )
+                                        },
                                 ),
                         )
                     }
                 }.onSuccess {
                     lastReportedDashboardAccountNumber = accountNumber
-                    lastReportedInstalledAppIds = installedAppIds
+                    lastReportedInstalledManagedApps = installedManagedApps
+                    lastReportedInstalledAndroidApps = installedAndroidApps
                 }.onFailure { error ->
-                    Log.w(LOG_TAG, "Failed to sync installed managed apps", error)
+                    Log.w(LOG_TAG, "Failed to sync installed apps", error)
                 }
             }
+    }
+
+    fun syncInstalledAppsToDashboardForStoredAccount(context: Context) {
+        val accountNumber = Prefs.getInstance(context).accountNumber
+        if (accountNumber.isBlank()) {
+            return
+        }
+
+        syncInstalledAppsToDashboard(context, accountNumber)
+    }
+
+    fun clearSessionWork() {
+        dashboardSyncJob?.cancel()
+        dashboardSyncJob = null
+        processingJob?.cancel()
+        processingJob = null
+
+        synchronized(this) {
+            pendingActions.clear()
+            activeAction = null
+            awaitingExternalResult = false
+        }
+
+        lastReportedDashboardAccountNumber = null
+        lastReportedInstalledManagedApps = null
+        lastReportedInstalledAndroidApps = null
     }
 
     fun onResume(context: Context) {
@@ -229,7 +297,10 @@ object ManagedAppManager {
             return
         }
 
-        if (isPackageInstalled(context, managedApp.packageName)) {
+        val installedVersionName = normalizeVersion(getInstalledVersionName(context, managedApp.packageName))
+        val requestedVersionName = normalizeVersion(action.expectedVersion)
+
+        if (installedVersionName != null && (requestedVersionName == null || installedVersionName == requestedVersionName)) {
             clearActiveAction()
             processingJob = null
             processNext(context)
@@ -248,7 +319,7 @@ object ManagedAppManager {
 
         val latestRelease =
             withContext(Dispatchers.IO) {
-                fetchLatestRelease(managedApp)
+                fetchRelease(managedApp, requestedVersionName)
             }
 
         if (latestRelease == null) {
@@ -340,11 +411,101 @@ object ManagedAppManager {
         }
     }
 
+    private fun maybeEnqueueManagedAppInstallOrUpdate(
+        context: Context,
+        appId: String,
+        requestedVersionName: String?,
+    ) {
+        val managedApp = ManagedAppCatalog.fromId(appId) ?: return
+        val installedVersionName = normalizeVersion(getInstalledVersionName(context, managedApp.packageName))
+        val normalizedRequestedVersionName = normalizeVersion(requestedVersionName)
+
+        when {
+            installedVersionName == null -> {
+                enqueueAction(
+                    PendingAction.InstallOrUpdate(
+                        appId = appId,
+                        expectedVersion = normalizedRequestedVersionName,
+                    ),
+                )
+            }
+
+            normalizedRequestedVersionName != null &&
+                installedVersionName != normalizedRequestedVersionName -> {
+                enqueueAction(
+                    PendingAction.InstallOrUpdate(
+                        appId = appId,
+                        expectedVersion = normalizedRequestedVersionName,
+                    ),
+                )
+            }
+        }
+    }
+
     private fun canRequestPackageInstalls(context: Context): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.packageManager.canRequestPackageInstalls()
         } else {
             true
+        }
+
+    private fun getInstalledAndroidApps(context: Context): List<AndroidLauncherApp> {
+        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+        val appsByKey = linkedMapOf<String, AndroidLauncherApp>()
+
+        launcherApps.getActivityList(null, android.os.Process.myUserHandle()).forEach { activity ->
+            val packageName = activity.applicationInfo.packageName
+
+            if (packageName == BuildConfig.APPLICATION_ID) {
+                return@forEach
+            }
+
+            if (packageName.startsWith(LIGHT_OS_PACKAGE_PREFIX)) {
+                return@forEach
+            }
+
+            if (ManagedAppCatalog.fromPackageName(packageName) != null) {
+                return@forEach
+            }
+
+            val label = activity.label?.toString()?.trim().orEmpty()
+            val activityName = activity.componentName.className
+
+            if (activityName.isBlank()) {
+                return@forEach
+            }
+
+            val app =
+                AndroidLauncherApp(
+                    label = if (label.isBlank()) packageName else label,
+                    packageName = packageName,
+                    activityName = activityName,
+                )
+
+            if (app.key in hiddenAndroidAppKeys) {
+                return@forEach
+            }
+
+            appsByKey.putIfAbsent(
+                app.key,
+                app.copy(label = androidAppLabelOverrides[app.key] ?: app.label),
+            )
+        }
+
+        return appsByKey.values.sortedWith(
+            compareBy<AndroidLauncherApp>({ it.label.lowercase() }, { it.key }),
+        )
+    }
+
+    private fun getInstalledManagedApps(context: Context): List<InstalledManagedApp> =
+        ManagedAppCatalog.entries.mapNotNull { managedApp ->
+            val installedVersionName = normalizeVersion(getInstalledVersionName(context, managedApp.packageName))
+            installedVersionName?.let {
+                InstalledManagedApp(
+                    appId = managedApp.id,
+                    versionName = it,
+                )
+            }
         }
 
     private fun openUnknownSourcesSettings(context: Context) {
@@ -404,9 +565,44 @@ object ManagedAppManager {
             ?.removePrefix("v")
             ?.takeIf { it.isNotBlank() }
 
-    private fun fetchLatestRelease(managedApp: ManagedApp): ReleaseAsset? {
+    private fun fetchRelease(
+        managedApp: ManagedApp,
+        requestedVersionName: String? = null,
+    ): ReleaseAsset? {
+        val normalizedRequestedVersionName = normalizeVersion(requestedVersionName)
+        val candidateUrls =
+            if (normalizedRequestedVersionName == null) {
+                listOf(
+                    "https://api.github.com/repos/${managedApp.repoOwner}/${managedApp.repoName}/releases/latest",
+                )
+            } else {
+                listOf(
+                    "https://api.github.com/repos/${managedApp.repoOwner}/${managedApp.repoName}/releases/tags/v$normalizedRequestedVersionName",
+                    "https://api.github.com/repos/${managedApp.repoOwner}/${managedApp.repoName}/releases/tags/$normalizedRequestedVersionName",
+                )
+            }
+
+        candidateUrls.forEachIndexed { index, url ->
+            val release = fetchReleaseFromUrl(managedApp, url)
+
+            if (release != null) {
+                return release
+            }
+
+            if (normalizedRequestedVersionName == null || index == candidateUrls.lastIndex) {
+                return null
+            }
+        }
+
+        return null
+    }
+
+    private fun fetchReleaseFromUrl(
+        managedApp: ManagedApp,
+        url: String,
+    ): ReleaseAsset? {
         val connection =
-            (URL("https://api.github.com/repos/${managedApp.repoOwner}/${managedApp.repoName}/releases/latest").openConnection() as HttpURLConnection).apply {
+            (URL(url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/vnd.github+json")
                 setRequestProperty("User-Agent", "Luma/${BuildConfig.VERSION_NAME}")
@@ -523,6 +719,6 @@ object ManagedAppManager {
 
     @Serializable
     private data class UpdatedAtResponse(
-        val updatedAt: Long,
+        val updatedAt: Double,
     )
 }

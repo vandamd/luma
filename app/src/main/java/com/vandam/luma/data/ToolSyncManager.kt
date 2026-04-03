@@ -8,13 +8,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
-import java.text.Collator
-import kotlin.math.max
 
 sealed interface ToolSyncResult {
     data class Success(
         val enabledToolIds: List<String>,
         val enabledAppIds: List<String>,
+        val enabledAndroidApps: List<AndroidLauncherApp>,
+        val requestedAppUpdateVersions: Map<String, String>,
     ) : ToolSyncResult
 
     data object InvalidAccount : ToolSyncResult
@@ -30,8 +30,10 @@ object ToolSyncManager {
 
     @Serializable
     private data class DashboardTools(
+        val enabledAndroidApps: List<AndroidLauncherApp> = emptyList(),
         val enabledAppIds: List<String> = emptyList(),
         val enabledToolIds: List<String> = emptyList(),
+        val requestedAppUpdateVersions: Map<String, String> = emptyMap(),
     )
 
     suspend fun syncAndApply(
@@ -65,14 +67,17 @@ object ToolSyncManager {
                             runCatching {
                                 val toolIds = normalizeToolIds(payload.enabledToolIds)
                                 val appIds = ManagedAppCatalog.normalizeIds(payload.enabledAppIds)
-                                applyHomeLayout(context, toolIds, appIds)
+                                val androidApps = normalizeAndroidApps(payload.enabledAndroidApps)
+                                applyHomeLayout(context, toolIds, appIds, androidApps)
                                 Log.d(
                                     LOG_TAG,
-                                    "Applied tool sync tools=${toolIds.joinToString()} apps=${payload.enabledAppIds.joinToString()}",
+                                    "Applied tool sync tools=${toolIds.joinToString()} apps=${appIds.joinToString()} android=${androidApps.joinToString { it.key }}",
                                 )
                                 ToolSyncResult.Success(
                                     enabledToolIds = toolIds,
                                     enabledAppIds = appIds,
+                                    enabledAndroidApps = androidApps,
+                                    requestedAppUpdateVersions = payload.requestedAppUpdateVersions,
                                 )
                             }.getOrElse { error ->
                                 Log.w(LOG_TAG, "Failed to apply tool layout", error)
@@ -109,13 +114,34 @@ object ToolSyncManager {
         return orderedTools
     }
 
+    private fun normalizeAndroidApps(enabledAndroidApps: List<AndroidLauncherApp>): List<AndroidLauncherApp> {
+        val androidAppsByKey = linkedMapOf<String, AndroidLauncherApp>()
+
+        enabledAndroidApps.forEach { app ->
+            val normalizedApp =
+                AndroidLauncherApp(
+                    label = app.label.trim().ifEmpty { app.packageName },
+                    packageName = app.packageName.trim(),
+                    activityName = app.activityName.trim(),
+                )
+
+            if (normalizedApp.packageName.isBlank() || normalizedApp.activityName.isBlank()) {
+                return@forEach
+            }
+
+            androidAppsByKey.putIfAbsent(normalizedApp.key, normalizedApp)
+        }
+
+        return androidAppsByKey.values.toList()
+    }
+
     private fun applyHomeLayout(
         context: Context,
         enabledToolIds: List<String>,
         enabledAppIds: List<String>,
+        enabledAndroidApps: List<AndroidLauncherApp>,
     ) {
         val prefs = Prefs.getInstance(context)
-        val collator = Collator.getInstance()
         val tools = enabledToolIds.mapNotNull(Tool::fromId)
         val apps = enabledAppIds.mapNotNull(ManagedAppCatalog::fromId)
 
@@ -124,129 +150,7 @@ object ToolSyncManager {
         }
 
         prefs.enabledManagedAppIds = apps.map(ManagedApp::id).toSet()
-
-        val homeItems =
-            buildHomeItems(
-                context = context,
-                prefs = prefs,
-                collator = collator,
-                tools = tools,
-                apps = apps,
-            )
-        val truncatedItems = homeItems.take(HomeLayout.TOTAL_SLOTS)
-
-        truncatedItems.forEachIndexed { index, appModel ->
-            prefs.setHomeAppModel(index, appModel)
-        }
-
-        for (index in truncatedItems.size until HomeLayout.TOTAL_SLOTS) {
-            prefs.setHomeAppModel(index, emptyAppModel())
-        }
-
-        val pageCount = max(1, (truncatedItems.size + HomeLayout.APPS_PER_PAGE - 1) / HomeLayout.APPS_PER_PAGE)
-        prefs.homePages = pageCount
-
-        for (page in 1..HomeLayout.MAX_PAGES) {
-            val startIndex = (page - 1) * HomeLayout.APPS_PER_PAGE
-            val remaining = (truncatedItems.size - startIndex).coerceAtLeast(0)
-            val appCount =
-                when {
-                    page > pageCount -> 0
-                    remaining >= HomeLayout.APPS_PER_PAGE -> HomeLayout.APPS_PER_PAGE
-                    else -> remaining
-                }
-            prefs.setAppsPerPage(page, appCount)
-        }
+        prefs.enabledAndroidApps = enabledAndroidApps
+        HomeItemsManager.applyCurrentHomeLayout(context, prefs)
     }
-
-    private fun buildHomeItems(
-        context: Context,
-        prefs: Prefs,
-        collator: Collator,
-        tools: List<Tool>,
-        apps: List<ManagedApp>,
-    ): List<AppModel> {
-        val defaultItems =
-            buildList {
-                add(
-                    Tool.Phone.toAppModel(
-                        context,
-                        collator,
-                        prefs.getAppAlias(Tool.Phone.packageName),
-                    ),
-                )
-
-                val middleItems = mutableListOf<AppModel>()
-
-                tools
-                    .filterNot { it == Tool.Phone || it == Tool.Settings }
-                    .forEach { tool ->
-                        middleItems.add(
-                            tool.toAppModel(
-                                context = context,
-                                collator = collator,
-                                alias = prefs.getAppAlias(tool.packageName),
-                            ),
-                        )
-                    }
-
-                apps.forEach { app ->
-                    middleItems.add(
-                        app.toAppModel(
-                            collator = collator,
-                            alias = prefs.getAppAlias(app.packageName),
-                        ),
-                    )
-                }
-
-                middleItems.sortWith { left, right ->
-                    collator.compare(left.displayName, right.displayName)
-                }
-
-                addAll(middleItems)
-                add(
-                    Tool.Settings.toAppModel(
-                        context,
-                        collator,
-                        prefs.getAppAlias(Tool.Settings.packageName),
-                    ),
-                )
-            }
-
-        return applyPreferredOrder(prefs, defaultItems)
-    }
-
-    private fun applyPreferredOrder(
-        prefs: Prefs,
-        defaultItems: List<AppModel>,
-    ): List<AppModel> {
-        val remainingByKey = LinkedHashMap<String, AppModel>()
-        defaultItems.forEach { item ->
-            remainingByKey[homeItemKey(item)] = item
-        }
-
-        val orderedItems = mutableListOf<AppModel>()
-        for (index in 0 until HomeLayout.TOTAL_SLOTS) {
-            val item = prefs.getHomeAppModel(index)
-            if (item.appPackage.isBlank()) continue
-            remainingByKey.remove(homeItemKey(item))?.let { orderedItems.add(it) }
-        }
-
-        orderedItems.addAll(remainingByKey.values)
-        return orderedItems
-    }
-
-    private fun homeItemKey(appModel: AppModel): String = "${appModel.appPackage}|${appModel.appActivityName}"
-
-    private fun emptyAppModel(): AppModel =
-        AppModel(
-            appLabel = "",
-            key = null,
-            appPackage = "",
-            appActivityName = "",
-            user = android.os.Process.myUserHandle(),
-            appAlias = "",
-            hasNotification = false,
-            entryType = AppEntryType.Tool,
-        )
 }

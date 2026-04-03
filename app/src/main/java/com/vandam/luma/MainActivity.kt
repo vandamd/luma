@@ -19,6 +19,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -27,6 +28,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavOptions
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.NavHostFragment
+import com.vandam.luma.data.AndroidLauncherApp
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants
 import com.vandam.luma.data.Constants.Action
@@ -69,6 +71,8 @@ class MainActivity : AppCompatActivity() {
     private var subscribedAccountNumber: String? = null
     private var lastSyncedToolIds: List<String>? = null
     private var lastSyncedManagedAppIds: List<String>? = null
+    private var lastSyncedAndroidApps: List<AndroidLauncherApp>? = null
+    private var lastRequestedAppUpdateVersions: Map<String, String>? = null
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(newBase.withDisplayDefaults())
@@ -86,6 +90,7 @@ class MainActivity : AppCompatActivity() {
                 Prefs.ThemeMode.Light -> AppCompatDelegate.MODE_NIGHT_NO
             }
         AppCompatDelegate.setDefaultNightMode(themeMode)
+        installSplashScreen()
 
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -299,9 +304,13 @@ class MainActivity : AppCompatActivity() {
     fun restartToolSyncSubscription(
         initialToolIds: List<String>? = null,
         initialManagedAppIds: List<String>? = null,
+        initialAndroidApps: List<AndroidLauncherApp>? = null,
+        initialRequestedAppUpdateVersions: Map<String, String>? = null,
     ) {
         lastSyncedToolIds = initialToolIds
         lastSyncedManagedAppIds = initialManagedAppIds
+        lastSyncedAndroidApps = initialAndroidApps
+        lastRequestedAppUpdateVersions = initialRequestedAppUpdateVersions
         subscribedAccountNumber = null
         toolSyncJob?.cancel()
         toolSyncWebSocketJob?.cancel()
@@ -310,6 +319,31 @@ class MainActivity : AppCompatActivity() {
         toolSyncWebSocketJob = null
         toolSyncReconnectWatchdogJob = null
         startToolSyncSubscription()
+    }
+
+    fun logoutToLogin() {
+        prefs.accountNumber = ""
+        prefs.onboardingStarted = true
+        prefs.onboardingLoginStarted = true
+
+        lastSyncedToolIds = null
+        lastSyncedManagedAppIds = null
+        lastSyncedAndroidApps = null
+        lastRequestedAppUpdateVersions = null
+        subscribedAccountNumber = null
+
+        toolSyncJob?.cancel()
+        toolSyncWebSocketJob?.cancel()
+        toolSyncReconnectWatchdogJob?.cancel()
+        toolSyncJob = null
+        toolSyncWebSocketJob = null
+        toolSyncReconnectWatchdogJob = null
+
+        ManagedAppManager.clearSessionWork()
+
+        setupNavGraph()
+        updateSystemStatusBarVisibility(navController.currentDestination?.id)
+        syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
     }
 
     private fun startToolSyncSubscription() {
@@ -388,6 +422,8 @@ class MainActivity : AppCompatActivity() {
                                                     restartToolSyncSubscription(
                                                         initialToolIds = lastSyncedToolIds,
                                                         initialManagedAppIds = lastSyncedManagedAppIds,
+                                                        initialAndroidApps = lastSyncedAndroidApps,
+                                                        initialRequestedAppUpdateVersions = lastRequestedAppUpdateVersions,
                                                     )
                                                 }
                                             }
@@ -409,17 +445,27 @@ class MainActivity : AppCompatActivity() {
             is ToolSyncResult.Success -> {
                 val toolsChanged = lastSyncedToolIds != result.enabledToolIds
                 val appsChanged = lastSyncedManagedAppIds != result.enabledAppIds
+                val androidAppsChanged = lastSyncedAndroidApps != result.enabledAndroidApps
+                val requestedAppUpdatesChanged =
+                    lastRequestedAppUpdateVersions != result.requestedAppUpdateVersions
 
                 Log.d(
                     LOG_TAG,
-                    "Tool sync result from $source changedTools=$toolsChanged changedApps=$appsChanged tools=${result.enabledToolIds.joinToString()} apps=${result.enabledAppIds.joinToString()}",
+                    "Tool sync result from $source changedTools=$toolsChanged changedApps=$appsChanged changedAndroidApps=$androidAppsChanged changedRequestedUpdates=$requestedAppUpdatesChanged tools=${result.enabledToolIds.joinToString()} apps=${result.enabledAppIds.joinToString()} android=${result.enabledAndroidApps.joinToString { it.key }} requestedUpdates=${result.requestedAppUpdateVersions}",
                 )
 
-                if (toolsChanged || appsChanged) {
+                if (toolsChanged || appsChanged || androidAppsChanged || requestedAppUpdatesChanged) {
                     val previousManagedAppIds = lastSyncedManagedAppIds
                     lastSyncedToolIds = result.enabledToolIds
                     lastSyncedManagedAppIds = result.enabledAppIds
-                    ManagedAppManager.reconcileEnabledApps(this, previousManagedAppIds, result.enabledAppIds)
+                    lastSyncedAndroidApps = result.enabledAndroidApps
+                    lastRequestedAppUpdateVersions = result.requestedAppUpdateVersions
+                    ManagedAppManager.reconcileEnabledApps(
+                        this,
+                        previousManagedAppIds,
+                        result.enabledAppIds,
+                        result.requestedAppUpdateVersions,
+                    )
                     onToolSyncApplied()
                 }
             }

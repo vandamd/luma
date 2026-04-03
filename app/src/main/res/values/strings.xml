@@ -17,7 +17,7 @@
     <string name="settings_auto_rotate">Auto-rotate</string>
     <string name="settings_time">Time</string>
     <string name="settings_homescreen">Homescreen</string>
-    <string name="homescreen_reorder_tools">Reorder Tools</string>
+    <string name="homescreen_reorder_tools">Manage Tools</string>
     <string name="homescreen_pages">Pages</string>
     <string name="homescreen_tools_source">Tools</string>
     <string name="homescreen_tools_source_dashboard">Synced from dashboard</string>
@@ -26,10 +26,12 @@
     <string name="settings_pages">Pages</string>
     <string name="settings_lockscreen">Lockscreen</string>
     <string name="settings_gestures">Gestures</string>
+    <string name="settings_shortcuts">Shortcuts</string>
     <string name="settings_haptics">Haptics</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_miscellaneous">General</string>
     <string name="settings_keymaps">Keymaps</string>
+    <string name="settings_account">Account</string>
     <string name="settings_hidden_apps">Hidden Apps</string>
     <string name="keymaps_camera_press">Camera Press</string>
     <string name="keymaps_camera_long_press">Camera Long Press</string>
@@ -167,6 +169,11 @@
     <string name="login_error_account_number">Enter a 16-digit account number.</string>
     <string name="login_error_invalid_account">That account number was not found.</string>
     <string name="login_error_sync_failed">Unable to sync tools.</string>
+    <string name="account_title">Account</string>
+    <string name="account_number_label">Account Number</string>
+    <string name="account_log_out">Log Out</string>
+    <string name="account_log_out_confirm_title">Log Out</string>
+    <string name="account_log_out_confirm_message">Are you sure you want to log out? This will not uninstall any apps.</string>
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Welcome</string>
@@ -243,6 +250,8 @@
     <string name="content_desc_save">Save</string>
     <string name="content_desc_clear">Clear</string>
     <string name="content_desc_hide">Hide</string>
+    <string name="content_desc_show_on_home">Show on home</string>
+    <string name="content_desc_hide_from_home">Hide from home</string>
     <string name="content_desc_show_hidden_apps">Show hidden apps</string>
     <string name="content_desc_hide_hidden_apps">Hide hidden apps</string>
     <string name="content_desc_app_info">App info</string>

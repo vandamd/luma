@@ -43,6 +43,9 @@ class SettingsFragment : Fragment() {
                 SimpleTextButton(stringResource(R.string.settings_keymaps)) {
                     findNavController().navigate(R.id.action_settingsFragment_to_keymapsFragment)
                 }
+                SimpleTextButton(stringResource(R.string.settings_account)) {
+                    findNavController().navigate(R.id.action_settingsFragment_to_accountFragment)
+                }
             }
         }
     }

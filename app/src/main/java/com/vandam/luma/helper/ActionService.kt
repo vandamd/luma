@@ -2683,7 +2683,7 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
         private const val VOLUME_INDICATOR_HIDE_DELAY_MS = 1500L
-        private const val ICON_SCALE = 1.25f
+        private const val ICON_SCALE = 1.0f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"
         private const val VOLUME_ONLY_OVERLAY_WINDOW_TITLE = "Luma Volume Overlay"

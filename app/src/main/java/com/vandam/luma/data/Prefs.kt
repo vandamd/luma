@@ -16,6 +16,9 @@ private const val ACCOUNT_NUMBER = "ACCOUNT_NUMBER"
 private const val ONBOARDING_STARTED = "ONBOARDING_STARTED"
 private const val ONBOARDING_LOGIN_STARTED = "ONBOARDING_LOGIN_STARTED"
 private const val ENABLED_MANAGED_APP_IDS = "ENABLED_MANAGED_APP_IDS"
+private const val ENABLED_ANDROID_APPS = "ENABLED_ANDROID_APPS"
+private const val HOME_ITEM_ORDER = "HOME_ITEM_ORDER"
+private const val HIDDEN_HOME_ITEM_KEYS = "HIDDEN_HOME_ITEM_KEYS"
 private const val HOME_PAGES = "HOME_PAGES"
 private const val HOME_APPS_PER_PAGE = "HOME_APPS_PER_PAGE_"
 
@@ -232,6 +235,85 @@ class Prefs(
     var enabledManagedAppIds: Set<String>
         get() = prefs.getStringSet(ENABLED_MANAGED_APP_IDS, emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet(ENABLED_MANAGED_APP_IDS, value).apply()
+
+    var enabledAndroidApps: List<AndroidLauncherApp>
+        get() {
+            val raw = prefs.getString(ENABLED_ANDROID_APPS, null) ?: return emptyList()
+            return try {
+                val array = JSONArray(raw)
+                buildList {
+                    for (i in 0 until array.length()) {
+                        val obj = array.optJSONObject(i) ?: continue
+                        val label = obj.optString("l", "").trim()
+                        val packageName = obj.optString("p", "").trim()
+                        val activityName = obj.optString("a", "").trim()
+                        if (packageName.isEmpty() || activityName.isEmpty()) continue
+                        add(
+                            AndroidLauncherApp(
+                                label = label.ifEmpty { packageName },
+                                packageName = packageName,
+                                activityName = activityName,
+                            ),
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        set(value) {
+            val normalized = linkedMapOf<String, AndroidLauncherApp>()
+            value.forEach { app ->
+                val normalizedApp =
+                    AndroidLauncherApp(
+                        label = app.label.trim().ifEmpty { app.packageName },
+                        packageName = app.packageName.trim(),
+                        activityName = app.activityName.trim(),
+                    )
+                if (normalizedApp.packageName.isEmpty() || normalizedApp.activityName.isEmpty()) return@forEach
+                normalized.putIfAbsent(normalizedApp.key, normalizedApp)
+            }
+
+            val array = JSONArray()
+            normalized.values.forEach { app ->
+                val obj = JSONObject()
+                obj.put("l", app.label)
+                obj.put("p", app.packageName)
+                obj.put("a", app.activityName)
+                array.put(obj)
+            }
+
+            prefs.edit().putString(ENABLED_ANDROID_APPS, array.toString()).apply()
+        }
+
+    var homeItemOrderKeys: List<String>
+        get() {
+            val raw = prefs.getString(HOME_ITEM_ORDER, null) ?: return emptyList()
+            return try {
+                val array = JSONArray(raw)
+                buildList {
+                    for (i in 0 until array.length()) {
+                        val key = array.optString(i, "").trim()
+                        if (key.isNotEmpty()) add(key)
+                    }
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        set(value) {
+            val array = JSONArray()
+            value
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .distinct()
+                .forEach(array::put)
+            prefs.edit().putString(HOME_ITEM_ORDER, array.toString()).apply()
+        }
+
+    var hiddenHomeItemKeys: Set<String>
+        get() = prefs.getStringSet(HIDDEN_HOME_ITEM_KEYS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(HIDDEN_HOME_ITEM_KEYS, value.toSet()).apply()
 
     var homePages: Int
         get() = prefs.getInt(HOME_PAGES, 1)
@@ -467,14 +549,7 @@ class Prefs(
     }
 
     private fun validateGestureAction(action: Constants.Action): Constants.Action =
-        when (action) {
-            Constants.Action.OpenQuickSettings,
-            Constants.Action.ShowNotification,
-            Constants.Action.ShowRecents,
-            -> Constants.Action.Disabled
-
-            else -> action
-        }
+        validateTapShortcutAction(action)
 
     fun getCameraKeyPressAction(): Constants.Action {
         val action = loadAction(CAMERA_KEY_PRESS_ACTION, Constants.Action.OpenApp)
@@ -583,13 +658,13 @@ class Prefs(
         storeApp(type.appKey, appModel)
     }
 
-    fun getSectionAction(type: StatusBarSectionType): Constants.Action = loadAction(type.actionKey, type.defaultAction)
+    fun getSectionAction(type: StatusBarSectionType): Constants.Action = validateTapShortcutAction(loadAction(type.actionKey, type.defaultAction))
 
     fun setSectionAction(
         type: StatusBarSectionType,
         action: Constants.Action,
     ) {
-        storeAction(type.actionKey, action)
+        storeAction(type.actionKey, validateTapShortcutAction(action))
     }
 
     var lockscreenDateFormat: LockscreenDateFormat
@@ -600,16 +675,18 @@ class Prefs(
         get() = enumPref(LOCKSCREEN_SHORTCUT_ICON, LockscreenShortcutIcon.Ring)
         set(value) = prefs.edit().putString(LOCKSCREEN_SHORTCUT_ICON, value.name).apply()
 
-    fun getLockscreenDateTapAction(): Constants.Action = loadAction(LOCKSCREEN_DATE_TAP_ACTION, Constants.Action.Disabled)
+    fun getLockscreenDateTapAction(): Constants.Action =
+        validateTapShortcutAction(loadAction(LOCKSCREEN_DATE_TAP_ACTION, Constants.Action.Disabled))
 
     fun setLockscreenDateTapAction(action: Constants.Action) {
+        val normalizedAction = validateTapShortcutAction(action)
         val resolvedAction =
-            when (action) {
+            when (normalizedAction) {
                 Constants.Action.LockScreen,
                 Constants.Action.ShowAppList,
                 -> Constants.Action.Disabled
 
-                else -> action
+                else -> normalizedAction
             }
         storeAction(LOCKSCREEN_DATE_TAP_ACTION, resolvedAction)
     }
@@ -625,7 +702,7 @@ class Prefs(
         set(value) = prefs.edit().putBoolean(LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR, value).apply()
 
     fun getLockscreenShortcutAction(): Constants.Action {
-        val action = loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp)
+        val action = validateTapShortcutAction(loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp))
         return if (
             action == Constants.Action.LockScreen ||
             action == Constants.Action.ShowAppList ||
@@ -638,14 +715,15 @@ class Prefs(
     }
 
     fun setLockscreenShortcutAction(action: Constants.Action) {
+        val normalizedAction = validateTapShortcutAction(action)
         val resolvedAction =
-            when (action) {
+            when (normalizedAction) {
                 Constants.Action.Disabled,
                 Constants.Action.LockScreen,
                 Constants.Action.ShowAppList,
                 -> Constants.Action.OpenApp
 
-                else -> action
+                else -> normalizedAction
             }
         storeAction(LOCKSCREEN_SHORTCUT_ACTION, resolvedAction)
     }
@@ -941,6 +1019,24 @@ class Prefs(
         return enabledManagedAppIds.contains(appId)
     }
 
+    fun homeItemKey(appModel: AppModel): String = "${appModel.appPackage}|${appModel.appActivityName}"
+
+    fun isHomeItemHidden(appModel: AppModel): Boolean = hiddenHomeItemKeys.contains(homeItemKey(appModel))
+
+    fun setHomeItemHidden(
+        appModel: AppModel,
+        hidden: Boolean,
+    ) {
+        val key = homeItemKey(appModel)
+        if (appModel.appPackage.isBlank() || appModel.appActivityName.isBlank()) return
+        hiddenHomeItemKeys =
+            if (hidden) {
+                hiddenHomeItemKeys + key
+            } else {
+                hiddenHomeItemKeys - key
+            }
+    }
+
     fun getAppAlias(appName: String): String = prefs.getString(appName, "") ?: ""
 
     fun setAppAlias(
@@ -958,6 +1054,16 @@ class Prefs(
         return first
     }
 
+    private fun validateTapShortcutAction(action: Constants.Action): Constants.Action =
+        when (action) {
+            Constants.Action.OpenQuickSettings,
+            Constants.Action.ShowNotification,
+            Constants.Action.ShowAppList,
+            -> Constants.Action.Disabled
+
+            else -> action
+        }
+
     private fun initDefaults() {
         if (!firstTrueFalseAfter(FIRST_RUN_DEFAULTS)) return
         val collator = Collator.getInstance()
@@ -965,5 +1071,13 @@ class Prefs(
         setAppsPerPage(1, 2)
         setHomeAppModel(0, Tool.Phone.toAppModel(context, collator))
         setHomeAppModel(1, Tool.Settings.toAppModel(context, collator))
+    }
+
+    fun registerListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    fun unregisterListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs.unregisterOnSharedPreferenceChangeListener(listener)
     }
 }

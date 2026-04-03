@@ -155,7 +155,8 @@ class NotificationListFragment : Fragment() {
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxSize()
+                            .weight(1f)
+                            .fillMaxWidth()
                             .noRippleClickable { openNotificationListenerSettings() },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -163,7 +164,10 @@ class NotificationListFragment : Fragment() {
                 }
             } else if (notifications.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
                     MessageText(stringResource(R.string.notification_list_empty))

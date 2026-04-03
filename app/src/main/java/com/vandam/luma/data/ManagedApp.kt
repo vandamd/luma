@@ -34,6 +34,11 @@ data class ManagedApp(
     }
 }
 
+data class InstalledManagedApp(
+    val appId: String,
+    val versionName: String,
+)
+
 object ManagedAppCatalog {
     private const val DEFAULT_REPO_OWNER = "vandamd"
 

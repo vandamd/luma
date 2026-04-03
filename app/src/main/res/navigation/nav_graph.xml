@@ -156,7 +156,14 @@
         <action
             android:id="@+id/action_settingsFragment_to_miscellaneousFragment"
             app:destination="@id/miscellaneousFragment" />
+        <action
+            android:id="@+id/action_settingsFragment_to_accountFragment"
+            app:destination="@id/accountFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/accountFragment"
+        android:name="com.vandam.luma.ui.AccountFragment"
+        android:label="AccountFragment" />
     <fragment
         android:id="@+id/keymapsFragment"
         android:name="com.vandam.luma.ui.KeymapsFragment"

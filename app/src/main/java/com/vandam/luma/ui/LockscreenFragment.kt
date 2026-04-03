@@ -9,11 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.res.stringResource
-import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
-import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.helper.formatLockscreenDateText
 import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
@@ -59,13 +57,7 @@ class LockscreenFragment : Fragment() {
 
             ContentContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
-                    SimpleTextButton(stringResource(R.string.settings_gestures)) {
-                        findNavController().navigate(
-                            R.id.action_lockscreenFragment_to_gesturesFragment,
-                            bundleOf(GestureActionFragment.GESTURE_SCOPE to GestureScope.Lockscreen.name),
-                        )
-                    }
-                    SimpleTextButton(stringResource(R.string.lockscreen_tap_shortcuts)) {
+                    SimpleTextButton(stringResource(R.string.settings_shortcuts)) {
                         findNavController().navigate(R.id.action_lockscreenFragment_to_lockscreenTapShortcutsFragment)
                     }
                     ToggleSelectorButton(

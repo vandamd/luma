@@ -43,7 +43,12 @@ class GesturesFragment : Fragment() {
     fun GesturesScreen() {
         Column {
             SettingsHeader(
-                title = stringResource(R.string.settings_gestures),
+                title =
+                    if (gestureScope == GestureScope.Homescreen) {
+                        stringResource(R.string.settings_shortcuts)
+                    } else {
+                        stringResource(R.string.settings_gestures)
+                    },
                 onBack = ::goBack,
             )
 

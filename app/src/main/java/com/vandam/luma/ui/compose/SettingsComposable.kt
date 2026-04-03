@@ -346,6 +346,7 @@ object SettingsComposable {
         value: String,
         isSelected: Boolean = false,
         @DrawableRes iconRes: Int? = null,
+        enabled: Boolean = true,
         onClick: () -> Unit,
     ) {
         val context = LocalContext.current
@@ -356,7 +357,7 @@ object SettingsComposable {
                 Modifier
                     .fillMaxWidth()
                     .padding(vertical = 0.dp)
-                    .noRippleClickable {
+                    .noRippleClickable(enabled = enabled) {
                         performHapticFeedback(context)
                         onClick()
                     },

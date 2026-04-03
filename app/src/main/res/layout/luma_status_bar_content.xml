@@ -4,7 +4,7 @@
     <LinearLayout
         android:id="@+id/statusConnectivityLayout"
         android:layout_width="0dp"
-        android:layout_height="52dp"
+        android:layout_height="48dp"
         android:layout_weight="1"
         android:baselineAligned="true"
         android:baselineAlignedChildIndex="0"
@@ -21,13 +21,13 @@
             android:fontFamily="@font/public_sans"
             android:includeFontPadding="false"
             android:textColor="?attr/primaryColor"
-            android:textSize="15sp"
+            android:textSize="@dimen/luma_status_bar_text_size"
             android:visibility="gone" />
 
         <ImageView
             android:id="@+id/statusSignal"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
             android:baselineAlignBottom="true"
             android:visibility="gone"
             android:src="@drawable/signal_4" />
@@ -35,7 +35,7 @@
         <ImageView
             android:id="@+id/statusWifi"
             android:layout_width="14dp"
-            android:layout_height="12dp"
+            android:layout_height="10dp"
             android:layout_marginStart="6dp"
             android:baselineAlignBottom="true"
             android:scaleType="fitXY"
@@ -44,8 +44,8 @@
 
         <ImageView
             android:id="@+id/statusBluetooth"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
             android:layout_marginStart="6dp"
             android:baselineAlignBottom="true"
             android:visibility="gone"
@@ -56,9 +56,8 @@
     <LinearLayout
         android:id="@+id/statusBatteryLayout"
         android:layout_width="0dp"
-        android:layout_height="52dp"
+        android:layout_height="48dp"
         android:layout_weight="1"
-        android:layout_marginTop="0.5dp"
         android:baselineAligned="true"
         android:baselineAlignedChildIndex="0"
         android:gravity="bottom|end"
@@ -74,12 +73,12 @@
             android:fontFamily="@font/public_sans"
             android:includeFontPadding="false"
             android:textColor="?attr/primaryColor"
-            android:textSize="18sp" />
+            android:textSize="@dimen/luma_status_bar_text_size" />
 
         <ImageView
             android:id="@+id/statusBattery"
             android:layout_width="18dp"
-            android:layout_height="12dp"
+            android:layout_height="10dp"
             android:baselineAlignBottom="true"
             android:scaleType="fitEnd"
             android:src="@drawable/battery_full" />

@@ -37,8 +37,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.MainActivity
 import com.vandam.luma.MainViewModel
@@ -495,6 +497,13 @@ class HomeFragment :
 
     private fun initObservers() {
         binding.homeAppsLayout.gravity = android.view.Gravity.CENTER
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                LumaNotificationListener.changeVersion.collect {
+                    refreshAppNames()
+                }
+            }
+        }
     }
 
     private fun readCurrentVolumeState(audioManager: AudioManager): VolumeState {

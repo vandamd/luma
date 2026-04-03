@@ -18,7 +18,7 @@ import com.vandam.luma.data.Constants.Action
 import com.vandam.luma.data.Constants.AppDrawerFlag
 import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.GestureType
-import com.vandam.luma.data.HomeLayout
+import com.vandam.luma.data.HomeItemsManager
 import com.vandam.luma.data.ManagedAppCatalog
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
@@ -261,67 +261,50 @@ class GestureActionFragment : Fragment() {
                     context = requireContext(),
                     collator = collator,
                     alias = prefs.getAppAlias(Tool.Camera.packageName),
-                )
+            )
             orderedTargets[launchTargetKey(cameraTarget)] = cameraTarget
         }
 
-        for (index in 0 until HomeLayout.TOTAL_SLOTS) {
-            val appModel = prefs.getHomeAppModel(index)
-            if (appModel.appPackage.isBlank()) continue
-            val tool = Tool.fromPackageName(appModel.appPackage)
-            val managedApp = ManagedAppCatalog.fromPackageName(appModel.appPackage)
-            val resolvedModel =
-                when {
-                    tool != null ->
-                        tool.toAppModel(
-                            context = requireContext(),
-                            collator = collator,
-                            alias = prefs.getAppAlias(tool.packageName),
-                        )
+        HomeItemsManager
+            .orderedEnabledItems(requireContext(), prefs)
+            .forEach { appModel ->
+                val tool = Tool.fromPackageName(appModel.appPackage)
+                val managedApp = ManagedAppCatalog.fromPackageName(appModel.appPackage)
+                val resolvedModel =
+                    when {
+                        tool != null ->
+                            tool.toAppModel(
+                                context = requireContext(),
+                                collator = collator,
+                                alias = prefs.getAppAlias(tool.packageName),
+                            )
 
-                    managedApp != null ->
-                        managedApp.toAppModel(
-                            collator = collator,
-                            alias = prefs.getAppAlias(managedApp.packageName),
-                        )
+                        managedApp != null ->
+                            managedApp.toAppModel(
+                                collator = collator,
+                                alias = prefs.getAppAlias(managedApp.packageName),
+                            )
 
-                    else -> appModel
-                }
-            orderedTargets[launchTargetKey(resolvedModel)] = resolvedModel
-        }
+                        else -> appModel
+                    }
+                orderedTargets[launchTargetKey(resolvedModel)] = resolvedModel
+            }
 
         if (orderedTargets.isEmpty()) {
-            if (keymapType?.startsWith("camera") == true) {
-                val phoneTarget =
-                    Tool.Phone.toAppModel(
-                        context = requireContext(),
-                        collator = collator,
-                        alias = prefs.getAppAlias(Tool.Phone.packageName),
-                    )
-                val settingsTarget =
-                    Tool.Settings.toAppModel(
-                        context = requireContext(),
-                        collator = collator,
-                        alias = prefs.getAppAlias(Tool.Settings.packageName),
-                    )
-                orderedTargets[launchTargetKey(phoneTarget)] = phoneTarget
-                orderedTargets[launchTargetKey(settingsTarget)] = settingsTarget
-            } else if (keymapType == null) {
-                val phoneTarget =
-                    Tool.Phone.toAppModel(
-                        context = requireContext(),
-                        collator = collator,
-                        alias = prefs.getAppAlias(Tool.Phone.packageName),
-                    )
-                val settingsTarget =
-                    Tool.Settings.toAppModel(
-                        context = requireContext(),
-                        collator = collator,
-                        alias = prefs.getAppAlias(Tool.Settings.packageName),
-                    )
-                orderedTargets[launchTargetKey(phoneTarget)] = phoneTarget
-                orderedTargets[launchTargetKey(settingsTarget)] = settingsTarget
-            }
+            val phoneTarget =
+                Tool.Phone.toAppModel(
+                    context = requireContext(),
+                    collator = collator,
+                    alias = prefs.getAppAlias(Tool.Phone.packageName),
+                )
+            val settingsTarget =
+                Tool.Settings.toAppModel(
+                    context = requireContext(),
+                    collator = collator,
+                    alias = prefs.getAppAlias(Tool.Settings.packageName),
+                )
+            orderedTargets[launchTargetKey(phoneTarget)] = phoneTarget
+            orderedTargets[launchTargetKey(settingsTarget)] = settingsTarget
         }
 
         return orderedTargets.values.toList()
@@ -336,53 +319,38 @@ class GestureActionFragment : Fragment() {
             else -> prefs.getCameraKeyPressApp()
         }
 
-    private fun availableActions(): Array<Action> =
-        if (keymapType != null) {
-            emptyArray()
-        } else if (gestureType != null) {
-            Constants.Action
-                .values()
-                .filterNot {
-                    it == Action.Disabled ||
-                    it == Action.ToggleFlashlight ||
-                        it == Action.OpenApp ||
-                        it == Action.ShowAppList ||
-                        it == Action.OpenQuickSettings ||
-                        it == Action.ShowNotification ||
-                        it == Action.ShowRecents
-                }.toTypedArray()
-        } else if (lockscreenShortcut) {
-            Constants.Action
-                .values()
-                .filterNot {
-                    it == Action.Disabled ||
-                        it == Action.LockScreen ||
-                        it == Action.ToggleFlashlight ||
-                        it == Action.OpenApp ||
-                        it == Action.ShowAppList
-                }.toTypedArray()
-        } else if (lockscreenDateTap) {
-            Constants.Action
-                .values()
-                .filterNot {
-                    it == Action.Disabled ||
-                    it == Action.LockScreen ||
-                        it == Action.ToggleFlashlight ||
-                        it == Action.OpenApp ||
-                        it == Action.ShowAppList
-                }
-                .toTypedArray()
-        } else {
-            Constants.Action
-                .values()
-                .filterNot {
-                    it == Action.Disabled ||
-                    it == Action.ToggleFlashlight ||
-                        it == Action.OpenApp ||
-                        it == Action.ShowAppList
-                }
-                .toTypedArray()
-        }
+    private fun availableActions(): Array<Action> {
+        if (keymapType != null) return emptyArray()
+
+        val excludedEverywhere =
+            setOf(
+                Action.ShowAppList,
+                Action.OpenQuickSettings,
+                Action.ShowNotification,
+                Action.ToggleFlashlight,
+                Action.OpenApp,
+                Action.Disabled,
+            )
+
+        val excludedForContext =
+            if (lockscreenShortcut) {
+                setOf(
+                    Action.LockScreen,
+                )
+            } else if (lockscreenDateTap) {
+                setOf(
+                    Action.LockScreen,
+                )
+            } else {
+                emptySet()
+            }
+
+        return Constants.Action
+            .values()
+            .filterNot { it in excludedEverywhere || it in excludedForContext }
+            .sortedBy { if (it == Action.ShowRecents) 1 else 0 }
+            .toTypedArray()
+    }
 
     private fun handleLaunchTargetSelection(appModel: AppModel) {
         if (gestureType != null) {
