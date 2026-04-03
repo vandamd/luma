@@ -229,6 +229,8 @@
     <string name="toast_volume_silent_requires_permission">Allow Do Not Disturb access to use Silent mode</string>
     <string name="toast_brightness_permission_required">Allow modify system settings to change brightness</string>
     <string name="toast_unable_to_toggle_flashlight">Unable to toggle flashlight</string>
+    <string name="toast_unable_to_fetch_release">Unable to find the latest release for %1$s</string>
+    <string name="toast_unable_to_download_release">Unable to download %1$s</string>
 
     <!-- Misc -->
     <string name="accessibility_hint">Luma needs accessibility permissions for features like locking the screen, remapping keys, and the lockscreen. Please grant below.</string>

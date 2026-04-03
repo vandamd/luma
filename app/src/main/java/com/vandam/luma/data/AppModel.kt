@@ -7,6 +7,7 @@ enum class AppEntryType {
     LauncherApp,
     PinnedShortcut,
     Tool,
+    ManagedApp,
 }
 
 data class AppModel(

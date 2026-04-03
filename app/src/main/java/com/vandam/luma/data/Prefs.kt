@@ -15,6 +15,7 @@ private const val FIRST_RUN_DEFAULTS = "FIRST_RUN_DEFAULTS"
 private const val ACCOUNT_NUMBER = "ACCOUNT_NUMBER"
 private const val ONBOARDING_STARTED = "ONBOARDING_STARTED"
 private const val ONBOARDING_LOGIN_STARTED = "ONBOARDING_LOGIN_STARTED"
+private const val ENABLED_MANAGED_APP_IDS = "ENABLED_MANAGED_APP_IDS"
 private const val HOME_PAGES = "HOME_PAGES"
 private const val HOME_APPS_PER_PAGE = "HOME_APPS_PER_PAGE_"
 
@@ -227,6 +228,10 @@ class Prefs(
     var onboardingLoginStarted: Boolean
         get() = prefs.getBoolean(ONBOARDING_LOGIN_STARTED, false)
         set(value) = prefs.edit().putBoolean(ONBOARDING_LOGIN_STARTED, value).apply()
+
+    var enabledManagedAppIds: Set<String>
+        get() = prefs.getStringSet(ENABLED_MANAGED_APP_IDS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(ENABLED_MANAGED_APP_IDS, value).apply()
 
     var homePages: Int
         get() = prefs.getInt(HOME_PAGES, 1)
@@ -908,6 +913,11 @@ class Prefs(
         } else {
             hidden.contains("$packageName|$userSerial")
         }
+    }
+
+    fun isManagedAppEnabled(packageName: String): Boolean {
+        val appId = ManagedAppCatalog.fromPackageName(packageName)?.id ?: return false
+        return enabledManagedAppIds.contains(appId)
     }
 
     fun getAppAlias(appName: String): String = prefs.getString(appName, "") ?: ""

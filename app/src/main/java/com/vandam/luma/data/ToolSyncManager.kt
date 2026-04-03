@@ -14,6 +14,7 @@ import kotlin.math.max
 sealed interface ToolSyncResult {
     data class Success(
         val enabledToolIds: List<String>,
+        val enabledAppIds: List<String>,
     ) : ToolSyncResult
 
     data object InvalidAccount : ToolSyncResult
@@ -63,13 +64,15 @@ object ToolSyncManager {
                         } else {
                             runCatching {
                                 val toolIds = normalizeToolIds(payload.enabledToolIds)
-                                applyToolLayout(context, toolIds)
+                                val appIds = ManagedAppCatalog.normalizeIds(payload.enabledAppIds)
+                                applyHomeLayout(context, toolIds, appIds)
                                 Log.d(
                                     LOG_TAG,
                                     "Applied tool sync tools=${toolIds.joinToString()} apps=${payload.enabledAppIds.joinToString()}",
                                 )
                                 ToolSyncResult.Success(
                                     enabledToolIds = toolIds,
+                                    enabledAppIds = appIds,
                                 )
                             }.getOrElse { error ->
                                 Log.w(LOG_TAG, "Failed to apply tool layout", error)
@@ -106,33 +109,46 @@ object ToolSyncManager {
         return orderedTools
     }
 
-    private fun applyToolLayout(
+    private fun applyHomeLayout(
         context: Context,
         enabledToolIds: List<String>,
+        enabledAppIds: List<String>,
     ) {
         val prefs = Prefs.getInstance(context)
         val collator = Collator.getInstance()
         val tools = enabledToolIds.mapNotNull(Tool::fromId)
+        val apps = enabledAppIds.mapNotNull(ManagedAppCatalog::fromId)
 
         Tool.entries.forEach { tool ->
             prefs.setToolEnabled(tool, tools.contains(tool))
         }
 
-        tools.forEachIndexed { index, tool ->
-            val alias = prefs.getAppAlias(tool.packageName)
-            prefs.setHomeAppModel(index, tool.toAppModel(context, collator, alias))
+        prefs.enabledManagedAppIds = apps.map(ManagedApp::id).toSet()
+
+        val homeItems =
+            buildHomeItems(
+                context = context,
+                prefs = prefs,
+                collator = collator,
+                tools = tools,
+                apps = apps,
+            )
+        val truncatedItems = homeItems.take(HomeLayout.TOTAL_SLOTS)
+
+        truncatedItems.forEachIndexed { index, appModel ->
+            prefs.setHomeAppModel(index, appModel)
         }
 
-        for (index in tools.size until HomeLayout.TOTAL_SLOTS) {
+        for (index in truncatedItems.size until HomeLayout.TOTAL_SLOTS) {
             prefs.setHomeAppModel(index, emptyAppModel())
         }
 
-        val pageCount = max(1, (tools.size + HomeLayout.APPS_PER_PAGE - 1) / HomeLayout.APPS_PER_PAGE)
+        val pageCount = max(1, (truncatedItems.size + HomeLayout.APPS_PER_PAGE - 1) / HomeLayout.APPS_PER_PAGE)
         prefs.homePages = pageCount
 
         for (page in 1..HomeLayout.MAX_PAGES) {
             val startIndex = (page - 1) * HomeLayout.APPS_PER_PAGE
-            val remaining = (tools.size - startIndex).coerceAtLeast(0)
+            val remaining = (truncatedItems.size - startIndex).coerceAtLeast(0)
             val appCount =
                 when {
                     page > pageCount -> 0
@@ -140,6 +156,49 @@ object ToolSyncManager {
                     else -> remaining
                 }
             prefs.setAppsPerPage(page, appCount)
+        }
+    }
+
+    private fun buildHomeItems(
+        context: Context,
+        prefs: Prefs,
+        collator: Collator,
+        tools: List<Tool>,
+        apps: List<ManagedApp>,
+    ): List<AppModel> {
+        val phoneAlias = prefs.getAppAlias(Tool.Phone.packageName)
+        val settingsAlias = prefs.getAppAlias(Tool.Settings.packageName)
+        val middleItems = mutableListOf<AppModel>()
+
+        tools
+            .filterNot { it == Tool.Phone || it == Tool.Settings }
+            .forEach { tool ->
+                middleItems.add(
+                    tool.toAppModel(
+                        context = context,
+                        collator = collator,
+                        alias = prefs.getAppAlias(tool.packageName),
+                    ),
+                )
+            }
+
+        apps.forEach { app ->
+            middleItems.add(
+                app.toAppModel(
+                    collator = collator,
+                    alias = prefs.getAppAlias(app.packageName),
+                ),
+            )
+        }
+
+        middleItems.sortWith { left, right ->
+            collator.compare(left.displayName, right.displayName)
+        }
+
+        return buildList {
+            add(Tool.Phone.toAppModel(context, collator, phoneAlias))
+            addAll(middleItems)
+            add(Tool.Settings.toAppModel(context, collator, settingsAlias))
         }
     }
 

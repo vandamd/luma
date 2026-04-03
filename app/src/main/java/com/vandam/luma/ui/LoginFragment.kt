@@ -136,7 +136,7 @@ class LoginFragment : Fragment() {
                             this.accountNumber = accountNumber
                             onboardingLoginStarted = false
                         }
-                        (activity as? MainActivity)?.restartToolSyncSubscription(result.enabledToolIds)
+                        (activity as? MainActivity)?.restartToolSyncSubscription(initialToolIds = result.enabledToolIds)
                         (activity as? MainActivity)?.onToolSyncApplied()
                         findNavController().navigate(
                             R.id.mainFragment,

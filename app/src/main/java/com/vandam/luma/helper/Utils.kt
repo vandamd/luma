@@ -28,6 +28,7 @@ import com.vandam.luma.R
 import com.vandam.luma.data.AppEntryType
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants
+import com.vandam.luma.data.ManagedAppCatalog
 import com.vandam.luma.data.PinnedAppEntry
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.ShortcutEntry
@@ -142,6 +143,13 @@ fun launchAppModel(
     val tool = Tool.fromPackageName(packageName)
     if (appModel.entryType == AppEntryType.Tool || tool != null) {
         return launchLightOsRoute(context, (tool ?: Tool.fromId(appActivityName) ?: return true).lightOsRoute)
+    }
+
+    val managedApp = ManagedAppCatalog.fromPackageName(packageName)
+    if (appModel.entryType == AppEntryType.ManagedApp || managedApp != null) {
+        if (managedApp != null && ManagedAppManager.handleManagedAppLaunch(context, managedApp)) {
+            return true
+        }
     }
 
     if (packageName == Constants.PINNED_SHORTCUT_PACKAGE || appModel.entryType == AppEntryType.PinnedShortcut) {

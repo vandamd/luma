@@ -216,6 +216,7 @@ class AppDrawerFragment : Fragment() {
             when (app.entryType) {
                 AppEntryType.PinnedShortcut -> hiddenShortcutIds.contains(app.appActivityName)
                 AppEntryType.Tool -> Tool.fromPackageName(app.appPackage)?.let(prefs::isToolHidden) ?: false
+                AppEntryType.ManagedApp -> prefs.isAppHidden(app.appPackage, userManager.getSerialNumberForUser(app.user))
                 AppEntryType.LauncherApp -> prefs.isAppHidden(app.appPackage, userManager.getSerialNumberForUser(app.user))
             }
         }

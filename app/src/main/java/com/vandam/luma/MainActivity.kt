@@ -41,6 +41,7 @@ import com.vandam.luma.databinding.ActivityMainBinding
 import com.vandam.luma.helper.ActionExecutionCallbacks
 import com.vandam.luma.helper.ActionService
 import com.vandam.luma.helper.HomeCleanupHelper
+import com.vandam.luma.helper.ManagedAppManager
 import com.vandam.luma.helper.executeSecondaryAction
 import com.vandam.luma.helper.hideStatusBar
 import com.vandam.luma.helper.isAccessibilityEnabled
@@ -67,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private var toolSyncReconnectWatchdogJob: Job? = null
     private var subscribedAccountNumber: String? = null
     private var lastSyncedToolIds: List<String>? = null
+    private var lastSyncedManagedAppIds: List<String>? = null
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(newBase.withDisplayDefaults())
@@ -151,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         setLumaForeground(true)
         updateSystemStatusBarVisibility(navController.currentDestination?.id)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
+        ManagedAppManager.onResume(this)
         startToolSyncSubscription()
     }
 
@@ -293,8 +296,12 @@ class MainActivity : AppCompatActivity() {
         getVisibleHomeFragment()?.reloadHomeLayoutFromPrefs(resetToFirstPage = true)
     }
 
-    fun restartToolSyncSubscription(initialToolIds: List<String>? = null) {
+    fun restartToolSyncSubscription(
+        initialToolIds: List<String>? = null,
+        initialManagedAppIds: List<String>? = null,
+    ) {
         lastSyncedToolIds = initialToolIds
+        lastSyncedManagedAppIds = initialManagedAppIds
         subscribedAccountNumber = null
         toolSyncJob?.cancel()
         toolSyncWebSocketJob?.cancel()
@@ -311,6 +318,8 @@ class MainActivity : AppCompatActivity() {
             Log.d(LOG_TAG, "Skipping tool sync subscription because account number is blank")
             return
         }
+
+        ManagedAppManager.syncInstalledAppsToDashboard(this, accountNumber)
 
         if (toolSyncJob?.isActive == true && subscribedAccountNumber == accountNumber) {
             return
@@ -376,7 +385,10 @@ class MainActivity : AppCompatActivity() {
                                                         "Convex websocket stuck in CONNECTING, recreating client",
                                                     )
                                                     application.recreateConvexClient()
-                                                    restartToolSyncSubscription(lastSyncedToolIds)
+                                                    restartToolSyncSubscription(
+                                                        initialToolIds = lastSyncedToolIds,
+                                                        initialManagedAppIds = lastSyncedManagedAppIds,
+                                                    )
                                                 }
                                             }
                                     }
@@ -396,14 +408,18 @@ class MainActivity : AppCompatActivity() {
         when (result) {
             is ToolSyncResult.Success -> {
                 val toolsChanged = lastSyncedToolIds != result.enabledToolIds
+                val appsChanged = lastSyncedManagedAppIds != result.enabledAppIds
 
                 Log.d(
                     LOG_TAG,
-                    "Tool sync result from $source changedTools=$toolsChanged tools=${result.enabledToolIds.joinToString()}",
+                    "Tool sync result from $source changedTools=$toolsChanged changedApps=$appsChanged tools=${result.enabledToolIds.joinToString()} apps=${result.enabledAppIds.joinToString()}",
                 )
 
-                if (toolsChanged) {
+                if (toolsChanged || appsChanged) {
+                    val previousManagedAppIds = lastSyncedManagedAppIds
                     lastSyncedToolIds = result.enabledToolIds
+                    lastSyncedManagedAppIds = result.enabledAppIds
+                    ManagedAppManager.reconcileEnabledApps(this, previousManagedAppIds, result.enabledAppIds)
                     onToolSyncApplied()
                 }
             }

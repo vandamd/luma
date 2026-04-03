@@ -3,6 +3,7 @@ package com.vandam.luma.helper
 import android.content.Context
 import android.os.UserHandle
 import android.os.UserManager
+import com.vandam.luma.data.AppEntryType
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants
 import com.vandam.luma.data.GestureScope
@@ -36,7 +37,7 @@ object HomeCleanupHelper {
 
         for (i in 0 until HomeLayout.TOTAL_SLOTS) {
             val appModel = prefs.getHomeAppModel(i)
-            if (shouldClear(appModel, packageName, userHandle)) {
+            if (shouldClear(appModel, packageName, userHandle, prefs)) {
                 prefs.setHomeAppModel(i, emptyAppModel())
                 needsHomeRefresh = true
             }
@@ -45,7 +46,7 @@ object HomeCleanupHelper {
         for (gestureScope in GestureScope.entries) {
             for (gestureType in GestureType.entries) {
                 val appModel = prefs.getGestureApp(gestureType, gestureScope)
-                if (shouldClear(appModel, packageName, userHandle)) {
+                if (shouldClear(appModel, packageName, userHandle, prefs)) {
                     prefs.setGestureApp(gestureType, emptyAppModel(), gestureScope)
                     if (gestureScope == GestureScope.Homescreen) {
                         needsHomeRefresh = true
@@ -107,8 +108,12 @@ object HomeCleanupHelper {
         appModel: AppModel,
         packageName: String,
         userHandle: UserHandle,
+        prefs: Prefs,
     ): Boolean {
         if (appModel.appLabel.isEmpty()) return false
+        if (appModel.entryType == AppEntryType.ManagedApp && prefs.isManagedAppEnabled(packageName)) {
+            return false
+        }
         if (appModel.appPackage == packageName && appModel.user == userHandle) return true
 
         if (appModel.appPackage == Constants.PINNED_SHORTCUT_PACKAGE) {
