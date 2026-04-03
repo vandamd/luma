@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Ρυθμίσεις Luma (%1$s)</string>
-    <string name="settings_invert_colours">Θέμα</string>
-    <string name="settings_theme_dark">Σκούρο</string>
-    <string name="settings_theme_light">Φωτεινό</string>
-    <string name="settings_theme_automatic">Αυτόματο</string>
     <string name="settings_auto_rotate">Αυτόματη περιστροφή</string>
     <string name="settings_pages">Σελίδες</string>
     <string name="settings_gestures">Χεριρονομίες</string>
     <string name="settings_notifications">Ειδοποιήσεις</string>
     <string name="settings_status_bar">Γραμμή κατάστασης</string>
     <string name="settings_hidden_apps">Κρυφές εφαρμογές</string>
-    <string name="settings_default_launcher">Προεπιλεγμένος εκκινητής</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Άνοιγμα εφαρμογής</string>

@@ -9,16 +9,11 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Luma Postavke (%1$s)</string>
-    <string name="settings_invert_colours">Tema</string>
-    <string name="settings_theme_dark">Tamna</string>
-    <string name="settings_theme_light">Svijetla</string>
-    <string name="settings_theme_automatic">Automatska</string>
     <string name="settings_auto_rotate">Automatsko okretanje</string>
     <string name="settings_pages">Stranice</string>
     <string name="settings_gestures">Geste</string>
     <string name="settings_notifications">Obavijesti</string>
     <string name="settings_hidden_apps">Skrivene aplikacije</string>
-    <string name="settings_default_launcher">Zadani pokretač</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Otvori aplikaciju</string>

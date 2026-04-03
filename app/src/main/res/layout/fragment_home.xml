@@ -51,13 +51,6 @@
             style="@style/TextSmall"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:text="@string/tip_swipe_left" />
-
-        <TextView
-            style="@style/TextSmall"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:text="@string/tip_long_press" />
 
     </LinearLayout>

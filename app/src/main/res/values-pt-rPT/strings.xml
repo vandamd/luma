@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Definições Luma (%1$s)</string>
-    <string name="settings_invert_colours">Tema</string>
-    <string name="settings_theme_dark">Escuro</string>
-    <string name="settings_theme_light">Claro</string>
-    <string name="settings_theme_automatic">Automático</string>
     <string name="settings_auto_rotate">Rotação automática</string>
     <string name="settings_pages">Páginas</string>
     <string name="settings_gestures">Gestos</string>
     <string name="settings_notifications">Notificações</string>
     <string name="settings_status_bar">Barra de estado</string>
     <string name="settings_hidden_apps">Aplicações escondidas</string>
-    <string name="settings_default_launcher">Launcher predefinido</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Abrir aplicação</string>

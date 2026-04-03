@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Luma Einstellungen (%1$s)</string>
-    <string name="settings_invert_colours">Thema</string>
-    <string name="settings_theme_dark">Dunkel</string>
-    <string name="settings_theme_light">Hell</string>
-    <string name="settings_theme_automatic">Automatisch</string>
     <string name="settings_auto_rotate">Automatisch drehen</string>
     <string name="settings_pages">Seiten</string>
     <string name="settings_gestures">Gesten</string>
     <string name="settings_notifications">Benachrichtigungen</string>
     <string name="settings_status_bar">Statusleiste</string>
     <string name="settings_hidden_apps">Versteckte Apps</string>
-    <string name="settings_default_launcher">Standard-Launcher</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">App öffnen</string>

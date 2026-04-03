@@ -9,16 +9,11 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Настройки Luma (%1$s)</string>
-    <string name="settings_invert_colours">Тема</string>
-    <string name="settings_theme_dark">Тёмная</string>
-    <string name="settings_theme_light">Светлая</string>
-    <string name="settings_theme_automatic">Автоматическая</string>
     <string name="settings_auto_rotate">Автоповорот</string>
     <string name="settings_pages">Страницы</string>
     <string name="settings_gestures">Действия</string>
     <string name="settings_notifications">Уведомления</string>
     <string name="settings_hidden_apps">Скрытые приложения</string>
-    <string name="settings_default_launcher">Главный лаунчер</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Открыть приложение</string>

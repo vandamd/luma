@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Luma 設定 (%1$s)</string>
-    <string name="settings_invert_colours">テーマ</string>
-    <string name="settings_theme_dark">ダーク</string>
-    <string name="settings_theme_light">ライト</string>
-    <string name="settings_theme_automatic">自動</string>
     <string name="settings_auto_rotate">自動回転</string>
     <string name="settings_pages">ページ</string>
     <string name="settings_gestures">ジェスチャー</string>
     <string name="settings_notifications">通知</string>
     <string name="settings_status_bar">ステータスバー</string>
     <string name="settings_hidden_apps">非表示のアプリ</string>
-    <string name="settings_default_launcher">デフォルトのランチャー</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">アプリを開く</string>

@@ -9,16 +9,11 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Luma seaded (%1$s)</string>
-    <string name="settings_invert_colours">Teema</string>
-    <string name="settings_theme_dark">Tume</string>
-    <string name="settings_theme_light">Hele</string>
-    <string name="settings_theme_automatic">Automaatne</string>
     <string name="settings_auto_rotate">Automaatne pööramine</string>
     <string name="settings_pages">Leheküljed</string>
     <string name="settings_gestures">Žestid</string>
     <string name="settings_notifications">Teavitused</string>
     <string name="settings_hidden_apps">Peidetud rakendused</string>
-    <string name="settings_default_launcher">Vaikimisi avakuvarakendus</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Ava rakendus</string>

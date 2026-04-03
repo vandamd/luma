@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">إعدادات Luma (%1$s)</string>
-    <string name="settings_invert_colours">المظهر</string>
-    <string name="settings_theme_dark">داكن</string>
-    <string name="settings_theme_light">فاتح</string>
-    <string name="settings_theme_automatic">تلقائي</string>
     <string name="settings_auto_rotate">التدوير التلقائي</string>
     <string name="settings_pages">الصفحات</string>
     <string name="settings_gestures">إيماءات</string>
     <string name="settings_notifications">الإشعارات</string>
     <string name="settings_status_bar">شريط الحالة</string>
     <string name="settings_hidden_apps">التطبيقات المخفية</string>
-    <string name="settings_default_launcher">المشغل الافتراضي</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">فتح تطبيق</string>

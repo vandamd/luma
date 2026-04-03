@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">تنظیمات Luma (%1$s)</string>
-    <string name="settings_invert_colours">تم</string>
-    <string name="settings_theme_dark">تیره</string>
-    <string name="settings_theme_light">روشن</string>
-    <string name="settings_theme_automatic">خودکار</string>
     <string name="settings_auto_rotate">چرخش خودکار</string>
     <string name="settings_pages">صفحات</string>
     <string name="settings_gestures">اشاره های حرکتی</string>
     <string name="settings_notifications">اعلان‌ها</string>
     <string name="settings_status_bar">نوار وضعیت</string>
     <string name="settings_hidden_apps">برنامه های مخفی</string>
-    <string name="settings_default_launcher">لانچر اصلی</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">باز کردن برنامه</string>

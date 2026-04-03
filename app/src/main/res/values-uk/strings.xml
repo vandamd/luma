@@ -9,16 +9,11 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Налаштування Luma (%1$s)</string>
-    <string name="settings_invert_colours">Тема</string>
-    <string name="settings_theme_dark">Темна</string>
-    <string name="settings_theme_light">Світла</string>
-    <string name="settings_theme_automatic">Автоматична</string>
     <string name="settings_auto_rotate">Автоповорот</string>
     <string name="settings_pages">Сторінки</string>
     <string name="settings_gestures">Жести</string>
     <string name="settings_notifications">Сповіщення</string>
     <string name="settings_hidden_apps">Приховані додатки</string>
-    <string name="settings_default_launcher">Робочий стіл за замовчуванням</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Відкрити застосунок</string>

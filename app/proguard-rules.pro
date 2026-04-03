@@ -19,3 +19,15 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Convex mobile pulls in JNA, which resolves native peer fields by exact name.
+# If R8 renames or strips these classes, release startup crashes before the
+# launcher can render.
+-keep class com.sun.jna.** { *; }
+-keep interface com.sun.jna.** { *; }
+-dontwarn com.sun.jna.**
+
+# Convex mobile's generated UniFFI/JNA bridge also relies on reflective field
+# layout, so its model classes need to stay intact in release builds.
+-keep class dev.convex.android.** { *; }
+-keep interface dev.convex.android.** { *; }

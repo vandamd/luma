@@ -7,10 +7,7 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Luma Settings (%1$s)</string>
-    <string name="settings_invert_colours">Theme</string>
-    <string name="settings_theme_dark">Dark</string>
-    <string name="settings_theme_light">Light</string>
-    <string name="settings_theme_automatic">Automatic</string>
+    <string name="settings_invert_colours">Invert Colours</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_show_tool_icons">Tool Icon</string>
     <string name="settings_show_pin_icons">Pin Icon</string>
@@ -20,6 +17,11 @@
     <string name="settings_auto_rotate">Auto-rotate</string>
     <string name="settings_time">Time</string>
     <string name="settings_homescreen">Homescreen</string>
+    <string name="homescreen_pages">Pages</string>
+    <string name="homescreen_tools_source">Tools</string>
+    <string name="homescreen_tools_source_dashboard">Synced from dashboard</string>
+    <string name="homescreen_layout">Layout</string>
+    <string name="homescreen_layout_six_per_page">6 tools per page</string>
     <string name="settings_pages">Pages</string>
     <string name="settings_lockscreen">Lockscreen</string>
     <string name="settings_gestures">Gestures</string>
@@ -28,12 +30,10 @@
     <string name="settings_miscellaneous">General</string>
     <string name="settings_keymaps">Keymaps</string>
     <string name="settings_hidden_apps">Hidden Apps</string>
-    <string name="settings_scrollwheel_brightness">Scrollwheel Brightness</string>
     <string name="keymaps_camera_press">Camera Press</string>
     <string name="keymaps_camera_long_press">Camera Long Press</string>
     <string name="keymaps_scrollwheel_press">Scrollwheel Press</string>
     <string name="keymaps_scrollwheel_long_press">Scrollwheel Long Press</string>
-    <string name="settings_default_launcher">Default Launcher</string>
     <string name="unlock_gate_message">Press Home for Luma</string>
     <string name="lockscreen_enabled">Enabled</string>
     <string name="lockscreen_show_date">Show Date</string>
@@ -160,6 +160,28 @@
     <string name="notification_list_no_permission">Tap here to grant notification access</string>
     <string name="content_desc_dismiss">Dismiss</string>
 
+    <!-- Login -->
+    <string name="login_title">Login</string>
+    <string name="login_message">Please enter your account number below.\nTo create an account, visit:\n\nhttps://dashboard.noscoll.ing</string>
+    <string name="login_error_account_number">Enter a 16-digit account number.</string>
+    <string name="login_error_invalid_account">That account number was not found.</string>
+    <string name="login_error_sync_failed">Unable to sync tools.</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Welcome</string>
+    <string name="onboarding_welcome_message">Welcome to Luma!\n\nPlease grant the permissions on the next page. This enables Luma to show the lockscreen, present notifications, and bind keymaps.</string>
+    <string name="onboarding_permissions_title">Permissions</string>
+    <string name="onboarding_permissions_message">Please grant the permissions below. This enables Luma to show the lockscreen, present notifications, and bind keymaps.</string>
+    <string name="onboarding_accessibility_grant">Accessibility</string>
+    <string name="onboarding_accessibility_granted">Accessibility Enabled</string>
+    <string name="onboarding_phone_grant">Phone Permission</string>
+    <string name="onboarding_phone_granted">Phone Permission Enabled</string>
+    <string name="onboarding_notifications_grant">Notifications</string>
+    <string name="onboarding_notifications_granted">Notifications Enabled</string>
+    <string name="onboarding_write_settings_grant">Modify System Settings</string>
+    <string name="onboarding_write_settings_granted">Modify System Settings Enabled</string>
+    <string name="onboarding_continue">Continue</string>
+
     <!-- App drawer -->
     <string name="app_drawer_title">App Drawer</string>
     <string name="app_drawer_tools">Tools</string>
@@ -186,8 +208,8 @@
     <string name="app_actions_confirm_message">Are you sure you want to remove %1$s?</string>
 
     <!-- Home screen tips -->
-    <string name="tip_swipe_left">Swipe left for all apps</string>
-    <string name="tip_long_press">Long press anywhere for settings</string>
+    <string name="tip_swipe_left">Swipe for more tools</string>
+    <string name="tip_long_press">Long press anywhere for Luma settings</string>
     <string name="volume_indicator_media">Media</string>
     <string name="volume_indicator_ringer">Ringer</string>
     <string name="volume_indicator_vibrate">Vibrate</string>

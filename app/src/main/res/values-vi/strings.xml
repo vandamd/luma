@@ -9,10 +9,6 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Cài đặt Luma (%1$s)</string>
-    <string name="settings_invert_colours">Chủ đề</string>
-    <string name="settings_theme_dark">Tối</string>
-    <string name="settings_theme_light">Sáng</string>
-    <string name="settings_theme_automatic">Tự động</string>
     <string name="settings_auto_rotate">Xoay tự động</string>
     <string name="settings_pages">Trang</string>
     <string name="settings_gestures">Cử chỉ</string>

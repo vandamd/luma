@@ -9,10 +9,6 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Ajustes de Luma (%1$s)</string>
-    <string name="settings_invert_colours">Tema</string>
-    <string name="settings_theme_dark">Oscuro</string>
-    <string name="settings_theme_light">Claro</string>
-    <string name="settings_theme_automatic">Automático</string>
     <string name="settings_auto_rotate">Giro automático</string>
     <string name="settings_pages">Páginas</string>
     <string name="settings_gestures">Gestos</string>

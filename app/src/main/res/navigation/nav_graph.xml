@@ -6,8 +6,31 @@
     app:startDestination="@id/mainFragment">
 
     <fragment
+        android:id="@+id/onboardingWelcomeFragment"
+        android:name="com.vandam.luma.ui.OnboardingWelcomeFragment"
+        android:label="OnboardingWelcomeFragment">
+        <action
+            android:id="@+id/action_onboardingWelcomeFragment_to_onboardingPermissionsFragment"
+            app:destination="@id/onboardingPermissionsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/onboardingPermissionsFragment"
+        android:name="com.vandam.luma.ui.OnboardingPermissionsFragment"
+        android:label="OnboardingPermissionsFragment">
+        <action
+            android:id="@+id/action_onboardingPermissionsFragment_to_loginFragment"
+            app:destination="@id/loginFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.vandam.luma.ui.LoginFragment"
+        android:label="LoginFragment" />
+
+    <fragment
         android:id="@+id/mainFragment"
-        android:name="app.luma.ui.HomeFragment"
+        android:name="com.vandam.luma.ui.HomeFragment"
         android:label="main_fragment"
         tools:layout="@layout/fragment_home">
         <action
@@ -20,14 +43,14 @@
 
     <fragment
         android:id="@+id/appListFragment"
-        android:name="app.luma.ui.AppDrawerFragment"
+        android:name="com.vandam.luma.ui.AppDrawerFragment"
         android:label="app_list_fragment"
         tools:layout="@layout/fragment_app_drawer">
     </fragment>
 
 <fragment
         android:id="@+id/renameFragment"
-        android:name="app.luma.ui.RenameFragment"
+        android:name="com.vandam.luma.ui.RenameFragment"
         android:label="RenameFragment">
         <argument
             android:name="appPackage"
@@ -46,7 +69,7 @@
     </fragment>
     <fragment
         android:id="@+id/pagesFragment"
-        android:name="app.luma.ui.PagesFragment"
+        android:name="com.vandam.luma.ui.PagesFragment"
         android:label="PagesFragment">
         <action
             android:id="@+id/action_pagesFragment_to_pageCountFragment"
@@ -60,15 +83,15 @@
     </fragment>
     <fragment
         android:id="@+id/pageCountFragment"
-        android:name="app.luma.ui.PageCountFragment"
+        android:name="com.vandam.luma.ui.PageCountFragment"
         android:label="PageCountFragment" />
     <fragment
         android:id="@+id/pageIndicatorPositionFragment"
-        android:name="app.luma.ui.PageIndicatorPositionFragment"
+        android:name="com.vandam.luma.ui.PageIndicatorPositionFragment"
         android:label="PageIndicatorPositionFragment" />
     <fragment
         android:id="@+id/appCountFragment"
-        android:name="app.luma.ui.AppCountFragment"
+        android:name="com.vandam.luma.ui.AppCountFragment"
         android:label="AppCountFragment">
         <argument
             android:name="pageNumber"
@@ -76,7 +99,7 @@
     </fragment>
     <fragment
         android:id="@+id/gesturesFragment"
-        android:name="app.luma.ui.GesturesFragment"
+        android:name="com.vandam.luma.ui.GesturesFragment"
         android:label="GesturesFragment">
         <argument
             android:name="gesture_scope"
@@ -85,7 +108,7 @@
     </fragment>
     <fragment
         android:id="@+id/gestureActionFragment"
-        android:name="app.luma.ui.GestureActionFragment"
+        android:name="com.vandam.luma.ui.GestureActionFragment"
         android:label="GestureActionFragment">
         <argument
             android:name="gesture_type"
@@ -110,7 +133,7 @@
     </fragment>
     <fragment
         android:id="@+id/settingsFragment"
-        android:name="app.luma.ui.SettingsFragment"
+        android:name="com.vandam.luma.ui.SettingsFragment"
         android:label="SettingsFragment">
         <action
             android:id="@+id/action_settingsFragment_to_keymapsFragment"
@@ -136,11 +159,11 @@
     </fragment>
     <fragment
         android:id="@+id/keymapsFragment"
-        android:name="app.luma.ui.KeymapsFragment"
+        android:name="com.vandam.luma.ui.KeymapsFragment"
         android:label="KeymapsFragment" />
     <fragment
         android:id="@+id/homescreenFragment"
-        android:name="app.luma.ui.HomescreenFragment"
+        android:name="com.vandam.luma.ui.HomescreenFragment"
         android:label="HomescreenFragment">
         <action
             android:id="@+id/action_homescreenFragment_to_pagesFragment"
@@ -151,7 +174,7 @@
     </fragment>
     <fragment
         android:id="@+id/lockscreenFragment"
-        android:name="app.luma.ui.LockscreenFragment"
+        android:name="com.vandam.luma.ui.LockscreenFragment"
         android:label="LockscreenFragment">
         <action
             android:id="@+id/action_lockscreenFragment_to_gesturesFragment"
@@ -168,7 +191,7 @@
     </fragment>
     <fragment
         android:id="@+id/lockscreenTapShortcutsFragment"
-        android:name="app.luma.ui.LockscreenTapShortcutsFragment"
+        android:name="com.vandam.luma.ui.LockscreenTapShortcutsFragment"
         android:label="LockscreenTapShortcutsFragment">
         <action
             android:id="@+id/action_lockscreenTapShortcutsFragment_to_gestureActionFragment"
@@ -179,46 +202,39 @@
     </fragment>
     <fragment
         android:id="@+id/lockscreenDateFormatFragment"
-        android:name="app.luma.ui.LockscreenDateFormatFragment"
+        android:name="com.vandam.luma.ui.LockscreenDateFormatFragment"
         android:label="LockscreenDateFormatFragment" />
     <fragment
         android:id="@+id/lockscreenShortcutIconFragment"
-        android:name="app.luma.ui.LockscreenShortcutIconFragment"
+        android:name="com.vandam.luma.ui.LockscreenShortcutIconFragment"
         android:label="LockscreenShortcutIconFragment" />
     <fragment
         android:id="@+id/miscellaneousFragment"
-        android:name="app.luma.ui.MiscellaneousFragment"
+        android:name="com.vandam.luma.ui.MiscellaneousFragment"
         android:label="MiscellaneousFragment">
         <action
             android:id="@+id/action_miscellaneousFragment_to_hapticsFragment"
             app:destination="@id/hapticsFragment" />
-        <action
-            android:id="@+id/action_miscellaneousFragment_to_themeModeFragment"
-            app:destination="@id/themeModeFragment" />
     </fragment>
     <fragment
-        android:id="@+id/themeModeFragment"
-        android:name="app.luma.ui.ThemeModeFragment"
-        android:label="ThemeModeFragment" />
-    <fragment
         android:id="@+id/toolsFragment"
-        android:name="app.luma.ui.ToolsFragment"
+        android:name="com.vandam.luma.ui.ToolsFragment"
         android:label="ToolsFragment" />
     <fragment
         android:id="@+id/hapticsFragment"
-        android:name="app.luma.ui.HapticsFragment"
+        android:name="com.vandam.luma.ui.HapticsFragment"
         android:label="HapticsFragment" />
     <fragment
         android:id="@+id/timeFormatFragment"
-        android:name="app.luma.ui.TimeFormatFragment"
+        android:name="com.vandam.luma.ui.TimeFormatFragment"
         android:label="TimeFormatFragment" />
     <fragment
         android:id="@+id/notificationListFragment"
-        android:name="app.luma.ui.NotificationListFragment"
+        android:name="com.vandam.luma.ui.NotificationListFragment"
         android:label="NotificationListFragment" />
     <fragment
         android:id="@+id/appActionsFragment"
-        android:name="app.luma.ui.AppActionsFragment"
+        android:name="com.vandam.luma.ui.AppActionsFragment"
         android:label="AppActionsFragment">
         <argument
             android:name="appPackage"
@@ -249,7 +265,7 @@
     </fragment>
     <fragment
         android:id="@+id/confirmFragment"
-        android:name="app.luma.ui.ConfirmFragment"
+        android:name="com.vandam.luma.ui.ConfirmFragment"
         android:label="ConfirmFragment">
         <argument
             android:name="title"

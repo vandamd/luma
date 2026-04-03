@@ -1,5 +1,6 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+apply plugin: 'org.jetbrains.kotlin.plugin.serialization'
 apply plugin: 'org.jlleitschuh.gradle.ktlint'
 
 ktlint {
@@ -14,6 +15,9 @@ def localPropsFile = rootProject.file('local.properties')
 if (localPropsFile.exists()) {
     localProps.load(new FileInputStream(localPropsFile))
 }
+
+def convexUrl = localProps.getProperty('convexUrl') ?: System.getenv('CONVEX_URL') ?: System.getenv('VITE_CONVEX_URL') ?: ""
+def escapedConvexUrl = convexUrl.replace("\\", "\\\\").replace("\"", "\\\"")
 
 android {
     compileSdk 35
@@ -35,11 +39,12 @@ android {
     }
 
     defaultConfig {
-        applicationId "app.luma"
+        applicationId "com.vandam.luma"
         minSdk 31
         targetSdk 35
-        versionCode 44
-        versionName "v1.4.5"
+        versionCode 45
+        versionName "2.0.0"
+        buildConfigField "String", "CONVEX_URL", "\"${escapedConvexUrl}\""
     }
 
     buildFeatures {
@@ -68,7 +73,7 @@ android {
     lint {
         abortOnError = false
     }
-    namespace = 'app.luma'
+    namespace = 'com.vandam.luma'
 }
 
 dependencies {
@@ -99,4 +104,8 @@ dependencies {
 
     // Biometric
     implementation 'androidx.biometric:biometric:1.1.0'
+    implementation("dev.convex:android-convexmobile:0.8.0@aar") {
+        transitive = true
+    }
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3'
 }

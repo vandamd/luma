@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Pengaturan Luma (%1$s)</string>
-    <string name="settings_invert_colours">Tema</string>
-    <string name="settings_theme_dark">Gelap</string>
-    <string name="settings_theme_light">Terang</string>
-    <string name="settings_theme_automatic">Otomatis</string>
     <string name="settings_auto_rotate">Putar otomatis</string>
     <string name="settings_pages">Halaman</string>
     <string name="settings_gestures">Gestur</string>
     <string name="settings_notifications">Notifikasi</string>
     <string name="settings_status_bar">Bilah status</string>
     <string name="settings_hidden_apps">Aplikasi tersembunyi</string>
-    <string name="settings_default_launcher">Launcher default</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Buka aplikasi</string>

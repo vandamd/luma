@@ -9,17 +9,12 @@
 
     <!-- Settings screen -->
     <string name="settings_title">การตั้งค่า Luma (%1$s)</string>
-    <string name="settings_invert_colours">ธีม</string>
-    <string name="settings_theme_dark">มืด</string>
-    <string name="settings_theme_light">สว่าง</string>
-    <string name="settings_theme_automatic">อัตโนมัติ</string>
     <string name="settings_auto_rotate">หมุนอัตโนมัติ</string>
     <string name="settings_pages">หน้า</string>
     <string name="settings_gestures">ท่าทาง</string>
     <string name="settings_notifications">การแจ้งเตือน</string>
     <string name="settings_status_bar">แถบสถานะ</string>
     <string name="settings_hidden_apps">แอพที่ซ่อนอยู่</string>
-    <string name="settings_default_launcher">ตัวเรียกใช้งานเริ่มต้น</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">เปิดแอป</string>

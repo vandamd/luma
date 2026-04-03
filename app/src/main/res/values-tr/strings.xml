@@ -9,16 +9,11 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Luma Ayarları (%1$s)</string>
-    <string name="settings_invert_colours">Tema</string>
-    <string name="settings_theme_dark">Koyu</string>
-    <string name="settings_theme_light">Açık</string>
-    <string name="settings_theme_automatic">Otomatik</string>
     <string name="settings_auto_rotate">Otomatik döndürme</string>
     <string name="settings_pages">Sayfalar</string>
     <string name="settings_gestures">Kaydırma</string>
     <string name="settings_notifications">Bildirimler</string>
     <string name="settings_hidden_apps">Gizli uygulamalar</string>
-    <string name="settings_default_launcher">Varsayılan başlatıcı</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Uygulama Çalıştır</string>
