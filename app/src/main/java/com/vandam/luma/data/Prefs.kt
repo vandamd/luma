@@ -82,7 +82,7 @@ enum class StatusBarSectionType(
     val appKey: String,
     val defaultAction: Constants.Action,
 ) {
-    CELLULAR("SB_CELLULAR_ACTION", "SB_CELLULAR_APP", Constants.Action.Disabled),
+    CELLULAR("SB_CELLULAR_ACTION", "SB_CELLULAR_APP", Constants.Action.NetworkShortcutLight),
     TIME("SB_TIME_ACTION", "SB_TIME_APP", Constants.Action.ShowNotificationList),
     BATTERY("SB_BATTERY_ACTION", "SB_BATTERY_APP", Constants.Action.Disabled),
 }
@@ -455,18 +455,29 @@ class Prefs(
     fun getGestureAction(
         type: GestureType,
         scope: GestureScope = GestureScope.Homescreen,
-    ): Constants.Action = loadAction(gestureActionKey(type, scope), defaultGestureAction(type, scope))
+    ): Constants.Action =
+        validateGestureAction(loadAction(gestureActionKey(type, scope), defaultGestureAction(type, scope)))
 
     fun setGestureAction(
         type: GestureType,
         action: Constants.Action,
         scope: GestureScope = GestureScope.Homescreen,
     ) {
-        storeAction(gestureActionKey(type, scope), action)
+        storeAction(gestureActionKey(type, scope), validateGestureAction(action))
     }
 
+    private fun validateGestureAction(action: Constants.Action): Constants.Action =
+        when (action) {
+            Constants.Action.OpenQuickSettings,
+            Constants.Action.ShowNotification,
+            Constants.Action.ShowRecents,
+            -> Constants.Action.Disabled
+
+            else -> action
+        }
+
     fun getCameraKeyPressAction(): Constants.Action {
-        val action = loadAction(CAMERA_KEY_PRESS_ACTION, Constants.Action.Disabled)
+        val action = loadAction(CAMERA_KEY_PRESS_ACTION, Constants.Action.OpenApp)
         return if (action == Constants.Action.OpenApp || action == Constants.Action.Disabled) action else Constants.Action.Disabled
     }
 
@@ -484,6 +495,9 @@ class Prefs(
     }
 
     fun getCameraKeyPressApp(): AppModel = loadApp(CAMERA_KEY_PRESS_APP)
+        .let { storedApp ->
+            if (storedApp.appPackage.isBlank()) defaultCameraToolApp() else storedApp
+        }
 
     fun setCameraKeyPressApp(appModel: AppModel) {
         storeApp(CAMERA_KEY_PRESS_APP, appModel)
@@ -507,16 +521,17 @@ class Prefs(
         )
     }
 
-    fun getCameraKeyLongPressApp(): AppModel = loadApp(CAMERA_KEY_LONG_PRESS_APP)
+    fun getCameraKeyLongPressApp(): AppModel =
+        loadApp(CAMERA_KEY_LONG_PRESS_APP).let { storedApp ->
+            if (storedApp.appPackage.isBlank()) defaultCameraToolApp() else storedApp
+        }
 
     fun setCameraKeyLongPressApp(appModel: AppModel) {
         storeApp(CAMERA_KEY_LONG_PRESS_APP, appModel)
     }
 
     private fun validateScrollwheelAction(action: Constants.Action): Constants.Action =
-        if (action == Constants.Action.Disabled || action == Constants.Action.OpenApp ||
-            action == Constants.Action.ToggleFlashlight
-        ) {
+        if (action == Constants.Action.Disabled || action == Constants.Action.OpenApp) {
             action
         } else {
             Constants.Action.Disabled
@@ -591,7 +606,6 @@ class Prefs(
         val resolvedAction =
             when (action) {
                 Constants.Action.LockScreen,
-                Constants.Action.OpenApp,
                 Constants.Action.ShowAppList,
                 -> Constants.Action.Disabled
 
@@ -611,13 +625,13 @@ class Prefs(
         set(value) = prefs.edit().putBoolean(LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR, value).apply()
 
     fun getLockscreenShortcutAction(): Constants.Action {
-        val action = loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.Disabled)
+        val action = loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp)
         return if (
             action == Constants.Action.LockScreen ||
-            action == Constants.Action.OpenApp ||
-            action == Constants.Action.ShowAppList
+            action == Constants.Action.ShowAppList ||
+            action == Constants.Action.Disabled
         ) {
-            Constants.Action.Disabled
+            Constants.Action.OpenApp
         } else {
             action
         }
@@ -626,10 +640,10 @@ class Prefs(
     fun setLockscreenShortcutAction(action: Constants.Action) {
         val resolvedAction =
             when (action) {
+                Constants.Action.Disabled,
                 Constants.Action.LockScreen,
-                Constants.Action.OpenApp,
                 Constants.Action.ShowAppList,
-                -> Constants.Action.Disabled
+                -> Constants.Action.OpenApp
 
                 else -> action
             }
@@ -748,6 +762,13 @@ class Prefs(
             alias = getAppAlias(Tool.Phone.packageName),
         )
 
+    private fun defaultCameraToolApp(): AppModel =
+        Tool.Camera.toAppModel(
+            context = context,
+            collator = Collator.getInstance(),
+            alias = getAppAlias(Tool.Camera.packageName),
+        )
+
     var fontSizeOption: FontSizeOption
         get() {
             val key = prefs.getString(FONT_SIZE_OPTION, FontSizeOption.Medium.name)
@@ -756,7 +777,7 @@ class Prefs(
         set(value) = prefs.edit().putString(FONT_SIZE_OPTION, value.name).apply()
 
     var pageIndicatorPosition: PageIndicatorPosition
-        get() = enumPref(PAGE_INDICATOR_POSITION, PageIndicatorPosition.Left)
+        get() = enumPref(PAGE_INDICATOR_POSITION, PageIndicatorPosition.Right)
         set(value) = prefs.edit().putString(PAGE_INDICATOR_POSITION, value.name).apply()
 
     var showNotificationIndicator: Boolean

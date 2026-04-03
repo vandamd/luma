@@ -46,11 +46,6 @@ class PageIndicatorPositionFragment : Fragment() {
                         underline = prefs.pageIndicatorPosition == Prefs.PageIndicatorPosition.Right,
                         onClick = { selectPosition(Prefs.PageIndicatorPosition.Right) },
                     )
-                    SimpleTextButton(
-                        title = stringResource(R.string.position_hidden),
-                        underline = prefs.pageIndicatorPosition == Prefs.PageIndicatorPosition.Hidden,
-                        onClick = { selectPosition(Prefs.PageIndicatorPosition.Hidden) },
-                    )
             }
         }
     }

@@ -63,7 +63,10 @@ object ManagedAppManager {
 
         if (previousEnabledAppIds == null) {
             enabledAppIds.forEach { appId ->
-                enqueueAction(PendingAction.InstallOrUpdate(appId = appId))
+                val managedApp = ManagedAppCatalog.fromId(appId) ?: return@forEach
+                if (!isPackageInstalled(context, managedApp.packageName)) {
+                    enqueueAction(PendingAction.InstallOrUpdate(appId = appId))
+                }
             }
         } else {
             previousIds
@@ -77,7 +80,10 @@ object ManagedAppManager {
                 .subtract(previousIds)
                 .sorted()
                 .forEach { appId ->
-                    enqueueAction(PendingAction.InstallOrUpdate(appId = appId))
+                    val managedApp = ManagedAppCatalog.fromId(appId) ?: return@forEach
+                    if (!isPackageInstalled(context, managedApp.packageName)) {
+                        enqueueAction(PendingAction.InstallOrUpdate(appId = appId))
+                    }
                 }
         }
 
@@ -223,6 +229,13 @@ object ManagedAppManager {
             return
         }
 
+        if (isPackageInstalled(context, managedApp.packageName)) {
+            clearActiveAction()
+            processingJob = null
+            processNext(context)
+            return
+        }
+
         if (!canRequestPackageInstalls(context)) {
             updateActiveAction(action.copy(installerLaunched = false, expectedVersion = null))
             awaitingExternalResult = true
@@ -251,18 +264,7 @@ object ManagedAppManager {
             return
         }
 
-        val installedVersion = getInstalledVersionName(context, managedApp.packageName)
         val expectedVersion = normalizeVersion(latestRelease.versionName)
-        val needsInstall =
-            installedVersion == null ||
-                (expectedVersion != null && normalizeVersion(installedVersion) != expectedVersion)
-
-        if (!needsInstall) {
-            clearActiveAction()
-            processingJob = null
-            processNext(context)
-            return
-        }
 
         val apkFile =
             withContext(Dispatchers.IO) {

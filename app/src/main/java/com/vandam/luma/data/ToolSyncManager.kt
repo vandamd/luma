@@ -166,41 +166,77 @@ object ToolSyncManager {
         tools: List<Tool>,
         apps: List<ManagedApp>,
     ): List<AppModel> {
-        val phoneAlias = prefs.getAppAlias(Tool.Phone.packageName)
-        val settingsAlias = prefs.getAppAlias(Tool.Settings.packageName)
-        val middleItems = mutableListOf<AppModel>()
+        val defaultItems =
+            buildList {
+                add(
+                    Tool.Phone.toAppModel(
+                        context,
+                        collator,
+                        prefs.getAppAlias(Tool.Phone.packageName),
+                    ),
+                )
 
-        tools
-            .filterNot { it == Tool.Phone || it == Tool.Settings }
-            .forEach { tool ->
-                middleItems.add(
-                    tool.toAppModel(
-                        context = context,
-                        collator = collator,
-                        alias = prefs.getAppAlias(tool.packageName),
+                val middleItems = mutableListOf<AppModel>()
+
+                tools
+                    .filterNot { it == Tool.Phone || it == Tool.Settings }
+                    .forEach { tool ->
+                        middleItems.add(
+                            tool.toAppModel(
+                                context = context,
+                                collator = collator,
+                                alias = prefs.getAppAlias(tool.packageName),
+                            ),
+                        )
+                    }
+
+                apps.forEach { app ->
+                    middleItems.add(
+                        app.toAppModel(
+                            collator = collator,
+                            alias = prefs.getAppAlias(app.packageName),
+                        ),
+                    )
+                }
+
+                middleItems.sortWith { left, right ->
+                    collator.compare(left.displayName, right.displayName)
+                }
+
+                addAll(middleItems)
+                add(
+                    Tool.Settings.toAppModel(
+                        context,
+                        collator,
+                        prefs.getAppAlias(Tool.Settings.packageName),
                     ),
                 )
             }
 
-        apps.forEach { app ->
-            middleItems.add(
-                app.toAppModel(
-                    collator = collator,
-                    alias = prefs.getAppAlias(app.packageName),
-                ),
-            )
-        }
-
-        middleItems.sortWith { left, right ->
-            collator.compare(left.displayName, right.displayName)
-        }
-
-        return buildList {
-            add(Tool.Phone.toAppModel(context, collator, phoneAlias))
-            addAll(middleItems)
-            add(Tool.Settings.toAppModel(context, collator, settingsAlias))
-        }
+        return applyPreferredOrder(prefs, defaultItems)
     }
+
+    private fun applyPreferredOrder(
+        prefs: Prefs,
+        defaultItems: List<AppModel>,
+    ): List<AppModel> {
+        val remainingByKey = LinkedHashMap<String, AppModel>()
+        defaultItems.forEach { item ->
+            remainingByKey[homeItemKey(item)] = item
+        }
+
+        val orderedItems = mutableListOf<AppModel>()
+        for (index in 0 until HomeLayout.TOTAL_SLOTS) {
+            val item = prefs.getHomeAppModel(index)
+            if (item.appPackage.isBlank()) continue
+            remainingByKey.remove(homeItemKey(item))?.let { orderedItems.add(it) }
+        }
+
+        orderedItems.addAll(remainingByKey.values)
+        return orderedItems
+    }
+
+    private fun homeItemKey(appModel: AppModel): String = "${appModel.appPackage}|${appModel.appActivityName}"
 
     private fun emptyAppModel(): AppModel =
         AppModel(

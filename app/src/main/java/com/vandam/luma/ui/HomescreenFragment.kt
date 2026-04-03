@@ -15,6 +15,7 @@ import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
 import com.vandam.luma.ui.compose.SettingsComposable.MessageText
+import com.vandam.luma.ui.compose.SettingsComposable.SelectorButton
 import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
 import com.vandam.luma.ui.compose.SettingsComposable.SimpleTextButton
 import com.vandam.luma.ui.compose.SettingsComposable.ToggleSelectorButton
@@ -55,6 +56,21 @@ class HomescreenFragment : Fragment() {
                     SimpleTextButton(stringResource(R.string.settings_gestures)) {
                         findNavController().navigate(R.id.action_homescreenFragment_to_gesturesFragment)
                     }
+                    SimpleTextButton(stringResource(R.string.homescreen_reorder_tools)) {
+                        findNavController().navigate(R.id.action_homescreenFragment_to_reorderToolsFragment)
+                    }
+                    SelectorButton(
+                        label = stringResource(R.string.pages_page_indicator_position),
+                        value =
+                            when (prefs.pageIndicatorPosition) {
+                                Prefs.PageIndicatorPosition.Left -> stringResource(R.string.position_left)
+                                Prefs.PageIndicatorPosition.Right -> stringResource(R.string.position_right)
+                                Prefs.PageIndicatorPosition.Hidden -> stringResource(R.string.position_hidden)
+                            },
+                        onClick = {
+                            findNavController().navigate(R.id.pageIndicatorPositionFragment)
+                        },
+                    )
                     ToggleSelectorButton(
                         label = stringResource(R.string.notifications_indicator),
                         value =

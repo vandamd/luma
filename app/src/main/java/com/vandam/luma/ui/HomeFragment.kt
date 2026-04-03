@@ -145,8 +145,7 @@ private data class VolumePrediction(
 
 class HomeFragment :
     Fragment(),
-    View.OnClickListener,
-    View.OnLongClickListener {
+    View.OnClickListener {
     private lateinit var prefs: Prefs
     private lateinit var viewModel: MainViewModel
     private var currentPage = 0
@@ -275,11 +274,6 @@ class HomeFragment :
         } catch (e: Exception) {
             Log.e(TAG, "Error handling app click", e)
         }
-    }
-
-    override fun onLongClick(view: View): Boolean {
-        performLongPressHaptic()
-        return true
     }
 
     fun handleHardwareVolumeKey(keyCode: Int): Boolean {
@@ -1139,6 +1133,7 @@ class HomeFragment :
     private fun createGestureListener(
         view: View? = null,
         onLongClick: () -> Unit = {},
+        onViewLongClick: ((View) -> Unit)? = null,
         onClick: (View) -> Unit = {},
     ): View.OnTouchListener =
         object : SwipeTouchListener(requireContext(), view) {
@@ -1155,7 +1150,7 @@ class HomeFragment :
             override fun onLongClick() = onLongClick()
 
             override fun onLongClick(view: View) {
-                this@HomeFragment.onLongClick(view)
+                onViewLongClick?.invoke(view)
             }
 
             override fun onClick(view: View) = onClick(view)
