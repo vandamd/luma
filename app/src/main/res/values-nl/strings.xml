@@ -75,8 +75,6 @@
     <string name="status_bar_battery_percentage">Percentage weergeven</string>
     <string name="status_bar_battery_icon">Pictogram weergeven</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Sleep links voor alle apps</string>
     <string name="tip_long_press">Lang indrukken voor instellingen</string>

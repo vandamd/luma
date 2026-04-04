@@ -76,8 +76,6 @@
     <string name="status_bar_battery_percentage">แสดงเปอร์เซ็นต์</string>
     <string name="status_bar_battery_icon">แสดงไอคอน</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">ปัดซ้ายสำหรับแอปทั้งหมด</string>
     <string name="tip_long_press">กดค้างสำหรับการตั้งค่า</string>

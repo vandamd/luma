@@ -74,8 +74,6 @@
     <string name="status_bar_battery_percentage">Hiển thị phần trăm</string>
     <string name="status_bar_battery_icon">Hiển thị biểu tượng</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Vuốt trái cho tất cả ứng dụng</string>
     <string name="tip_long_press">Nhấn giữ để cài đặt</string>

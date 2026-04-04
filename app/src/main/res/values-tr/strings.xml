@@ -76,8 +76,6 @@
     <string name="status_bar_battery_percentage">Yüzdeyi göster</string>
     <string name="status_bar_battery_icon">Simgeyi göster</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Tüm uygulamalar için sola kaydırın</string>
     <string name="tip_long_press">Ayarlar için uzun basın</string>

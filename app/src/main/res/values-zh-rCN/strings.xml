@@ -76,8 +76,6 @@
     <string name="status_bar_battery_percentage">显示百分比</string>
     <string name="status_bar_battery_icon">显示图标</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">左滑查看所有应用</string>
     <string name="tip_long_press">长按进入设置</string>

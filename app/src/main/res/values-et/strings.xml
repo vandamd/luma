@@ -76,8 +76,6 @@
     <string name="status_bar_battery_percentage">Kuva protsent</string>
     <string name="status_bar_battery_icon">Kuva ikoon</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Tõmba vasakule kõigi rakenduste jaoks</string>
     <string name="tip_long_press">Vajuta pikalt seadete jaoks</string>

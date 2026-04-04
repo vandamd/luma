@@ -75,8 +75,6 @@
     <string name="status_bar_battery_percentage">퍼센트 표시</string>
     <string name="status_bar_battery_icon">아이콘 표시</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">왼쪽으로 스와이프하여 모든 앱 보기</string>
     <string name="tip_long_press">길게 누르면 설정</string>

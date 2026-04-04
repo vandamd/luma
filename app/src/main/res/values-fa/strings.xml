@@ -76,8 +76,6 @@
     <string name="status_bar_battery_percentage">نمایش درصد</string>
     <string name="status_bar_battery_icon">نمایش آیکن</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">برای همه برنامه‌ها به چپ بکشید</string>
     <string name="tip_long_press">برای تنظیمات فشار طولانی دهید</string>

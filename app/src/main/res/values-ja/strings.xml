@@ -75,8 +75,6 @@
     <string name="status_bar_battery_percentage">パーセンテージを表示</string>
     <string name="status_bar_battery_icon">アイコンを表示</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">左にスワイプですべてのアプリ</string>
     <string name="tip_long_press">長押しで設定</string>

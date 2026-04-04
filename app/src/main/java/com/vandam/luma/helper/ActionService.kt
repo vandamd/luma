@@ -29,6 +29,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
+import android.telecom.TelecomManager
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
@@ -872,9 +873,7 @@ class ActionService : AccessibilityService() {
 
     private fun isInCall(): Boolean =
         try {
-            val tm = getSystemService(TelephonyManager::class.java) ?: return false
-            val state = tm.callState
-            state == TelephonyManager.CALL_STATE_RINGING || state == TelephonyManager.CALL_STATE_OFFHOOK
+            getSystemService(TelecomManager::class.java)?.isInCall == true
         } catch (_: SecurityException) {
             false
         }

@@ -71,8 +71,6 @@
     <string name="status_bar_battery_percentage">Εμφάνιση ποσοστού</string>
     <string name="status_bar_battery_icon">Εμφάνιση εικονιδίου</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Σύρετε αριστερά για όλες τις εφαρμογές</string>
     <string name="tip_long_press">Πατήστε παρατεταμένα για ρυθμίσεις</string>

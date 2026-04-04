@@ -76,8 +76,6 @@
     <string name="status_bar_battery_percentage">Prikaži postotak</string>
     <string name="status_bar_battery_icon">Prikaži ikonu</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Povuci lijevo za sve aplikacije</string>
     <string name="tip_long_press">Dugo pritisni za postavke</string>

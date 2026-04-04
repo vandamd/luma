@@ -74,8 +74,6 @@
     <string name="status_bar_battery_percentage">Показывать процент</string>
     <string name="status_bar_battery_icon">Показывать значок</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Свайп влево для всех приложений</string>
     <string name="tip_long_press">Длительное нажатие для настройки</string>

@@ -69,8 +69,6 @@
     <string name="status_bar_battery_percentage">Mostrar porcentaje</string>
     <string name="status_bar_battery_icon">Mostrar icono</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Deslice a la izquierda para todas las apps</string>
     <string name="tip_long_press">Mantenga pulsado para configuración</string>

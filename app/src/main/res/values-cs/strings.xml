@@ -71,8 +71,6 @@
     <string name="status_bar_battery_percentage">Zobrazit procenta</string>
     <string name="status_bar_battery_icon">Zobrazit ikonu</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Přejeďte doleva pro všechny aplikace</string>
     <string name="tip_long_press">Dlouze podržte pro nastavení</string>

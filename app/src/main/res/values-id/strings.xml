@@ -76,8 +76,6 @@
     <string name="status_bar_battery_percentage">Tampilkan persentase</string>
     <string name="status_bar_battery_icon">Tampilkan ikon</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Geser kiri untuk semua aplikasi</string>
     <string name="tip_long_press">Tahan lama untuk pengaturan</string>

@@ -75,8 +75,6 @@
     <string name="status_bar_battery_percentage">Rodyti procentus</string>
     <string name="status_bar_battery_icon">Rodyti piktogramą</string>
 
-    <!-- App drawer -->
-
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Braukite kairėn visoms programėlėms</string>
     <string name="tip_long_press">Ilgai paspauskite nustatymams</string>
