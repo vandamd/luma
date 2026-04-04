@@ -27,6 +27,10 @@ fun executeSecondaryAction(
             launchLightOsRoute(context, NETWORK_SHORTCUT_LIGHT_ROUTE)
         }
 
+        Action.ToggleFlashlight -> {
+            initActionService(context)?.toggleFlashlight() ?: false
+        }
+
         Action.LockScreen -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 ActionService.instance()?.lockScreen()

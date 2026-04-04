@@ -67,6 +67,7 @@
     <string name="action_disabled">Disabled</string>
     <string name="option_none">None</string>
     <string name="action_open_app_name">Open %1$s</string>
+    <string name="action_toggle_flashlight">Toggle Flashlight</string>
 
     <!-- Gestures screen -->
 <string name="gesture_swipe_left">Swipe left</string>
@@ -182,10 +183,11 @@
     <!-- Toast messages -->
     <string name="toast_app_not_found">App not found</string>
     <string name="toast_unable_to_launch_app">Unable to launch app</string>
-<string name="toast_action_requires_android_p">This action requires Android P (9) or higher</string>
+    <string name="toast_action_requires_android_p">This action requires Android P (9) or higher</string>
     <string name="toast_lock_requires_android_9">Lock screen requires Android 9 or higher</string>
     <string name="toast_volume_silent_requires_permission">Allow Do Not Disturb access to use Silent mode</string>
     <string name="toast_brightness_permission_required">Allow modify system settings to change brightness</string>
+    <string name="toast_unable_to_toggle_flashlight">Unable to toggle flashlight</string>
     <string name="toast_unable_to_fetch_release">Unable to find the latest release for %1$s</string>
     <string name="toast_unable_to_download_release">Unable to download %1$s</string>
 

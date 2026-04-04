@@ -59,6 +59,9 @@ class GestureActionFragment : Fragment() {
     private fun Screen() {
         val currentAction = selectionTarget.getAction(prefs)
         val currentLaunchTarget = if (currentAction == Action.OpenApp) selectionTarget.getApp(prefs) else null
+        val actions = availableActions()
+        val launchTargets = availableLaunchTargets()
+        val showActionsFirst = selectionTarget is KeymapSelectionTarget
 
         SettingsScreen(
             title = stringResource(selectionTarget.titleRes),
@@ -72,7 +75,17 @@ class GestureActionFragment : Fragment() {
                 )
             }
 
-            for (launchTarget in availableLaunchTargets()) {
+            if (showActionsFirst) {
+                for (action in actions) {
+                    SimpleTextButton(
+                        title = action.displayName(),
+                        underline = currentAction == action,
+                        onClick = { handleActionSelection(action) },
+                    )
+                }
+            }
+
+            for (launchTarget in launchTargets) {
                 SimpleTextButton(
                     title = stringResource(R.string.action_open_app_name, launchTarget.displayName),
                     underline = currentAction == Action.OpenApp && launchTargetKey(currentLaunchTarget) == launchTargetKey(launchTarget),
@@ -80,12 +93,14 @@ class GestureActionFragment : Fragment() {
                 )
             }
 
-            for (action in availableActions()) {
-                SimpleTextButton(
-                    title = action.displayName(),
-                    underline = currentAction == action,
-                    onClick = { handleActionSelection(action) },
-                )
+            if (!showActionsFirst) {
+                for (action in actions) {
+                    SimpleTextButton(
+                        title = action.displayName(),
+                        underline = currentAction == action,
+                        onClick = { handleActionSelection(action) },
+                    )
+                }
             }
         }
     }
@@ -143,7 +158,20 @@ class GestureActionFragment : Fragment() {
     }
 
     private fun availableActions(): Array<Action> {
-        if (selectionTarget is KeymapSelectionTarget) return emptyArray()
+        val keymapSelectionTarget = selectionTarget as? KeymapSelectionTarget
+        if (keymapSelectionTarget != null) {
+            return when (keymapSelectionTarget.keymapType) {
+                KeymapType.ScrollwheelPress,
+                KeymapType.ScrollwheelLongPress,
+                -> {
+                    arrayOf(Action.ToggleFlashlight)
+                }
+
+                else -> {
+                    emptyArray()
+                }
+            }
+        }
 
         val excludedEverywhere =
             setOf(

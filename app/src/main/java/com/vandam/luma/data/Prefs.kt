@@ -379,14 +379,18 @@ class Prefs(
     }
 
     private fun validateScrollwheelAction(action: Constants.Action): Constants.Action =
-        if (action == Constants.Action.Disabled || action == Constants.Action.OpenApp) {
+        if (
+            action == Constants.Action.Disabled ||
+            action == Constants.Action.OpenApp ||
+            action == Constants.Action.ToggleFlashlight
+        ) {
             action
         } else {
             Constants.Action.Disabled
         }
 
     fun getScrollwheelButtonPressAction(): Constants.Action =
-        validateScrollwheelAction(loadAction(SCROLLWHEEL_BUTTON_PRESS_ACTION, Constants.Action.Disabled))
+        validateScrollwheelAction(loadAction(SCROLLWHEEL_BUTTON_PRESS_ACTION, Constants.Action.ToggleFlashlight))
 
     fun setScrollwheelButtonPressAction(action: Constants.Action) {
         storeAction(SCROLLWHEEL_BUTTON_PRESS_ACTION, validateScrollwheelAction(action))
