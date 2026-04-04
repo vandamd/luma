@@ -35,7 +35,7 @@ class SettingsFragment : Fragment() {
         var isInstallingUpdate by remember { mutableStateOf(false) }
         val versionName = requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName ?: ""
         val availableUpdate by produceState<LumaUpdateManager.AvailableUpdate?>(initialValue = null) {
-            value = LumaUpdateManager.fetchAvailableUpdate()
+            value = LumaUpdateManager.fetchAvailableUpdate(context)
         }
         SettingsScreen(
             title = stringResource(R.string.settings_title, versionName),

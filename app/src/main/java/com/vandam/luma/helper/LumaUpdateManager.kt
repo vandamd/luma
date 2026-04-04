@@ -2,10 +2,12 @@ package com.vandam.luma.helper
 
 import android.content.Context
 import com.vandam.luma.BuildConfig
+import com.vandam.luma.LumaApplication
 import com.vandam.luma.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -15,35 +17,25 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object LumaUpdateManager {
-    private const val RELEASE_URL = "https://api.github.com/repos/vandamd/luma/releases/latest"
+    private const val VERSION_QUERY_PATH = "managedApps:getReleaseVersions"
     private val apkPattern = Regex(""".*\.apk$""", RegexOption.IGNORE_CASE)
     private val json = Json { ignoreUnknownKeys = true }
 
     data class AvailableUpdate(
-        val fileName: String,
         val versionName: String,
-        val downloadUrl: String,
     )
 
-    suspend fun fetchAvailableUpdate(): AvailableUpdate? =
+    suspend fun fetchAvailableUpdate(context: Context): AvailableUpdate? =
         withContext(Dispatchers.IO) {
-            val release = fetchLatestRelease() ?: return@withContext null
-            val latestVersion = normalizeVersion(release.tagName)
+            val latestVersion = fetchLatestVersion(context) ?: return@withContext null
             val currentVersion = normalizeVersion(BuildConfig.VERSION_NAME)
 
             if (latestVersion.isEmpty() || compareVersions(latestVersion, currentVersion) <= 0) {
                 return@withContext null
             }
 
-            val apkAsset =
-                release.assets.firstOrNull { asset ->
-                    apkPattern.matches(asset.name) && asset.browserDownloadUrl.isNotBlank()
-                } ?: return@withContext null
-
             AvailableUpdate(
-                fileName = apkAsset.name,
                 versionName = latestVersion,
-                downloadUrl = apkAsset.browserDownloadUrl,
             )
         }
 
@@ -58,9 +50,38 @@ object LumaUpdateManager {
             return false
         }
 
+        val release =
+            withContext(Dispatchers.IO) {
+                fetchRelease(update.versionName)
+            }
+        val normalizedReleaseVersion = normalizeVersion(release?.tagName.orEmpty())
+
+        if (release == null || normalizedReleaseVersion != update.versionName) {
+            withContext(Main) {
+                showToast(
+                    context.applicationContext,
+                    context.getString(R.string.toast_unable_to_fetch_release, context.getString(R.string.app_name)),
+                )
+            }
+            return false
+        }
+
+        val apkAsset =
+            release.assets.firstOrNull { asset ->
+                apkPattern.matches(asset.name) && asset.browserDownloadUrl.isNotBlank()
+            } ?: run {
+                withContext(Main) {
+                    showToast(
+                        context.applicationContext,
+                        context.getString(R.string.toast_unable_to_fetch_release, context.getString(R.string.app_name)),
+                    )
+                }
+                return false
+            }
+
         val apkFile =
             withContext(Dispatchers.IO) {
-                downloadReleaseApk(context, update)
+                downloadReleaseApk(context, update.versionName, apkAsset)
             }
 
         if (apkFile == null) {
@@ -80,26 +101,51 @@ object LumaUpdateManager {
         return true
     }
 
-    private fun fetchLatestRelease(): GitHubLatestReleaseResponse? {
-        val connection =
-            (URL(RELEASE_URL).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                setRequestProperty("Accept", "application/vnd.github+json")
-                setRequestProperty("User-Agent", "Luma/${BuildConfig.VERSION_NAME}")
-                connectTimeout = 15_000
-                readTimeout = 20_000
-            }
+    private suspend fun fetchLatestVersion(context: Context): String? {
+        val client =
+            (context.applicationContext as? LumaApplication)?.convexClient
+                ?: return null
 
-        return try {
-            if (connection.responseCode !in 200..299) {
-                null
-            } else {
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                json.decodeFromString<GitHubLatestReleaseResponse>(response)
+        return client
+            .subscribe<Map<String, String>>(
+                name = VERSION_QUERY_PATH,
+                args = emptyMap(),
+            ).first()
+            .getOrNull()
+            ?.get("luma")
+            ?.let(::normalizeVersion)
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun fetchRelease(versionName: String): GitHubLatestReleaseResponse? {
+        val normalizedVersion = normalizeVersion(versionName)
+        val candidateUrls =
+            listOf(
+                "https://api.github.com/repos/vandamd/luma/releases/tags/v$normalizedVersion",
+                "https://api.github.com/repos/vandamd/luma/releases/tags/$normalizedVersion",
+            )
+
+        candidateUrls.forEach { releaseUrl ->
+            val connection =
+                (URL(releaseUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/vnd.github+json")
+                    setRequestProperty("User-Agent", "Luma/${BuildConfig.VERSION_NAME}")
+                    connectTimeout = 15_000
+                    readTimeout = 20_000
+                }
+
+            try {
+                if (connection.responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    return json.decodeFromString<GitHubLatestReleaseResponse>(response)
+                }
+            } finally {
+                connection.disconnect()
             }
-        } finally {
-            connection.disconnect()
         }
+
+        return null
     }
 
     private fun normalizeVersion(versionName: String): String =
@@ -135,17 +181,18 @@ object LumaUpdateManager {
 
     private fun downloadReleaseApk(
         context: Context,
-        update: AvailableUpdate,
+        versionName: String,
+        asset: GitHubReleaseAsset,
     ): File? {
         val cacheDir = File(context.cacheDir, "luma-updates").apply { mkdirs() }
-        val destinationFile = File(cacheDir, "luma-${update.versionName}.apk")
+        val destinationFile = File(cacheDir, "luma-$versionName.apk")
         if (destinationFile.exists() && destinationFile.length() > 0) {
             return destinationFile
         }
 
-        val tempFile = File(cacheDir, update.fileName.ifBlank { "luma.download" })
+        val tempFile = File(cacheDir, asset.name.ifBlank { "luma.download" })
         val connection =
-            (URL(update.downloadUrl).openConnection() as HttpURLConnection).apply {
+            (URL(asset.browserDownloadUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/octet-stream")
                 setRequestProperty("User-Agent", "Luma/${BuildConfig.VERSION_NAME}")
