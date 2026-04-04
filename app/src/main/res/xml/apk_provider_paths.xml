@@ -3,4 +3,7 @@
     <cache-path
         name="managed_apps"
         path="managed-apps/" />
+    <cache-path
+        name="luma_updates"
+        path="luma-updates/" />
 </paths>
