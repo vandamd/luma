@@ -42,8 +42,8 @@ android {
         applicationId "com.vandam.luma"
         minSdk 31
         targetSdk 35
-        versionCode 46
-        versionName "2.0.2"
+        versionCode 47
+        versionName "2.0.3"
         buildConfigField "String", "CONVEX_URL", "\"${escapedConvexUrl}\""
     }
 
