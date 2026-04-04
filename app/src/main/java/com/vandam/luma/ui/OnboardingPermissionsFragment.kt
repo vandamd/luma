@@ -16,12 +16,13 @@ import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
+import com.vandam.luma.helper.ApkInstaller
 import com.vandam.luma.helper.isAccessibilityEnabled
 import com.vandam.luma.helper.openAccessibilitySettings
 import com.vandam.luma.ui.hasNotificationListenerPermission
 import com.vandam.luma.ui.openNotificationListenerSettings
 import com.vandam.luma.ui.compose.BottomActionText
-import com.vandam.luma.ui.compose.SettingsInsetContentPaddingNoBottom
+import com.vandam.luma.ui.compose.SettingsInsetStartContentPaddingNoBottom
 import com.vandam.luma.ui.compose.SettingsScreen
 import com.vandam.luma.ui.compose.SimpleTextButton
 
@@ -30,6 +31,7 @@ class OnboardingPermissionsFragment : Fragment() {
     private val hasNotificationPermission = mutableStateOf(false)
     private val hasPhonePermission = mutableStateOf(false)
     private val hasModifySystemSettingsPermission = mutableStateOf(false)
+    private val hasInstallAppsPermission = mutableStateOf(false)
 
     private fun goToWelcome() {
         val navController = findNavController()
@@ -56,6 +58,7 @@ class OnboardingPermissionsFragment : Fragment() {
         hasAccessibilityPermission.value = isAccessibilityEnabled(requireContext())
         hasNotificationPermission.value = hasNotificationListenerPermission()
         hasModifySystemSettingsPermission.value = hasWriteSettingsPermission()
+        hasInstallAppsPermission.value = ApkInstaller.canRequestPackageInstalls(requireContext())
         hasPhonePermission.value =
             ContextCompat.checkSelfPermission(
                 requireContext(),
@@ -75,12 +78,13 @@ class OnboardingPermissionsFragment : Fragment() {
             hasAccessibilityPermission.value &&
                 hasPhonePermission.value &&
                 hasNotificationPermission.value &&
-                hasModifySystemSettingsPermission.value
+                hasModifySystemSettingsPermission.value &&
+                hasInstallAppsPermission.value
 
         SettingsScreen(
             title = stringResource(R.string.onboarding_permissions_title),
             onBack = ::goToWelcome,
-            contentPadding = SettingsInsetContentPaddingNoBottom,
+            contentPadding = SettingsInsetStartContentPaddingNoBottom,
             footer = {
                 BottomActionText(
                     title = stringResource(R.string.onboarding_continue),
@@ -114,6 +118,12 @@ class OnboardingPermissionsFragment : Fragment() {
                 enabled = !hasModifySystemSettingsPermission.value,
             ) {
                 openWriteSettingsPermissionSettings()
+            }
+            SimpleTextButton(
+                title = stringResource(R.string.onboarding_install_apps_grant),
+                enabled = !hasInstallAppsPermission.value,
+            ) {
+                ApkInstaller.openUnknownSourcesSettings(requireContext())
             }
         }
     }

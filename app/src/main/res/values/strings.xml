@@ -157,14 +157,15 @@
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Welcome</string>
-    <string name="onboarding_welcome_message">Welcome to Luma!\n\nPlease grant the permissions on the next page. This enables Luma to show the lockscreen, present notifications, and bind keymaps.</string>
+    <string name="onboarding_welcome_message">Welcome to Luma!\n\nPlease grant the permissions on the next page. This enables Luma to show the lockscreen, present notifications, bind keymaps, and install updates.</string>
     <string name="onboarding_unsupported_device_message">Luma is only supported on the Light Phone III right now. Sorry, continue is disabled!</string>
     <string name="onboarding_permissions_title">Permissions</string>
-    <string name="onboarding_permissions_message">Please grant the permissions below. This enables Luma to show the lockscreen, present notifications, and bind keymaps.</string>
+    <string name="onboarding_permissions_message">Please grant the permissions below. This enables Luma to show the lockscreen, present notifications, bind keymaps, and install updates.</string>
     <string name="onboarding_accessibility_grant">Accessibility</string>
     <string name="onboarding_phone_grant">Phone Permission</string>
     <string name="onboarding_notifications_grant">Notifications</string>
-    <string name="onboarding_write_settings_grant">Modify System Settings</string>
+    <string name="onboarding_write_settings_grant">Write Settings</string>
+    <string name="onboarding_install_apps_grant">Install Apps</string>
     <string name="onboarding_continue">Continue</string>
 
     <!-- App picker -->
