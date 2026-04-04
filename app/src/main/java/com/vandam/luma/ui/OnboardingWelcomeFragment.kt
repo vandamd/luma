@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
+import com.vandam.luma.helper.SupportedDevice
 import com.vandam.luma.ui.compose.BottomActionText
 import com.vandam.luma.ui.compose.MessageText
 import com.vandam.luma.ui.compose.SettingsInsetContentPadding
@@ -24,18 +25,25 @@ class OnboardingWelcomeFragment : Fragment() {
 
     @Composable
     private fun Screen() {
+        val isSupportedDevice = SupportedDevice.isLightPhoneIII()
         SettingsScreen(
             title = stringResource(R.string.onboarding_welcome_title),
             scrollable = false,
             contentPadding = SettingsInsetContentPadding,
             footer = {
-                BottomActionText(title = stringResource(R.string.onboarding_continue)) {
+                BottomActionText(
+                    title = stringResource(R.string.onboarding_continue),
+                    enabled = isSupportedDevice,
+                ) {
                     Prefs.getInstance(requireContext()).onboardingStarted = true
                     findNavController().navigate(R.id.action_onboardingWelcomeFragment_to_onboardingPermissionsFragment)
                 }
             },
         ) {
             MessageText(text = stringResource(R.string.onboarding_welcome_message))
+            if (!isSupportedDevice) {
+                MessageText(text = stringResource(R.string.onboarding_unsupported_device_message))
+            }
         }
     }
 }

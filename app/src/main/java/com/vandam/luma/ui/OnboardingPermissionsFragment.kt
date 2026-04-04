@@ -92,45 +92,25 @@ class OnboardingPermissionsFragment : Fragment() {
             },
         ) {
             SimpleTextButton(
-                title =
-                    if (hasAccessibilityPermission.value) {
-                        stringResource(R.string.onboarding_accessibility_granted)
-                    } else {
-                        stringResource(R.string.onboarding_accessibility_grant)
-                    },
+                title = stringResource(R.string.onboarding_accessibility_grant),
                 enabled = !hasAccessibilityPermission.value,
             ) {
                 openAccessibilitySettings(requireContext())
             }
             SimpleTextButton(
-                title =
-                    if (hasPhonePermission.value) {
-                        stringResource(R.string.onboarding_phone_granted)
-                    } else {
-                        stringResource(R.string.onboarding_phone_grant)
-                    },
+                title = stringResource(R.string.onboarding_phone_grant),
                 enabled = !hasPhonePermission.value,
             ) {
                 phonePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
             }
             SimpleTextButton(
-                title =
-                    if (hasNotificationPermission.value) {
-                        stringResource(R.string.onboarding_notifications_granted)
-                    } else {
-                        stringResource(R.string.onboarding_notifications_grant)
-                    },
+                title = stringResource(R.string.onboarding_notifications_grant),
                 enabled = !hasNotificationPermission.value,
             ) {
                 openNotificationListenerSettings()
             }
             SimpleTextButton(
-                title =
-                    if (hasModifySystemSettingsPermission.value) {
-                        stringResource(R.string.onboarding_write_settings_granted)
-                    } else {
-                        stringResource(R.string.onboarding_write_settings_grant)
-                    },
+                title = stringResource(R.string.onboarding_write_settings_grant),
                 enabled = !hasModifySystemSettingsPermission.value,
             ) {
                 openWriteSettingsPermissionSettings()
