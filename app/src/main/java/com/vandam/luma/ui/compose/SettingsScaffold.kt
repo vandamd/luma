@@ -304,10 +304,12 @@ fun BottomActionText(
         fontSize = 40.sp,
         color = if (enabled) SettingsTheme.typography.pageButton.color else androidx.compose.ui.graphics.Color.Gray,
         modifier =
-            Modifier.noRippleClickable(enabled = enabled) {
-                performAppTapHapticFeedback(context)
-                onClick()
-            },
+            Modifier
+                .padding(top = 8.dp)
+                .noRippleClickable(enabled = enabled) {
+                    performAppTapHapticFeedback(context)
+                    onClick()
+                },
     )
 }
 

@@ -39,6 +39,7 @@ import com.vandam.luma.data.ToolSyncResult
 import com.vandam.luma.databinding.ActivityMainBinding
 import com.vandam.luma.helper.ActionExecutionCallbacks
 import com.vandam.luma.helper.ActionService
+import com.vandam.luma.helper.ApkInstaller
 import com.vandam.luma.helper.ManagedAppManager
 import com.vandam.luma.helper.executeSecondaryAction
 import com.vandam.luma.helper.hideStatusBar
@@ -239,7 +240,8 @@ class MainActivity : AppCompatActivity() {
         val graph = navController.navInflater.inflate(R.navigation.nav_graph)
         graph.setStartDestination(
             when {
-                prefs.accountNumber.isNotBlank() -> R.id.mainFragment
+                prefs.accountNumber.isNotBlank() && hasCompletedRequiredOnboardingPermissions() -> R.id.mainFragment
+                prefs.accountNumber.isNotBlank() -> R.id.onboardingPermissionsFragment
                 prefs.onboardingLoginStarted && hasCompletedRequiredOnboardingPermissions() -> R.id.loginFragment
                 prefs.onboardingStarted -> R.id.onboardingPermissionsFragment
                 else -> R.id.onboardingWelcomeFragment
@@ -259,18 +261,29 @@ class MainActivity : AppCompatActivity() {
                 .getEnabledListenerPackages(this)
                 .contains(packageName)
         val hasWriteSettingsPermission = Settings.System.canWrite(this)
+        val hasInstallAppsPermission = ApkInstaller.canRequestPackageInstalls(this)
 
         return isAccessibilityEnabled(this) &&
             hasPhonePermission &&
             hasNotificationPermission &&
-            hasWriteSettingsPermission
+            hasWriteSettingsPermission &&
+            hasInstallAppsPermission
     }
 
     private fun handleOnboardingBackFallback(destinationId: Int?) {
+        if (destinationId == R.id.onboardingPermissionsFragment && prefs.accountNumber.isNotBlank()) {
+            return
+        }
+
         val fallbackDestination =
             when (destinationId) {
                 R.id.loginFragment -> R.id.onboardingPermissionsFragment
-                R.id.onboardingPermissionsFragment -> R.id.onboardingWelcomeFragment
+                R.id.onboardingPermissionsFragment ->
+                    if (prefs.accountNumber.isNotBlank()) {
+                        R.id.mainFragment
+                    } else {
+                        R.id.onboardingWelcomeFragment
+                    }
                 else -> return
             }
 
