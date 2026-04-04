@@ -28,6 +28,7 @@
     <string name="settings_miscellaneous">General</string>
     <string name="settings_keymaps">Keymaps</string>
     <string name="settings_account">Account</string>
+    <string name="settings_update_luma">Update Luma (%1$s)</string>
     <string name="keymaps_camera_press">Camera Press</string>
     <string name="keymaps_camera_long_press">Camera Long Press</string>
     <string name="keymaps_scrollwheel_press">Scrollwheel Press</string>

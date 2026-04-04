@@ -3,9 +3,9 @@ package com.vandam.luma
 import android.app.Application
 import android.content.pm.LauncherApps
 import android.os.UserHandle
-import dev.convex.android.ConvexClient
 import com.vandam.luma.helper.HomeCleanupHelper
 import com.vandam.luma.helper.ManagedAppManager
+import dev.convex.android.ConvexClient
 
 class LumaApplication : Application() {
     @Volatile
@@ -20,6 +20,9 @@ class LumaApplication : Application() {
 
         val deploymentUrl = BuildConfig.CONVEX_URL.trim().removeSuffix("/")
         if (deploymentUrl.isBlank()) {
+            return null
+        }
+        if (!BuildConfig.DEBUG && !deploymentUrl.startsWith("https://")) {
             return null
         }
 

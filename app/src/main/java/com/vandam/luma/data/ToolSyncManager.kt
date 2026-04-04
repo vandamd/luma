@@ -2,6 +2,7 @@ package com.vandam.luma.data
 
 import android.content.Context
 import android.util.Log
+import com.vandam.luma.BuildConfig
 import com.vandam.luma.LumaApplication
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -26,10 +27,11 @@ sealed interface ToolSyncResult {
 
 object ToolSyncManager {
     private const val LOG_TAG = "ToolSync"
-    private const val QUERY_PATH = "accounts:getTools"
+    private const val LOGIN_MUTATION_PATH = "accounts:attemptDeviceLogin"
+    private const val QUERY_PATH = "accounts:getDeviceSync"
 
     @Serializable
-    private data class DashboardTools(
+    private data class DeviceSyncPayload(
         val enabledAndroidApps: List<AndroidLauncherApp> = emptyList(),
         val enabledAppIds: List<String> = emptyList(),
         val enabledToolIds: List<String> = emptyList(),
@@ -39,7 +41,40 @@ object ToolSyncManager {
     suspend fun syncAndApply(
         context: Context,
         accountNumber: String,
-    ): ToolSyncResult = observeSyncResults(context, accountNumber).first()
+    ): ToolSyncResult {
+        if (!accountNumber.matches(Regex("^\\d{16}$"))) {
+            return ToolSyncResult.InvalidAccount
+        }
+
+        val client =
+            (context.applicationContext as? LumaApplication)?.convexClient
+                ?: return ToolSyncResult.Failure("Convex URL not configured")
+
+        val installationId = Prefs.getInstance(context).installationId
+
+        return runCatching {
+            client.mutation<DeviceSyncPayload?>(
+                name = LOGIN_MUTATION_PATH,
+                args =
+                    mapOf(
+                        "accountNumber" to accountNumber,
+                        "installationId" to installationId,
+                    ),
+            )
+        }.fold(
+            onSuccess = { payload ->
+                if (payload == null) {
+                    ToolSyncResult.InvalidAccount
+                } else {
+                    applyPayload(context, payload)
+                }
+            },
+            onFailure = { error ->
+                Log.w(LOG_TAG, "Initial tool sync failed", error)
+                ToolSyncResult.Failure(error.message ?: "Unable to sync tools")
+            },
+        )
+    }
 
     fun observeSyncResults(
         context: Context,
@@ -54,35 +89,16 @@ object ToolSyncManager {
                 ?: return flowOf(ToolSyncResult.Failure("Convex URL not configured"))
 
         return client
-            .subscribe<DashboardTools?>(
+            .subscribe<DeviceSyncPayload?>(
                 name = QUERY_PATH,
                 args = mapOf("accountNumber" to accountNumber),
             ).map { result ->
                 result.fold(
                     onSuccess = { payload ->
                         if (payload == null) {
-                            Log.w(LOG_TAG, "Convex returned no account for $accountNumber")
                             ToolSyncResult.InvalidAccount
                         } else {
-                            runCatching {
-                                val toolIds = normalizeToolIds(payload.enabledToolIds)
-                                val appIds = ManagedAppCatalog.normalizeIds(payload.enabledAppIds)
-                                val androidApps = normalizeAndroidApps(payload.enabledAndroidApps)
-                                applyHomeLayout(context, toolIds, appIds, androidApps)
-                                Log.d(
-                                    LOG_TAG,
-                                    "Applied tool sync tools=${toolIds.joinToString()} apps=${appIds.joinToString()} android=${androidApps.joinToString { it.key }}",
-                                )
-                                ToolSyncResult.Success(
-                                    enabledToolIds = toolIds,
-                                    enabledAppIds = appIds,
-                                    enabledAndroidApps = androidApps,
-                                    requestedAppUpdateVersions = payload.requestedAppUpdateVersions,
-                                )
-                            }.getOrElse { error ->
-                                Log.w(LOG_TAG, "Failed to apply tool layout", error)
-                                ToolSyncResult.Failure(error.message ?: "Unable to apply tools")
-                            }
+                            applyPayload(context, payload)
                         }
                     },
                     onFailure = { error ->
@@ -91,6 +107,33 @@ object ToolSyncManager {
                     },
                 )
             }
+    }
+
+    private fun applyPayload(
+        context: Context,
+        payload: DeviceSyncPayload,
+    ): ToolSyncResult =
+        runCatching {
+            val toolIds = normalizeToolIds(payload.enabledToolIds)
+            val appIds = ManagedAppCatalog.normalizeIds(payload.enabledAppIds)
+            val androidApps = normalizeAndroidApps(payload.enabledAndroidApps)
+            applyHomeLayout(context, toolIds, appIds, androidApps)
+            debugLog("Applied tool sync payload")
+            ToolSyncResult.Success(
+                enabledToolIds = toolIds,
+                enabledAppIds = appIds,
+                enabledAndroidApps = androidApps,
+                requestedAppUpdateVersions = payload.requestedAppUpdateVersions,
+            )
+        }.getOrElse { error ->
+            Log.w(LOG_TAG, "Failed to apply tool layout", error)
+            ToolSyncResult.Failure(error.message ?: "Unable to apply tools")
+        }
+
+    private fun debugLog(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d(LOG_TAG, message)
+        }
     }
 
     private fun normalizeToolIds(enabledToolIds: List<String>): List<String> {

@@ -339,7 +339,9 @@ class MainActivity : AppCompatActivity() {
     private fun startToolSyncSubscription() {
         val accountNumber = prefs.accountNumber
         if (accountNumber.isBlank()) {
-            Log.d(LOG_TAG, "Skipping tool sync subscription because account number is blank")
+            if (BuildConfig.DEBUG) {
+                Log.d(LOG_TAG, "Skipping tool sync subscription because account is blank")
+            }
             return
         }
 
@@ -353,7 +355,9 @@ class MainActivity : AppCompatActivity() {
         toolSyncWebSocketJob?.cancel()
         toolSyncReconnectWatchdogJob?.cancel()
         subscribedAccountNumber = accountNumber
-        Log.d(LOG_TAG, "Starting tool sync subscription for account ending ${accountNumber.takeLast(4)}")
+        if (BuildConfig.DEBUG) {
+            Log.d(LOG_TAG, "Starting tool sync subscription")
+        }
         toolSyncJob =
             lifecycleScope.launch {
                 ToolSyncManager
@@ -373,7 +377,9 @@ class MainActivity : AppCompatActivity() {
                         .getOrCreateConvexClient()
                         ?.webSocketStateFlow
                         ?.collectLatest { state ->
-                            Log.d(LOG_TAG, "Convex websocket state=$state")
+                            if (BuildConfig.DEBUG) {
+                                Log.d(LOG_TAG, "Convex websocket state=$state")
+                            }
 
                             when (state) {
                                 WebSocketState.CONNECTED -> {
@@ -441,7 +447,7 @@ class MainActivity : AppCompatActivity() {
 
                 Log.d(
                     LOG_TAG,
-                    "Tool sync result from $source changedTools=$toolsChanged changedApps=$appsChanged changedAndroidApps=$androidAppsChanged changedRequestedUpdates=$requestedAppUpdatesChanged tools=${result.enabledToolIds.joinToString()} apps=${result.enabledAppIds.joinToString()} android=${result.enabledAndroidApps.joinToString { it.key }} requestedUpdates=${result.requestedAppUpdateVersions}",
+                    "Tool sync result from $source changedTools=$toolsChanged changedApps=$appsChanged changedAndroidApps=$androidAppsChanged changedRequestedUpdates=$requestedAppUpdatesChanged",
                 )
 
                 if (toolsChanged || appsChanged || androidAppsChanged || requestedAppUpdatesChanged) {
@@ -465,7 +471,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             is ToolSyncResult.Failure -> {
-                Log.w(LOG_TAG, "Tool sync failed from $source: ${result.message}")
+                Log.w(LOG_TAG, "Tool sync failed from $source")
             }
         }
     }

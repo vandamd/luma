@@ -1,15 +1,11 @@
 package com.vandam.luma.helper
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.util.Log
-import androidx.core.content.FileProvider
 import com.vandam.luma.BuildConfig
 import com.vandam.luma.LumaApplication
 import com.vandam.luma.R
@@ -141,11 +137,13 @@ object ManagedAppManager {
 
                 runCatching {
                     withContext(Dispatchers.IO) {
-                        client.mutation<UpdatedAtResponse>(
+                        val prefs = Prefs.getInstance(appContext)
+                        client.mutation<Unit?>(
                             name = SYNC_INSTALLED_APPS_MUTATION,
                             args =
                                 mapOf(
                                     "accountNumber" to accountNumber,
+                                    "installationId" to prefs.installationId,
                                     "installedManagedApps" to
                                         installedManagedApps.map { app ->
                                             mapOf(
@@ -206,7 +204,7 @@ object ManagedAppManager {
             currentAction is PendingAction.InstallOrUpdate && awaitingExternalResult -> {
                 if (currentAction.installerLaunched) {
                     clearActiveAction()
-                } else if (canRequestPackageInstalls(context)) {
+                } else if (ApkInstaller.canRequestPackageInstalls(context)) {
                     awaitingExternalResult = false
                 } else {
                     return
@@ -236,7 +234,7 @@ object ManagedAppManager {
             awaitingExternalResult &&
             !currentAction.installerLaunched
         ) {
-            openUnknownSourcesSettings(context)
+            ApkInstaller.openUnknownSourcesSettings(context)
             return true
         }
 
@@ -307,11 +305,11 @@ object ManagedAppManager {
             return
         }
 
-        if (!canRequestPackageInstalls(context)) {
+        if (!ApkInstaller.canRequestPackageInstalls(context)) {
             updateActiveAction(action.copy(installerLaunched = false, expectedVersion = null))
             awaitingExternalResult = true
             withContext(Dispatchers.Main.immediate) {
-                openUnknownSourcesSettings(context)
+                ApkInstaller.openUnknownSourcesSettings(context)
             }
             processingJob = null
             return
@@ -363,7 +361,7 @@ object ManagedAppManager {
         )
         awaitingExternalResult = true
         withContext(Dispatchers.Main.immediate) {
-            openInstallPrompt(context, apkFile)
+            ApkInstaller.openInstallPrompt(context, apkFile)
         }
         processingJob = null
     }
@@ -442,13 +440,6 @@ object ManagedAppManager {
         }
     }
 
-    private fun canRequestPackageInstalls(context: Context): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.packageManager.canRequestPackageInstalls()
-        } else {
-            true
-        }
-
     private fun getInstalledAndroidApps(context: Context): List<AndroidLauncherApp> {
         val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
         val appsByKey = linkedMapOf<String, AndroidLauncherApp>()
@@ -507,35 +498,6 @@ object ManagedAppManager {
                 )
             }
         }
-
-    private fun openUnknownSourcesSettings(context: Context) {
-        val intent =
-            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:${context.packageName}")
-                if (context !is Activity) {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            }
-        context.startActivity(intent)
-    }
-
-    private fun openInstallPrompt(
-        context: Context,
-        apkFile: File,
-    ) {
-        val authority = "${BuildConfig.APPLICATION_ID}.fileprovider"
-        val uri = FileProvider.getUriForFile(context, authority, apkFile)
-        val intent =
-            Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                if (context !is Activity) {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            }
-        context.startActivity(intent)
-    }
 
     private fun isPackageInstalled(
         context: Context,
@@ -715,10 +677,5 @@ object ManagedAppManager {
         val versionName: String,
         val downloadUrl: String,
         val fileName: String,
-    )
-
-    @Serializable
-    private data class UpdatedAtResponse(
-        val updatedAt: Double,
     )
 }

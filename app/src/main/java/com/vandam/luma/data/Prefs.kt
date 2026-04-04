@@ -12,7 +12,7 @@ private const val PREFS_FILENAME = "com.vandam.luma"
 
 private const val FIRST_SETTINGS_OPEN = "FIRST_SETTINGS_OPEN"
 private const val FIRST_RUN_DEFAULTS = "FIRST_RUN_DEFAULTS"
-private const val ACCOUNT_NUMBER = "ACCOUNT_NUMBER"
+private const val LEGACY_ACCOUNT_NUMBER = "ACCOUNT_NUMBER"
 private const val ONBOARDING_STARTED = "ONBOARDING_STARTED"
 private const val ONBOARDING_LOGIN_STARTED = "ONBOARDING_LOGIN_STARTED"
 private const val ENABLED_MANAGED_APP_IDS = "ENABLED_MANAGED_APP_IDS"
@@ -103,6 +103,7 @@ class Prefs(
             instance ?: synchronized(this) {
                 instance ?: Prefs(context.applicationContext).also {
                     instance = it
+                    it.clearLegacySensitivePrefs()
                     it.initDefaults()
                 }
             }
@@ -123,6 +124,7 @@ class Prefs(
     enum class LockscreenShortcutIcon { Ring, Star, Camera, Phone, Heart, Flashlight, Music, Message }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_FILENAME, 0)
+    private val secureSessionStore = SecureSessionStore.getInstance(context)
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
 
     private inline fun <reified T : Enum<T>> enumPref(
@@ -140,11 +142,13 @@ class Prefs(
     fun firstSettingsOpen(): Boolean = firstTrueFalseAfter(FIRST_SETTINGS_OPEN)
 
     var accountNumber: String
-        get() = prefs.getString(ACCOUNT_NUMBER, "") ?: ""
+        get() = secureSessionStore.accountNumber
         set(value) {
-            val sanitized = value.filter(Char::isDigit).take(16)
-            prefs.edit().putString(ACCOUNT_NUMBER, sanitized).apply()
+            secureSessionStore.accountNumber = value
         }
+
+    val installationId: String
+        get() = secureSessionStore.installationId
 
     var onboardingStarted: Boolean
         get() = prefs.getBoolean(ONBOARDING_STARTED, false)
@@ -730,6 +734,14 @@ class Prefs(
             prefs.edit().putBoolean(key, false).apply()
         }
         return first
+    }
+
+    private fun clearLegacySensitivePrefs() {
+        if (!prefs.contains(LEGACY_ACCOUNT_NUMBER)) {
+            return
+        }
+
+        prefs.edit().remove(LEGACY_ACCOUNT_NUMBER).apply()
     }
 
     private fun initDefaults() {
