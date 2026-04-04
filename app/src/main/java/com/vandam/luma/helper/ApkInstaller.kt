@@ -1,14 +1,15 @@
 package com.vandam.luma.helper
 
 import android.app.Activity
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.core.content.FileProvider
-import com.vandam.luma.BuildConfig
 import java.io.File
+import java.io.FileInputStream
 
 object ApkInstaller {
     fun canRequestPackageInstalls(context: Context): Boolean =
@@ -32,18 +33,53 @@ object ApkInstaller {
     fun openInstallPrompt(
         context: Context,
         apkFile: File,
+        packageName: String,
+        appLabel: String,
     ) {
-        val authority = "${BuildConfig.APPLICATION_ID}.fileprovider"
-        val uri = FileProvider.getUriForFile(context, authority, apkFile)
-        val intent =
-            Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                if (context !is Activity) {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val packageInstaller = context.packageManager.packageInstaller
+        val sessionParams =
+            PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(packageName)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
                 }
             }
-        context.startActivity(intent)
+
+        val sessionId = packageInstaller.createSession(sessionParams)
+        try {
+            packageInstaller.openSession(sessionId).use { session ->
+                FileInputStream(apkFile).use { input ->
+                    session.openWrite("base.apk", 0, apkFile.length()).use { output ->
+                        input.copyTo(output)
+                        session.fsync(output)
+                    }
+                }
+
+                val statusIntent =
+                    Intent(context, PackageInstallStatusReceiver::class.java).apply {
+                        action = PackageInstallStatusReceiver.ACTION_INSTALL_STATUS
+                        putExtra(PackageInstallStatusReceiver.EXTRA_APP_LABEL, appLabel)
+                        putExtra(PackageInstallStatusReceiver.EXTRA_PACKAGE_NAME, packageName)
+                    }
+                val pendingIntent =
+                    PendingIntent.getBroadcast(
+                        context,
+                        sessionId,
+                        statusIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+                    )
+
+                session.commit(pendingIntent.intentSender)
+            }
+        } catch (exception: Exception) {
+            packageInstaller.abandonSession(sessionId)
+            showToast(
+                context,
+                context.getString(
+                    com.vandam.luma.R.string.toast_unable_to_install_release,
+                    appLabel,
+                ),
+            )
+        }
     }
 }

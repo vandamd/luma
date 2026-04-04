@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <cache-path
-        name="managed_apps"
-        path="managed-apps/" />
-    <cache-path
-        name="luma_updates"
-        path="luma-updates/" />
-</paths>

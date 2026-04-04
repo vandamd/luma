@@ -101,7 +101,12 @@ object LumaUpdateManager {
         }
 
         withContext(Main) {
-            ApkInstaller.openInstallPrompt(context, apkFile)
+            ApkInstaller.openInstallPrompt(
+                context = context,
+                apkFile = apkFile,
+                packageName = context.packageName,
+                appLabel = context.getString(R.string.app_name),
+            )
         }
 
         return true

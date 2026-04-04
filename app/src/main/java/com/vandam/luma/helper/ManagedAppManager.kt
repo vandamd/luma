@@ -361,7 +361,12 @@ object ManagedAppManager {
         )
         awaitingExternalResult = true
         withContext(Dispatchers.Main.immediate) {
-            ApkInstaller.openInstallPrompt(context, apkFile)
+            ApkInstaller.openInstallPrompt(
+                context = context,
+                apkFile = apkFile,
+                packageName = managedApp.packageName,
+                appLabel = managedApp.label,
+            )
         }
         processingJob = null
     }

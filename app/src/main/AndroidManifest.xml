@@ -80,15 +80,9 @@
             </intent-filter>
         </service>
 
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/apk_provider_paths" />
-        </provider>
+        <receiver
+            android:name="com.vandam.luma.helper.PackageInstallStatusReceiver"
+            android:exported="false" />
 
     </application>
 

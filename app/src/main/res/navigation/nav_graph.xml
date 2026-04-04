@@ -103,6 +103,15 @@
             app:destination="@id/accountFragment" />
     </fragment>
     <fragment
+        android:id="@+id/lumaUpdateFragment"
+        android:name="com.vandam.luma.ui.LumaUpdateFragment"
+        android:label="LumaUpdateFragment">
+        <argument
+            android:name="versionName"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+    <fragment
         android:id="@+id/accountFragment"
         android:name="com.vandam.luma.ui.AccountFragment"
         android:label="AccountFragment" />
