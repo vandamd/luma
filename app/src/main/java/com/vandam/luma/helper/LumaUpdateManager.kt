@@ -19,10 +19,16 @@ import java.net.URL
 object LumaUpdateManager {
     private const val VERSION_QUERY_PATH = "managedApps:getReleaseVersions"
     private val apkPattern = Regex(""".*\.apk$""", RegexOption.IGNORE_CASE)
+    private val versionSeparatorPattern = Regex("[._-]")
     private val json = Json { ignoreUnknownKeys = true }
 
     data class AvailableUpdate(
         val versionName: String,
+    )
+
+    private data class ParsedVersion(
+        val core: List<Int>,
+        val prerelease: List<String>,
     )
 
     suspend fun fetchAvailableUpdate(context: Context): AvailableUpdate? =
@@ -155,19 +161,44 @@ object LumaUpdateManager {
         left: String,
         right: String,
     ): Int {
-        val leftParts = left.split('.', '-', '_')
-        val rightParts = right.split('.', '-', '_')
-        val maxSize = maxOf(leftParts.size, rightParts.size)
+        val leftVersion = parseVersion(left)
+        val rightVersion = parseVersion(right)
+        val coreSize = maxOf(leftVersion.core.size, rightVersion.core.size)
 
-        for (index in 0 until maxSize) {
-            val leftPart = leftParts.getOrNull(index).orEmpty()
-            val rightPart = rightParts.getOrNull(index).orEmpty()
+        for (index in 0 until coreSize) {
+            val comparison =
+                leftVersion.core.getOrElse(index) { 0 }.compareTo(
+                    rightVersion.core.getOrElse(index) { 0 },
+                )
+            if (comparison != 0) {
+                return comparison
+            }
+        }
+
+        if (leftVersion.prerelease.isEmpty() && rightVersion.prerelease.isEmpty()) {
+            return 0
+        }
+
+        if (leftVersion.prerelease.isEmpty()) {
+            return 1
+        }
+
+        if (rightVersion.prerelease.isEmpty()) {
+            return -1
+        }
+
+        val prereleaseSize = maxOf(leftVersion.prerelease.size, rightVersion.prerelease.size)
+        for (index in 0 until prereleaseSize) {
+            val leftPart = leftVersion.prerelease.getOrNull(index) ?: return -1
+            val rightPart = rightVersion.prerelease.getOrNull(index) ?: return 1
             val leftNumber = leftPart.toIntOrNull()
             val rightNumber = rightPart.toIntOrNull()
 
             val comparison =
                 when {
                     leftNumber != null && rightNumber != null -> leftNumber.compareTo(rightNumber)
+                    leftNumber != null -> -1
+                    rightNumber != null -> 1
                     else -> leftPart.compareTo(rightPart)
                 }
 
@@ -177,6 +208,30 @@ object LumaUpdateManager {
         }
 
         return 0
+    }
+
+    private fun parseVersion(versionName: String): ParsedVersion {
+        val tokens =
+            versionSeparatorPattern
+                .split(normalizeVersion(versionName))
+                .filter { it.isNotBlank() }
+
+        val core = mutableListOf<Int>()
+        var prereleaseStart = tokens.size
+
+        tokens.forEachIndexed { index, token ->
+            val number = token.toIntOrNull()
+            if (prereleaseStart == tokens.size && number != null) {
+                core += number
+            } else if (prereleaseStart == tokens.size) {
+                prereleaseStart = index
+            }
+        }
+
+        return ParsedVersion(
+            core = core,
+            prerelease = tokens.drop(prereleaseStart),
+        )
     }
 
     private fun downloadReleaseApk(
