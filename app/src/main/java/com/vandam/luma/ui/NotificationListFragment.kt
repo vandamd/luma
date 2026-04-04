@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,9 +47,10 @@ import com.vandam.luma.helper.ActionService
 import com.vandam.luma.helper.LumaNotificationListener
 import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.style.SettingsTheme
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.MessageText
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
+import com.vandam.luma.ui.compose.MessageText
+import com.vandam.luma.ui.compose.SettingsBodyState
+import com.vandam.luma.ui.compose.SettingsCompactListSpacing
+import com.vandam.luma.ui.compose.SettingsStateScreen
 import com.vandam.luma.ui.noRippleClickable
 
 private data class NotificationItem(
@@ -146,79 +146,71 @@ class NotificationListFragment : Fragment() {
             notifications.addAll(fresh)
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            SettingsHeader(
-                title = stringResource(R.string.notification_list_title),
-                onBack = ::goBack,
-            )
-            if (!hasPermission.value) {
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .noRippleClickable { openNotificationListenerSettings() },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    MessageText(stringResource(R.string.notification_list_no_permission))
-                }
-            } else if (notifications.isEmpty()) {
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    MessageText(stringResource(R.string.notification_list_empty))
-                }
-            } else {
-                ContentContainer(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        notifications.forEach { item ->
-                            NotificationRow(
-                                item = item,
-                                onTap = {
-                                    val opened =
-                                        try {
-                                            if (item.contentIntent != null) {
-                                                val opts = ActivityOptions.makeBasic()
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                                    opts.setPendingIntentBackgroundActivityStartMode(
-                                                        ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
-                                                    )
-                                                }
-                                                item.contentIntent.send(
-                                                    context,
-                                                    0,
-                                                    null,
-                                                    null,
-                                                    null,
-                                                    null,
-                                                    opts.toBundle(),
-                                                )
-                                                true
-                                            } else {
-                                                false
-                                            }
-                                        } catch (_: PendingIntent.CanceledException) {
-                                            false
-                                        }
-                                    if (!opened) {
-                                        val launchIntent = context.packageManager.getLaunchIntentForPackage(item.packageName)
-                                        launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        launchIntent?.let { context.startActivity(it) }
+        val bodyState =
+            when {
+                !hasPermission.value ->
+                    SettingsBodyState.CenteredMessage(
+                        text = stringResource(R.string.notification_list_no_permission),
+                        onClick = ::openNotificationListenerSettings,
+                    )
+
+                notifications.isEmpty() ->
+                    SettingsBodyState.CenteredMessage(
+                        text = stringResource(R.string.notification_list_empty),
+                    )
+
+                else -> SettingsBodyState.Content
+            }
+
+        SettingsStateScreen(
+            title = stringResource(R.string.notification_list_title),
+            bodyState = bodyState,
+            onBack = ::goBack,
+            verticalArrangement = Arrangement.spacedBy(SettingsCompactListSpacing),
+        ) {
+            notifications.forEach { item ->
+                NotificationRow(
+                    item = item,
+                    onTap = {
+                        val opened =
+                            try {
+                                if (item.contentIntent != null) {
+                                    val opts = ActivityOptions.makeBasic()
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                        opts.setPendingIntentBackgroundActivityStartMode(
+                                            ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
+                                        )
                                     }
-                                },
-                                onDismiss = {
-                                    if (item.key.isNotEmpty()) {
-                                        LumaNotificationListener.dismissNotification(item.key)
-                                    }
-                                    dismissedKeys.add(item.key)
-                                    notifications.remove(item)
-                                },
-                            )
+                                    item.contentIntent.send(
+                                        context,
+                                        0,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        opts.toBundle(),
+                                    )
+                                    true
+                                } else {
+                                    false
+                                }
+                            } catch (_: PendingIntent.CanceledException) {
+                                false
+                            }
+                        if (!opened) {
+                            val launchIntent = context.packageManager.getLaunchIntentForPackage(item.packageName)
+                            launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            launchIntent?.let { context.startActivity(it) }
                         }
-                }
+                    },
+                    onDismiss = {
+                        if (item.key.isNotEmpty()) {
+                            LumaNotificationListener.dismissNotification(item.key)
+                        }
+                        dismissedKeys.add(item.key)
+                        notifications.remove(item)
+                    },
+                )
             }
         }
     }

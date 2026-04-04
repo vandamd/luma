@@ -10,7 +10,6 @@
     <string name="settings_invert_colours">Invert Colours</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_show_tool_icons">Tool Icon</string>
-    <string name="settings_show_pin_icons">Pin Icon</string>
     <string name="settings_show_volume_indicator">Volume Indicator</string>
     <string name="settings_tools">Tools</string>
     <string name="tools_message">For some tools to work properly, they should be enabled on the Light Dashboard.</string>
@@ -32,7 +31,6 @@
     <string name="settings_miscellaneous">General</string>
     <string name="settings_keymaps">Keymaps</string>
     <string name="settings_account">Account</string>
-    <string name="settings_hidden_apps">Hidden Apps</string>
     <string name="keymaps_camera_press">Camera Press</string>
     <string name="keymaps_camera_long_press">Camera Long Press</string>
     <string name="keymaps_scrollwheel_press">Scrollwheel Press</string>
@@ -67,7 +65,7 @@
     <string name="action_network_shortcut_light">Network Shortcut</string>
     <string name="action_lock_screen">Lock Screen</string>
     <string name="action_show_notifications">Notifications (Android)</string>
-    <string name="action_show_app_list">App List</string>
+    <string name="action_show_app_picker">Apps</string>
     <string name="action_quick_settings">Quick Settings (Android)</string>
     <string name="action_show_recents">Recent Apps (Android)</string>
     <string name="action_show_notification_list">Notifications</string>
@@ -190,30 +188,9 @@
     <string name="onboarding_write_settings_granted">Modify System Settings Enabled</string>
     <string name="onboarding_continue">Continue</string>
 
-    <!-- App drawer -->
-    <string name="app_drawer_title">App Drawer</string>
-    <string name="app_drawer_tools">Tools</string>
-    <string name="app_drawer_select_rename">Select App</string>
-    <string name="app_drawer_hidden_apps">Hidden Apps</string>
-    <string name="app_drawer_no_apps">No apps found</string>
-    <string name="app_drawer_rename">Rename</string>
-    <string name="app_drawer_reset">Reset</string>
-    <string name="app_drawer_cancel">Cancel</string>
-
-    <!-- App actions -->
-    <string name="app_actions_show">Show</string>
-    <string name="app_actions_hide">Hide</string>
-    <string name="app_actions_rename">Rename</string>
-    <string name="app_actions_pin">Pin</string>
-    <string name="app_actions_unpin">Unpin</string>
-    <string name="app_actions_replace">Replace</string>
-    <string name="app_actions_move_up">Move Up</string>
-    <string name="app_actions_move_down">Move Down</string>
-    <string name="app_actions_app_info">App Info</string>
-    <string name="app_actions_uninstall">Uninstall</string>
-    <string name="app_actions_confirm_title">Remove Shortcut</string>
-    <string name="app_actions_uninstall_title">Uninstall App</string>
-    <string name="app_actions_confirm_message">Are you sure you want to remove %1$s?</string>
+    <!-- App picker -->
+    <string name="app_picker_title">Apps</string>
+    <string name="app_picker_no_apps">No apps found</string>
 
     <!-- Home screen tips -->
     <string name="tip_swipe_left">Swipe for more tools</string>
@@ -228,12 +205,10 @@
     <string name="toast_unable_to_launch_app">Unable to launch app</string>
     <string name="toast_unable_to_launch_shortcut">Unable to launch shortcut</string>
     <string name="toast_shortcuts_require_android">Shortcuts require Android 7.1+</string>
-    <string name="toast_unable_to_open_app_info">Unable to open app info</string>
-    <string name="toast_action_requires_android_p">This action requires Android P (9) or higher</string>
+<string name="toast_action_requires_android_p">This action requires Android P (9) or higher</string>
     <string name="toast_lock_requires_android_9">Lock screen requires Android 9 or higher</string>
-    <string name="toast_long_press_to_select">Long press to select app</string>
     <string name="toast_unable_to_add_shortcut">Unable to add shortcut</string>
-    <string name="toast_added_to_app_drawer">Added to app drawer</string>
+    <string name="toast_added_to_app_picker">Added to app list</string>
     <string name="toast_volume_silent_requires_permission">Allow Do Not Disturb access to use Silent mode</string>
     <string name="toast_brightness_permission_required">Allow modify system settings to change brightness</string>
     <string name="toast_unable_to_toggle_flashlight">Unable to toggle flashlight</string>
@@ -249,10 +224,6 @@
     <string name="content_desc_back">Back</string>
     <string name="content_desc_save">Save</string>
     <string name="content_desc_clear">Clear</string>
-    <string name="content_desc_hide">Hide</string>
     <string name="content_desc_show_on_home">Show on home</string>
     <string name="content_desc_hide_from_home">Hide from home</string>
-    <string name="content_desc_show_hidden_apps">Show hidden apps</string>
-    <string name="content_desc_hide_hidden_apps">Hide hidden apps</string>
-    <string name="content_desc_app_info">App info</string>
 </resources>

@@ -4,20 +4,17 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
-import com.vandam.luma.data.Constants
 import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SelectorButton
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
+import com.vandam.luma.ui.compose.SelectorButton
+import com.vandam.luma.ui.compose.SettingsScreen
 
 class GesturesFragment : Fragment() {
     private lateinit var prefs: Prefs
@@ -41,24 +38,20 @@ class GesturesFragment : Fragment() {
 
     @Composable
     fun GesturesScreen() {
-        Column {
-            SettingsHeader(
-                title =
-                    if (gestureScope == GestureScope.Homescreen) {
-                        stringResource(R.string.settings_shortcuts)
-                    } else {
-                        stringResource(R.string.settings_gestures)
-                    },
-                onBack = ::goBack,
-            )
-
-            ContentContainer {
-                    GestureButton(stringResource(R.string.gesture_swipe_left), GestureType.SWIPE_LEFT)
-                    GestureButton(stringResource(R.string.gesture_swipe_right), GestureType.SWIPE_RIGHT)
-                    GestureButton(stringResource(R.string.gesture_swipe_down), GestureType.SWIPE_DOWN)
-                    GestureButton(stringResource(R.string.gesture_swipe_up), GestureType.SWIPE_UP)
-                    GestureButton(stringResource(R.string.gesture_double_tap), GestureType.DOUBLE_TAP)
-            }
+        SettingsScreen(
+            title =
+                if (gestureScope == GestureScope.Homescreen) {
+                    stringResource(R.string.settings_shortcuts)
+                } else {
+                    stringResource(R.string.settings_gestures)
+                },
+            onBack = ::goBack,
+        ) {
+            GestureButton(stringResource(R.string.gesture_swipe_left), GestureType.SWIPE_LEFT)
+            GestureButton(stringResource(R.string.gesture_swipe_right), GestureType.SWIPE_RIGHT)
+            GestureButton(stringResource(R.string.gesture_swipe_down), GestureType.SWIPE_DOWN)
+            GestureButton(stringResource(R.string.gesture_swipe_up), GestureType.SWIPE_UP)
+            GestureButton(stringResource(R.string.gesture_double_tap), GestureType.DOUBLE_TAP)
         }
     }
 
@@ -68,28 +61,9 @@ class GesturesFragment : Fragment() {
         type: GestureType,
     ) {
         val action = prefs.getGestureAction(type, gestureScope)
-        val value =
-            when (action) {
-                Constants.Action.OpenApp -> {
-                    val appLabel = prefs.getGestureApp(type, gestureScope).displayName
-                    if (appLabel.isNotEmpty()) {
-                        stringResource(R.string.action_open_app_name, appLabel)
-                    } else {
-                        stringResource(R.string.action_open_app)
-                    }
-                }
-
-                Constants.Action.Disabled -> {
-                    stringResource(R.string.action_disabled)
-                }
-
-                else -> {
-                    action.displayName()
-                }
-            }
         SelectorButton(
             label = label,
-            value = value,
+            value = actionDisplayValue(action, prefs.getGestureApp(type, gestureScope).displayName),
             onClick = {
                 findNavController().navigate(
                     R.id.gestureActionFragment,

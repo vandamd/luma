@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.core.os.bundleOf
@@ -14,11 +12,9 @@ import androidx.navigation.fragment.findNavController
 import com.vandam.luma.MainActivity
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SelectorButton
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
-import com.vandam.luma.ui.compose.SettingsComposable.SimpleTextButton
-import com.vandam.luma.ui.compose.SettingsItemSpacing
+import com.vandam.luma.ui.compose.SelectorButton
+import com.vandam.luma.ui.compose.SettingsScreen
+import com.vandam.luma.ui.compose.SimpleTextButton
 
 class AccountFragment : Fragment() {
     private val prefs: Prefs by lazy { Prefs.getInstance(requireContext()) }
@@ -58,32 +54,26 @@ class AccountFragment : Fragment() {
 
     @Composable
     private fun Screen() {
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.account_title),
-                onBack = ::goBack,
+        SettingsScreen(
+            title = stringResource(R.string.account_title),
+            onBack = ::goBack,
+        ) {
+            SelectorButton(
+                label = stringResource(R.string.account_number_label),
+                value = formatAccountNumber(prefs.accountNumber),
+                enabled = false,
+                onClick = {},
             )
-
-            ContentContainer {
-                Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
-                    SelectorButton(
-                        label = stringResource(R.string.account_number_label),
-                        value = formatAccountNumber(prefs.accountNumber),
-                        enabled = false,
-                        onClick = {},
-                    )
-                    SimpleTextButton(stringResource(R.string.account_log_out)) {
-                        findNavController().navigate(
-                            R.id.confirmFragment,
-                            bundleOf(
-                                "title" to getString(R.string.account_log_out_confirm_title),
-                                "message" to getString(R.string.account_log_out_confirm_message),
-                                "confirmText" to getString(R.string.account_log_out),
-                                "action" to "logout",
-                            ),
-                        )
-                    }
-                }
+            SimpleTextButton(stringResource(R.string.account_log_out)) {
+                findNavController().navigate(
+                    R.id.confirmFragment,
+                    bundleOf(
+                        "title" to getString(R.string.account_log_out_confirm_title),
+                        "message" to getString(R.string.account_log_out_confirm_message),
+                        "confirmText" to getString(R.string.account_log_out),
+                        "action" to "logout",
+                    ),
+                )
             }
         }
     }

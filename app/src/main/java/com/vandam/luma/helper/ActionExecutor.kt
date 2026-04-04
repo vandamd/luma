@@ -10,7 +10,7 @@ import com.vandam.luma.data.Constants.Action
 private const val NETWORK_SHORTCUT_LIGHT_ROUTE = "networksettings"
 
 data class ActionExecutionCallbacks(
-    val showAppList: () -> Unit = {},
+    val showAppPicker: () -> Unit = {},
     val showNotificationList: () -> Unit = {},
 )
 
@@ -43,7 +43,10 @@ fun executeSecondaryAction(
             true
         }
 
-        Action.ShowAppList -> false
+        Action.ShowAppPicker -> {
+            callbacks.showAppPicker()
+            true
+        }
 
         Action.OpenQuickSettings -> {
             expandQuickSettings(context)

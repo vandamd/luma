@@ -27,7 +27,7 @@
 
         <TextView
             android:id="@+id/listEmptyHint"
-            android:text="@string/app_drawer_no_apps"
+            android:text="@string/app_picker_no_apps"
             android:textSize="20sp"
             android:textColor="?attr/primaryColor"
             android:layout_gravity="center"

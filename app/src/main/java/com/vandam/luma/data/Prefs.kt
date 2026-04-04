@@ -22,12 +22,9 @@ private const val HIDDEN_HOME_ITEM_KEYS = "HIDDEN_HOME_ITEM_KEYS"
 private const val HOME_PAGES = "HOME_PAGES"
 private const val HOME_APPS_PER_PAGE = "HOME_APPS_PER_PAGE_"
 
-private const val HIDDEN_APPS = "HIDDEN_APPS"
-private const val HIDDEN_SHORTCUT_IDS = "HIDDEN_SHORTCUT_IDS"
 private const val INVERT_COLOURS = "INVERT_COLOURS"
 private const val THEME_MODE = "theme_mode"
 private const val PINNED_SHORTCUTS = "PINNED_SHORTCUTS"
-private const val PINNED_APPS = "PINNED_APPS"
 
 data class ShortcutEntry(
     val packageName: String,
@@ -50,15 +47,8 @@ data class ShortcutEntry(
     }
 }
 
-data class PinnedAppEntry(
-    val packageName: String,
-    val activityName: String,
-    val userSerial: Long,
-)
-
 private const val APP_NAME = "APP_NAME"
 private const val APP_PACKAGE = "APP_PACKAGE"
-private const val APP_ALIAS = "APP_ALIAS"
 private const val APP_ACTIVITY = "APP_ACTIVITY"
 private const val APP_USER_SERIAL = "APP_USER_SERIAL"
 private const val APP_ENTRY_TYPE = "APP_ENTRY_TYPE"
@@ -125,15 +115,15 @@ private const val SCROLLWHEEL_BUTTON_PRESS_ACTION = "scrollwheel_button_press_ac
 private const val SCROLLWHEEL_BUTTON_PRESS_APP = "scrollwheel_button_press_app"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION = "scrollwheel_button_long_press_action"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_APP = "scrollwheel_button_long_press_app"
-private const val SHOW_HIDDEN_APPS_IN_HOME_PICKER = "show_hidden_apps_in_home_picker"
-private const val SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
-private const val SHOW_APP_DRAWER_PIN_ICONS = "show_app_drawer_pin_icons"
+private const val SHOW_APP_PICKER_TOOL_ICONS = "show_app_picker_tool_icons"
+private const val LEGACY_SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
 private const val LOCKSCREEN_DATE_FORMAT = "lockscreen_date_format"
 private const val LOCKSCREEN_DATE_TAP_ACTION = "lockscreen_date_tap_action"
 private const val LOCKSCREEN_DATE_TAP_APP = "lockscreen_date_tap_app"
 private const val LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR = "lockscreen_clock_notification_indicator"
 private const val LOCKSCREEN_SHORTCUT_ACTION = "lockscreen_shortcut_action"
 private const val LOCKSCREEN_SHORTCUT_APP = "lockscreen_shortcut_app"
+private const val LEGACY_ACTION_SHOW_APP_LIST = "ShowAppList"
 private const val LOCKSCREEN_SHORTCUT_ICON = "lockscreen_shortcut_icon"
 
 class Prefs(
@@ -174,7 +164,6 @@ class Prefs(
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_FILENAME, 0)
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
-    val mySerial: Long = userManager.getSerialNumberForUser(android.os.Process.myUserHandle())
 
     private inline fun <reified T : Enum<T>> enumPref(
         key: String,
@@ -185,33 +174,6 @@ class Prefs(
             enumValueOf<T>(stored)
         } catch (_: Exception) {
             default
-        }
-    }
-
-    init {
-        migrateHiddenApps()
-    }
-
-    private fun migrateHiddenApps() {
-        val stored = prefs.getStringSet(HIDDEN_APPS, null) ?: return
-        var changed = false
-        val migrated =
-            stored.mapTo(mutableSetOf()) { entry ->
-                val parts = entry.split("|")
-                if (parts.size == 2) {
-                    val serial = parts[1].toLongOrNull()
-                    if (serial == null || serial == mySerial) {
-                        changed = true
-                        parts[0]
-                    } else {
-                        entry
-                    }
-                } else {
-                    entry
-                }
-            }
-        if (changed) {
-            prefs.edit().putStringSet(HIDDEN_APPS, migrated).apply()
         }
     }
 
@@ -334,7 +296,11 @@ class Prefs(
     ): Constants.Action {
         val string = prefs.getString(prefString, default.name) ?: default.name
         return try {
-            Constants.Action.valueOf(string)
+            if (string == LEGACY_ACTION_SHOW_APP_LIST) {
+                Constants.Action.ShowAppPicker
+            } else {
+                Constants.Action.valueOf(string)
+            }
         } catch (_: Exception) {
             default
         }
@@ -368,10 +334,6 @@ class Prefs(
             themeMode = if (value) ThemeMode.Light else ThemeMode.Dark
         }
 
-    var hiddenApps: MutableSet<String>
-        get() = prefs.getStringSet(HIDDEN_APPS, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-        set(value) = prefs.edit().putStringSet(HIDDEN_APPS, value).apply()
-
     fun getHomeAppModel(i: Int): AppModel = loadApp("$i")
 
     fun setHomeAppModel(
@@ -400,125 +362,6 @@ class Prefs(
                 .filterNot { entry ->
                     ShortcutEntry.parse(entry)?.payload == payload
                 }.toSet()
-    }
-
-    private fun normalizePinnedEntry(entry: PinnedAppEntry): PinnedAppEntry =
-        if (entry.userSerial < 0L) {
-            entry.copy(userSerial = mySerial)
-        } else {
-            entry
-        }
-
-    private fun isValidPinnedEntry(entry: PinnedAppEntry): Boolean = entry.packageName.isNotEmpty() && entry.activityName.isNotEmpty()
-
-    var pinnedApps: List<PinnedAppEntry>
-        get() {
-            val raw = prefs.getString(PINNED_APPS, null) ?: return emptyList()
-            return try {
-                val array = JSONArray(raw)
-                val list = mutableListOf<PinnedAppEntry>()
-                for (i in 0 until array.length()) {
-                    val obj = array.optJSONObject(i) ?: continue
-                    val packageName = obj.optString("p", "")
-                    val activityName = obj.optString("a", "")
-                    val serialRaw = if (obj.has("u")) obj.optLong("u", -1L) else -1L
-                    val serial = if (serialRaw < 0L) mySerial else serialRaw
-                    if (packageName.isEmpty() || activityName.isEmpty()) continue
-                    list.add(PinnedAppEntry(packageName, activityName, serial))
-                }
-                list.distinct()
-            } catch (_: Exception) {
-                emptyList()
-            }
-        }
-        set(value) {
-            val normalized =
-                value
-                    .map(::normalizePinnedEntry)
-                    .filter(::isValidPinnedEntry)
-                    .distinct()
-
-            val array = JSONArray()
-            normalized.forEach { entry ->
-                val obj = JSONObject()
-                obj.put("p", entry.packageName)
-                obj.put("a", entry.activityName)
-                obj.put("u", entry.userSerial)
-                array.put(obj)
-            }
-
-            prefs.edit().putString(PINNED_APPS, array.toString()).apply()
-        }
-
-    fun isPinned(entry: PinnedAppEntry): Boolean {
-        val normalizedEntry = normalizePinnedEntry(entry)
-        if (!isValidPinnedEntry(normalizedEntry)) return false
-        return pinnedApps.contains(normalizedEntry)
-    }
-
-    fun pin(entry: PinnedAppEntry) {
-        val normalizedEntry = normalizePinnedEntry(entry)
-        if (!isValidPinnedEntry(normalizedEntry)) return
-        val current = pinnedApps.toMutableList()
-        if (current.contains(normalizedEntry)) return
-        current.add(normalizedEntry)
-        pinnedApps = current
-    }
-
-    fun unpin(entry: PinnedAppEntry) {
-        val normalizedEntry = normalizePinnedEntry(entry)
-        if (!isValidPinnedEntry(normalizedEntry)) return
-        val current = pinnedApps
-        val filtered = current.filterNot { it == normalizedEntry }
-        if (filtered.size == current.size) return
-        pinnedApps = filtered
-    }
-
-    fun movePinnedUp(entry: PinnedAppEntry) {
-        val normalizedEntry = normalizePinnedEntry(entry)
-        if (!isValidPinnedEntry(normalizedEntry)) return
-        val current = pinnedApps.toMutableList()
-        val index = current.indexOf(normalizedEntry)
-        if (index <= 0) return
-        val above = current[index - 1]
-        current[index - 1] = normalizedEntry
-        current[index] = above
-        pinnedApps = current
-    }
-
-    fun movePinnedDown(entry: PinnedAppEntry) {
-        val normalizedEntry = normalizePinnedEntry(entry)
-        if (!isValidPinnedEntry(normalizedEntry)) return
-        val current = pinnedApps.toMutableList()
-        val index = current.indexOf(normalizedEntry)
-        if (index < 0 || index >= current.lastIndex) return
-        val below = current[index + 1]
-        current[index + 1] = normalizedEntry
-        current[index] = below
-        pinnedApps = current
-    }
-
-    fun removePinnedForPackage(
-        packageName: String,
-        userSerial: Long,
-    ) {
-        val serial = if (userSerial < 0L) mySerial else userSerial
-        val current = pinnedApps
-        val filtered = current.filterNot { it.packageName == packageName && it.userSerial == serial }
-        if (filtered.size == current.size) return
-        pinnedApps = filtered
-    }
-
-    var hiddenShortcutIds: Set<String>
-        get() = prefs.getStringSet(HIDDEN_SHORTCUT_IDS, emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet(HIDDEN_SHORTCUT_IDS, value).apply()
-
-    fun hideShortcut(id: String) {
-        hiddenShortcutIds = hiddenShortcutIds + id
-    }
-
-    fun unhideShortcut(id: String) {
-        hiddenShortcutIds = hiddenShortcutIds - id
     }
 
     fun getGestureApp(
@@ -647,8 +490,6 @@ class Prefs(
         prefs.edit().putBoolean(tool.prefKey, enabled).apply()
     }
 
-    fun isToolHidden(tool: Tool): Boolean = isAppHidden(tool.packageName, mySerial)
-
     fun getSectionApp(type: StatusBarSectionType): AppModel = loadApp(type.appKey)
 
     fun setSectionApp(
@@ -683,7 +524,7 @@ class Prefs(
         val resolvedAction =
             when (normalizedAction) {
                 Constants.Action.LockScreen,
-                Constants.Action.ShowAppList,
+                Constants.Action.ShowAppPicker,
                 -> Constants.Action.Disabled
 
                 else -> normalizedAction
@@ -705,7 +546,7 @@ class Prefs(
         val action = validateTapShortcutAction(loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp))
         return if (
             action == Constants.Action.LockScreen ||
-            action == Constants.Action.ShowAppList ||
+            action == Constants.Action.ShowAppPicker ||
             action == Constants.Action.Disabled
         ) {
             Constants.Action.OpenApp
@@ -720,7 +561,7 @@ class Prefs(
             when (normalizedAction) {
                 Constants.Action.Disabled,
                 Constants.Action.LockScreen,
-                Constants.Action.ShowAppList,
+                Constants.Action.ShowAppPicker,
                 -> Constants.Action.OpenApp
 
                 else -> normalizedAction
@@ -780,7 +621,6 @@ class Prefs(
     private fun loadApp(id: String): AppModel {
         val name = prefs.getString("${APP_NAME}_$id", "") ?: ""
         val pack = prefs.getString("${APP_PACKAGE}_$id", "") ?: ""
-        val alias = prefs.getString("${APP_ALIAS}_$id", "") ?: ""
         val activity = prefs.getString("${APP_ACTIVITY}_$id", "") ?: ""
         val serial = prefs.getLong("${APP_USER_SERIAL}_$id", -1L)
         val storedType = enumPref("${APP_ENTRY_TYPE}_$id", AppEntryType.LauncherApp)
@@ -799,17 +639,10 @@ class Prefs(
                 myHandle
             }
         val resolvedName = tool?.defaultLabel(context) ?: name
-        val resolvedAlias =
-            if (entryType == AppEntryType.Tool && pack.isNotEmpty()) {
-                getAppAlias(pack)
-            } else {
-                alias
-            }
 
         return AppModel(
             appLabel = resolvedName,
             appPackage = pack,
-            appAlias = resolvedAlias,
             appActivityName = activity,
             user = userHandle,
             key = null,
@@ -827,7 +660,6 @@ class Prefs(
             .putString("${APP_NAME}_$id", appModel.appLabel)
             .putString("${APP_PACKAGE}_$id", appModel.appPackage)
             .putString("${APP_ACTIVITY}_$id", appModel.appActivityName)
-            .putString("${APP_ALIAS}_$id", appModel.appAlias)
             .putLong("${APP_USER_SERIAL}_$id", serial)
             .putString("${APP_ENTRY_TYPE}_$id", appModel.entryType.name)
             .apply()
@@ -837,14 +669,12 @@ class Prefs(
         Tool.Phone.toAppModel(
             context = context,
             collator = Collator.getInstance(),
-            alias = getAppAlias(Tool.Phone.packageName),
         )
 
     private fun defaultCameraToolApp(): AppModel =
         Tool.Camera.toAppModel(
             context = context,
             collator = Collator.getInstance(),
-            alias = getAppAlias(Tool.Camera.packageName),
         )
 
     var fontSizeOption: FontSizeOption
@@ -985,34 +815,19 @@ class Prefs(
         get() = true
         set(value) {}
 
-    var showAppDrawerToolIcons: Boolean
-        get() = prefs.getBoolean(SHOW_APP_DRAWER_TOOL_ICONS, true)
-        set(value) = prefs.edit().putBoolean(SHOW_APP_DRAWER_TOOL_ICONS, value).apply()
-
-    var showAppDrawerPinIcons: Boolean
-        get() = prefs.getBoolean(SHOW_APP_DRAWER_PIN_ICONS, true)
-        set(value) = prefs.edit().putBoolean(SHOW_APP_DRAWER_PIN_ICONS, value).apply()
-
-    var showHiddenAppsInHomePicker: Boolean
-        get() = prefs.getBoolean(SHOW_HIDDEN_APPS_IN_HOME_PICKER, false)
-        set(value) = prefs.edit().putBoolean(SHOW_HIDDEN_APPS_IN_HOME_PICKER, value).apply()
-
-    fun getHiddenAppKey(
-        packageName: String,
-        userSerial: Long,
-    ): String = if (userSerial == mySerial) packageName else "$packageName|$userSerial"
-
-    fun isAppHidden(
-        packageName: String,
-        userSerial: Long,
-    ): Boolean {
-        val hidden = hiddenApps
-        return if (userSerial == mySerial) {
-            hidden.contains(packageName)
-        } else {
-            hidden.contains("$packageName|$userSerial")
-        }
-    }
+    var showAppPickerToolIcons: Boolean
+        get() =
+            if (prefs.contains(SHOW_APP_PICKER_TOOL_ICONS)) {
+                prefs.getBoolean(SHOW_APP_PICKER_TOOL_ICONS, true)
+            } else {
+                prefs.getBoolean(LEGACY_SHOW_APP_DRAWER_TOOL_ICONS, true)
+            }
+        set(value) =
+            prefs
+                .edit()
+                .putBoolean(SHOW_APP_PICKER_TOOL_ICONS, value)
+                .remove(LEGACY_SHOW_APP_DRAWER_TOOL_ICONS)
+                .apply()
 
     fun isManagedAppEnabled(packageName: String): Boolean {
         val appId = ManagedAppCatalog.fromPackageName(packageName)?.id ?: return false
@@ -1037,15 +852,6 @@ class Prefs(
             }
     }
 
-    fun getAppAlias(appName: String): String = prefs.getString(appName, "") ?: ""
-
-    fun setAppAlias(
-        appPackage: String,
-        appAlias: String,
-    ) {
-        prefs.edit().putString(appPackage, appAlias).apply()
-    }
-
     private fun firstTrueFalseAfter(key: String): Boolean {
         val first = prefs.getBoolean(key, true)
         if (first) {
@@ -1058,7 +864,7 @@ class Prefs(
         when (action) {
             Constants.Action.OpenQuickSettings,
             Constants.Action.ShowNotification,
-            Constants.Action.ShowAppList,
+            Constants.Action.ShowAppPicker,
             -> Constants.Action.Disabled
 
             else -> action

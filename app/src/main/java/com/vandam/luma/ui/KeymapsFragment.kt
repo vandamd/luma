@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.res.stringResource
@@ -13,13 +11,11 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
-import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants
+import com.vandam.luma.data.KeymapType
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SelectorButton
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
-import com.vandam.luma.ui.compose.SettingsItemSpacing
+import com.vandam.luma.ui.compose.SelectorButton
+import com.vandam.luma.ui.compose.SettingsScreen
 
 class KeymapsFragment : Fragment() {
     private lateinit var prefs: Prefs
@@ -50,71 +46,37 @@ class KeymapsFragment : Fragment() {
 
     @Composable
     private fun Screen() {
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.settings_keymaps),
-                onBack = ::goBack,
+        SettingsScreen(
+            title = stringResource(R.string.settings_keymaps),
+            onBack = ::goBack,
+        ) {
+            SelectorButton(
+                label = stringResource(R.string.keymaps_camera_press),
+                value = actionDisplayValue(cameraPressState.value, prefs.getCameraKeyPressApp().displayName),
+                onClick = { navigateToKeymap(KeymapType.CameraPress) },
             )
-
-            ContentContainer {
-                Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
-                    SelectorButton(
-                        label = stringResource(R.string.keymaps_camera_press),
-                        value = actionDisplayValue(cameraPressState.value, prefs.getCameraKeyPressApp()),
-                        onClick = { navigateToKeymap("camera_press") },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.keymaps_camera_long_press),
-                        value = actionDisplayValue(cameraLongPressState.value, prefs.getCameraKeyLongPressApp()),
-                        onClick = { navigateToKeymap("camera_long_press") },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.keymaps_scrollwheel_press),
-                        value = actionDisplayValue(scrollwheelPressState.value, prefs.getScrollwheelButtonPressApp()),
-                        onClick = { navigateToKeymap("scrollwheel_press") },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.keymaps_scrollwheel_long_press),
-                        value = actionDisplayValue(scrollwheelLongPressState.value, prefs.getScrollwheelButtonLongPressApp()),
-                        onClick = { navigateToKeymap("scrollwheel_long_press") },
-                    )
-                }
-            }
+            SelectorButton(
+                label = stringResource(R.string.keymaps_camera_long_press),
+                value = actionDisplayValue(cameraLongPressState.value, prefs.getCameraKeyLongPressApp().displayName),
+                onClick = { navigateToKeymap(KeymapType.CameraLongPress) },
+            )
+            SelectorButton(
+                label = stringResource(R.string.keymaps_scrollwheel_press),
+                value = actionDisplayValue(scrollwheelPressState.value, prefs.getScrollwheelButtonPressApp().displayName),
+                onClick = { navigateToKeymap(KeymapType.ScrollwheelPress) },
+            )
+            SelectorButton(
+                label = stringResource(R.string.keymaps_scrollwheel_long_press),
+                value = actionDisplayValue(scrollwheelLongPressState.value, prefs.getScrollwheelButtonLongPressApp().displayName),
+                onClick = { navigateToKeymap(KeymapType.ScrollwheelLongPress) },
+            )
         }
     }
 
-    private fun navigateToKeymap(type: String) {
+    private fun navigateToKeymap(type: KeymapType) {
         findNavController().navigate(
             R.id.gestureActionFragment,
-            bundleOf(GestureActionFragment.KEYMAP_TYPE to type),
+            bundleOf(GestureActionFragment.KEYMAP_TYPE to type.argumentValue),
         )
     }
-
-    @Composable
-    private fun actionDisplayValue(
-        action: Constants.Action,
-        appModel: AppModel,
-    ): String =
-        when (action) {
-            Constants.Action.OpenApp -> {
-                val appLabel = appModel.displayName
-                if (appLabel.isNotEmpty()) {
-                    stringResource(R.string.action_open_app_name, appLabel)
-                } else {
-                    stringResource(R.string.action_open_app)
-                }
-            }
-
-            Constants.Action.ToggleFlashlight -> {
-                stringResource(R.string.action_toggle_flashlight)
-            }
-
-            Constants.Action.Disabled -> {
-                stringResource(R.string.action_disabled)
-            }
-
-            else -> {
-                action.displayName()
-            }
-        }
 }

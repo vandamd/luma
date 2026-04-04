@@ -5,9 +5,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -15,10 +15,9 @@ import androidx.fragment.app.Fragment
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.Tool
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.MessageText
-import com.vandam.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
+import com.vandam.luma.ui.compose.MessageText
+import com.vandam.luma.ui.compose.SettingsScreen
+import com.vandam.luma.ui.compose.ToggleTextButton
 
 private data class ToolToggleOption(
     val tool: Tool,
@@ -44,11 +43,14 @@ private val toolToggleOptions =
     )
 
 class ToolsFragment : Fragment() {
-    private lateinit var prefs: Prefs
+    private val prefs by lazy { Prefs.getInstance(requireContext()) }
+    private val toolEnabledStates = toolToggleOptions.associate { it.tool to mutableStateOf(false) }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        prefs = Prefs.getInstance(requireContext())
+    override fun onResume() {
+        super.onResume()
+        toolToggleOptions.forEach { option ->
+            toolEnabledStates.getValue(option.tool).value = prefs.isToolEnabled(option.tool)
+        }
     }
 
     override fun onCreateView(
@@ -59,24 +61,24 @@ class ToolsFragment : Fragment() {
 
     @Composable
     private fun Screen() {
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.settings_tools),
-                onBack = ::goBack,
+        SettingsScreen(
+            title = stringResource(R.string.settings_tools),
+            onBack = ::goBack,
+        ) {
+            MessageText(
+                stringResource(R.string.tools_message),
+                modifier = Modifier.padding(end = 30.dp),
             )
-
-            ContentContainer {
-                MessageText(
-                    stringResource(R.string.tools_message),
-                    modifier = Modifier.padding(end = 30.dp),
+            toolToggleOptions.forEach { option ->
+                val enabledState = toolEnabledStates.getValue(option.tool)
+                ToggleTextButton(
+                    title = stringResource(option.titleRes),
+                    checked = enabledState.value,
+                    onValueChange = {
+                        enabledState.value = it
+                        prefs.setToolEnabled(option.tool, it)
+                    },
                 )
-                toolToggleOptions.forEach { option ->
-                    PrefsToggleTextButton(
-                        title = stringResource(option.titleRes),
-                        initialValue = prefs.isToolEnabled(option.tool),
-                        onValueChange = { prefs.setToolEnabled(option.tool, it) },
-                    )
-                }
             }
         }
     }

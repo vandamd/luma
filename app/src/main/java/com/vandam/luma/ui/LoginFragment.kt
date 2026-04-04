@@ -4,11 +4,10 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
@@ -48,9 +47,11 @@ import com.vandam.luma.data.ToolSyncManager
 import com.vandam.luma.data.ToolSyncResult
 import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.style.SettingsTheme
-import com.vandam.luma.ui.compose.SettingsComposable.MessageText
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
-import com.vandam.luma.ui.compose.SettingsItemSpacing
+import com.vandam.luma.ui.compose.MessageText
+import com.vandam.luma.ui.compose.SettingsFormSpacing
+import com.vandam.luma.ui.compose.SettingsInsetContentPadding
+import com.vandam.luma.ui.compose.SettingsScreen
+import com.vandam.luma.ui.compose.SettingsSupportingTextSpacing
 import com.vandam.luma.ui.noRippleClickable
 import kotlinx.coroutines.launch
 
@@ -161,92 +162,84 @@ class LoginFragment : Fragment() {
             }
         }
 
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.login_title),
-                onBack = ::goToPermissions,
-                onAction = ::submitLogin,
-            )
-
-            Box(modifier = Modifier.padding(horizontal = 37.dp)) {
-                Column {
-                MessageText(
-                    text = stringResource(R.string.login_message),
-                )
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(SettingsItemSpacing))
-                Row(
+        SettingsScreen(
+            title = stringResource(R.string.login_title),
+            onBack = ::goToPermissions,
+            onAction = ::submitLogin,
+            contentPadding = SettingsInsetContentPadding,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top,
+        ) {
+            MessageText(text = stringResource(R.string.login_message))
+            Spacer(modifier = Modifier.height(SettingsFormSpacing))
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .drawBehind {
+                            val strokeWidth = 1.dp.toPx()
+                            val y = size.height
+                            drawLine(
+                                color = underlineColor,
+                                start = Offset(0f, y),
+                                end = Offset(size.width, y),
+                                strokeWidth = strokeWidth,
+                            )
+                        },
+            ) {
+                BasicTextField(
+                    value = textState.value,
+                    onValueChange = { newValue ->
+                        val digits = newValue.text.filter(Char::isDigit).take(16)
+                        textState.value = accountTextFieldValue(digits)
+                        if (errorState.value != null) {
+                            errorState.value = null
+                        }
+                    },
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .drawBehind {
-                                val strokeWidth = 1.dp.toPx()
-                                val y = size.height
-                                drawLine(
-                                    color = underlineColor,
-                                    start = Offset(0f, y),
-                                    end = Offset(size.width, y),
-                                    strokeWidth = strokeWidth,
-                                )
+                            .weight(1f)
+                            .focusRequester(focusRequester)
+                            .padding(start = 6.dp, end = 4.dp, bottom = 6.dp),
+                    textStyle =
+                        TextStyle(
+                            fontSize = 24.sp,
+                            color = SettingsTheme.typography.item.color,
+                        ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(Color.White),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.NumberPassword,
+                            imeAction = ImeAction.Done,
+                        ),
+                    keyboardActions =
+                        KeyboardActions(
+                            onDone = {
+                                submitLogin()
                             },
-                ) {
-                    BasicTextField(
-                        value = textState.value,
-                        onValueChange = { newValue ->
-                            val digits = newValue.text.filter(Char::isDigit).take(16)
-                            textState.value = accountTextFieldValue(digits)
-                            if (errorState.value != null) {
-                                errorState.value = null
-                            }
-                        },
+                        ),
+                )
+                if (textState.value.text.isNotEmpty()) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.close_24px),
+                        contentDescription = stringResource(R.string.content_desc_clear),
+                        tint = SettingsTheme.typography.item.color,
                         modifier =
                             Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester)
-                                .padding(start = 6.dp, end = 4.dp, bottom = 6.dp),
-                        textStyle =
-                            TextStyle(
-                                fontSize = 24.sp,
-                                color = SettingsTheme.typography.item.color,
-                            ),
-                        singleLine = true,
-                        cursorBrush = SolidColor(Color.White),
-                        keyboardOptions =
-                            KeyboardOptions(
-                                keyboardType = KeyboardType.NumberPassword,
-                                imeAction = ImeAction.Done,
-                            ),
-                        keyboardActions =
-                            KeyboardActions(
-                                onDone = {
-                                    submitLogin()
+                                .padding(bottom = 6.dp, end = 6.dp)
+                                .size(20.dp)
+                                .noRippleClickable {
+                                    performAppTapHapticFeedback(context)
+                                    textState.value = TextFieldValue("")
+                                    errorState.value = null
                                 },
-                            ),
-                    )
-                    if (textState.value.text.isNotEmpty()) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.close_24px),
-                            contentDescription = stringResource(R.string.content_desc_clear),
-                            tint = SettingsTheme.typography.item.color,
-                            modifier =
-                                Modifier
-                                    .padding(bottom = 6.dp, end = 6.dp)
-                                    .size(20.dp)
-                                    .noRippleClickable {
-                                        performAppTapHapticFeedback(context)
-                                        textState.value = TextFieldValue("")
-                                        errorState.value = null
-                                    },
-                        )
-                    }
-                }
-
-                errorState.value?.let { error ->
-                    MessageText(
-                        text = error,
-                        modifier = Modifier.padding(top = 12.dp),
                     )
                 }
             }
+
+            errorState.value?.let { error ->
+                Spacer(modifier = Modifier.height(SettingsSupportingTextSpacing))
+                MessageText(text = error)
             }
         }
     }

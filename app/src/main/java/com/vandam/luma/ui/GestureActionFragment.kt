@@ -4,28 +4,30 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
 import com.vandam.luma.data.AppModel
+import com.vandam.luma.data.AppSelectionTarget
 import com.vandam.luma.data.Constants
 import com.vandam.luma.data.Constants.Action
-import com.vandam.luma.data.Constants.AppDrawerFlag
+import com.vandam.luma.data.GestureBinding
 import com.vandam.luma.data.GestureScope
+import com.vandam.luma.data.GestureSelectionTarget
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.HomeItemsManager
+import com.vandam.luma.data.KeymapSelectionTarget
+import com.vandam.luma.data.KeymapType
+import com.vandam.luma.data.LockscreenDateTapSelectionTarget
+import com.vandam.luma.data.LockscreenShortcutSelectionTarget
 import com.vandam.luma.data.ManagedAppCatalog
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
+import com.vandam.luma.data.StatusBarSelectionTarget
 import com.vandam.luma.data.Tool
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
-import com.vandam.luma.ui.compose.SettingsComposable.SimpleTextButton
+import com.vandam.luma.ui.compose.SettingsScreen
+import com.vandam.luma.ui.compose.SimpleTextButton
 import java.text.Collator
 
 class GestureActionFragment : Fragment() {
@@ -36,67 +38,15 @@ class GestureActionFragment : Fragment() {
         const val LOCKSCREEN_SHORTCUT = "lockscreen_shortcut"
         const val LOCKSCREEN_DATE_TAP = "lockscreen_date_tap"
         const val KEYMAP_TYPE = "keymap_type"
-
-        private val gestureTitleRes =
-            mapOf(
-                GestureType.SWIPE_LEFT to R.string.gesture_swipe_left,
-                GestureType.SWIPE_RIGHT to R.string.gesture_swipe_right,
-                GestureType.SWIPE_UP to R.string.gesture_swipe_up,
-                GestureType.SWIPE_DOWN to R.string.gesture_swipe_down,
-                GestureType.DOUBLE_TAP to R.string.gesture_double_tap,
-            )
-
-        private val sectionDisplayInfo =
-            mapOf(
-                StatusBarSectionType.CELLULAR to
-                    ActionDisplayInfo(
-                        R.string.status_bar_connectivity_tap,
-                        AppDrawerFlag.SetStatusBarCellular,
-                    ),
-                StatusBarSectionType.TIME to ActionDisplayInfo(R.string.status_bar_time, AppDrawerFlag.SetStatusBarTime),
-                StatusBarSectionType.BATTERY to ActionDisplayInfo(R.string.status_bar_battery_tap, AppDrawerFlag.SetStatusBarBattery),
-            )
-
-        private val keymapDisplayInfo =
-            mapOf(
-                "camera_press" to ActionDisplayInfo(R.string.keymaps_camera_press, AppDrawerFlag.SetCameraKeyPress),
-                "camera_long_press" to ActionDisplayInfo(R.string.keymaps_camera_long_press, AppDrawerFlag.SetCameraKeyLongPress),
-                "scrollwheel_press" to ActionDisplayInfo(R.string.keymaps_scrollwheel_press, AppDrawerFlag.SetScrollwheelButtonPress),
-                "scrollwheel_long_press" to
-                    ActionDisplayInfo(R.string.keymaps_scrollwheel_long_press, AppDrawerFlag.SetScrollwheelButtonLongPress),
-            )
     }
 
-    private data class ActionDisplayInfo(
-        @field:StringRes val titleRes: Int,
-        val appDrawerFlag: AppDrawerFlag,
-    )
-
     private lateinit var prefs: Prefs
-    private var gestureScope = GestureScope.Homescreen
-    private var gestureType: GestureType? = null
-    private var sectionType: StatusBarSectionType? = null
-    private var lockscreenShortcut = false
-    private var lockscreenDateTap = false
-    private var keymapType: String? = null
+    private lateinit var selectionTarget: AppSelectionTarget
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs.getInstance(requireContext())
-        gestureScope =
-            arguments
-                ?.getString(GESTURE_SCOPE)
-                ?.let { runCatching { GestureScope.valueOf(it) }.getOrNull() }
-                ?: GestureScope.Homescreen
-        arguments?.getString(GESTURE_TYPE)?.takeIf { it.isNotEmpty() }?.let {
-            gestureType = runCatching { GestureType.valueOf(it) }.getOrNull()
-        }
-        arguments?.getString(SECTION_TYPE)?.takeIf { it.isNotEmpty() }?.let {
-            sectionType = runCatching { StatusBarSectionType.valueOf(it) }.getOrNull()
-        }
-        lockscreenShortcut = arguments?.getBoolean(LOCKSCREEN_SHORTCUT, false) == true
-        lockscreenDateTap = arguments?.getBoolean(LOCKSCREEN_DATE_TAP, false) == true
-        keymapType = arguments?.getString(KEYMAP_TYPE)
+        selectionTarget = parseSelectionTarget()
     }
 
     override fun onCreateView(
@@ -105,163 +55,51 @@ class GestureActionFragment : Fragment() {
         savedInstanceState: Bundle?,
     ): View = composeView(onSwipeBack = ::goBack) { Screen() }
 
-    private fun getDisplayInfo(): ActionDisplayInfo =
-        gestureType?.let { gestureDisplayInfo(it) }
-            ?: sectionType?.let { sectionDisplayInfo[it] }
-            ?: if (lockscreenShortcut) {
-                ActionDisplayInfo(R.string.lockscreen_shortcut, AppDrawerFlag.SetLockscreenShortcut)
-            } else if (lockscreenDateTap) {
-                ActionDisplayInfo(R.string.lockscreen_date_tap, AppDrawerFlag.SetLockscreenDateTap)
-            } else {
-                keymapType?.let { keymapDisplayInfo[it] }
-            }
-                ?: error("No gesture, section, or keymap type provided")
-
-    private fun gestureDisplayInfo(type: GestureType): ActionDisplayInfo =
-        ActionDisplayInfo(
-            titleRes = gestureTitleRes.getValue(type),
-            appDrawerFlag =
-                when (gestureScope) {
-                    GestureScope.Homescreen -> {
-                        when (type) {
-                            GestureType.SWIPE_LEFT -> AppDrawerFlag.SetSwipeLeft
-                            GestureType.SWIPE_RIGHT -> AppDrawerFlag.SetSwipeRight
-                            GestureType.SWIPE_UP -> AppDrawerFlag.SetSwipeUp
-                            GestureType.SWIPE_DOWN -> AppDrawerFlag.SetSwipeDown
-                            GestureType.DOUBLE_TAP -> AppDrawerFlag.SetDoubleTap
-                        }
-                    }
-
-                    GestureScope.Lockscreen -> {
-                        when (type) {
-                            GestureType.SWIPE_LEFT -> AppDrawerFlag.SetLockscreenSwipeLeft
-                            GestureType.SWIPE_RIGHT -> AppDrawerFlag.SetLockscreenSwipeRight
-                            GestureType.SWIPE_UP -> AppDrawerFlag.SetLockscreenSwipeUp
-                            GestureType.SWIPE_DOWN -> AppDrawerFlag.SetLockscreenSwipeDown
-                            GestureType.DOUBLE_TAP -> AppDrawerFlag.SetLockscreenDoubleTap
-                        }
-                    }
-                },
-        )
-
     @Composable
-    fun Screen() {
-        val displayInfo = getDisplayInfo()
-        val context = LocalContext.current
-        val currentAction = getCurrentAction()
-        val currentLaunchTarget = getCurrentLaunchTarget()
-        Column {
-            SettingsHeader(
-                title = stringResource(displayInfo.titleRes),
-                onBack = ::goBack,
-            )
+    private fun Screen() {
+        val currentAction = selectionTarget.getAction(prefs)
+        val currentLaunchTarget = if (currentAction == Action.OpenApp) selectionTarget.getApp(prefs) else null
 
-            ContentContainer {
-                if (supportsDisabledAction()) {
-                    SimpleTextButton(
-                        title = stringResource(R.string.action_disabled),
-                        underline = currentAction == Action.Disabled,
-                        onClick = { handleActionSelection(Action.Disabled) },
-                    )
-                }
+        SettingsScreen(
+            title = stringResource(selectionTarget.titleRes),
+            onBack = ::goBack,
+        ) {
+            if (selectionTarget.allowsDisabledAction) {
+                SimpleTextButton(
+                    title = stringResource(R.string.action_disabled),
+                    underline = currentAction == Action.Disabled,
+                    onClick = { handleActionSelection(Action.Disabled) },
+                )
+            }
 
-                if (supportsToolSelection()) {
-                    for (target in availableLaunchTargets()) {
-                        SimpleTextButton(
-                            title = stringResource(R.string.action_open_app_name, target.displayName),
-                            underline = currentAction == Action.OpenApp && launchTargetKey(currentLaunchTarget) == launchTargetKey(target),
-                            onClick = { handleLaunchTargetSelection(target) },
-                        )
-                    }
-                }
+            for (launchTarget in availableLaunchTargets()) {
+                SimpleTextButton(
+                    title = stringResource(R.string.action_open_app_name, launchTarget.displayName),
+                    underline = currentAction == Action.OpenApp && launchTargetKey(currentLaunchTarget) == launchTargetKey(launchTarget),
+                    onClick = { handleLaunchTargetSelection(launchTarget) },
+                )
+            }
 
-                for (action in availableActions()) {
-                    SimpleTextButton(
-                        title = action.displayName(),
-                        underline = currentAction == action,
-                        onClick = { handleActionSelection(action) },
-                    )
-                }
+            for (action in availableActions()) {
+                SimpleTextButton(
+                    title = action.displayName(),
+                    underline = currentAction == action,
+                    onClick = { handleActionSelection(action) },
+                )
             }
         }
     }
-
-    private fun getCurrentAction(): Action =
-        gestureType?.let { prefs.getGestureAction(it, gestureScope) }
-            ?: sectionType?.let { prefs.getSectionAction(it) }
-            ?: if (lockscreenShortcut) {
-                prefs.getLockscreenShortcutAction()
-            } else if (lockscreenDateTap) {
-                prefs.getLockscreenDateTapAction()
-            } else {
-                keymapType?.let { getKeymapAction(it) }
-            }
-                ?: Action.Disabled
-
-    private fun getKeymapAction(type: String): Action =
-        when (type) {
-            "camera_press" -> prefs.getCameraKeyPressAction()
-            "camera_long_press" -> prefs.getCameraKeyLongPressAction()
-            "scrollwheel_press" -> prefs.getScrollwheelButtonPressAction()
-            "scrollwheel_long_press" -> prefs.getScrollwheelButtonLongPressAction()
-            else -> Action.Disabled
-        }
-
-    private fun setCurrentAction(action: Action) {
-        gestureType?.let { prefs.setGestureAction(it, action, gestureScope) }
-            ?: sectionType?.let { prefs.setSectionAction(it, action) }
-            ?: if (lockscreenShortcut) {
-                prefs.setLockscreenShortcutAction(action)
-            } else if (lockscreenDateTap) {
-                prefs.setLockscreenDateTapAction(action)
-            } else {
-                keymapType?.let { setKeymapAction(it, action) }
-            }
-    }
-
-    private fun setKeymapAction(
-        type: String,
-        action: Action,
-    ) {
-        when (type) {
-            "camera_press" -> prefs.setCameraKeyPressAction(action)
-            "camera_long_press" -> prefs.setCameraKeyLongPressAction(action)
-            "scrollwheel_press" -> prefs.setScrollwheelButtonPressAction(action)
-            "scrollwheel_long_press" -> prefs.setScrollwheelButtonLongPressAction(action)
-        }
-    }
-
-    private fun getCurrentLaunchTarget(): AppModel? {
-        if (getCurrentAction() != Action.OpenApp) return null
-
-        return gestureType?.let { prefs.getGestureApp(it, gestureScope) }
-            ?: sectionType?.let { prefs.getSectionApp(it) }
-            ?: if (lockscreenShortcut) {
-                prefs.getLockscreenShortcutApp()
-            } else if (lockscreenDateTap) {
-                prefs.getLockscreenDateTapApp()
-            } else {
-                keymapType?.let { getKeymapApp(it) }
-            }
-    }
-
-    private fun supportsToolSelection(): Boolean = true
-
-    private fun supportsDisabledAction(): Boolean =
-        !lockscreenShortcut &&
-            (keymapType == null || keymapType == "camera_long_press" || keymapType?.startsWith("scrollwheel") == true)
 
     private fun availableLaunchTargets(): List<AppModel> {
         val collator = Collator.getInstance()
         val orderedTargets = linkedMapOf<String, AppModel>()
 
-        if (keymapType?.startsWith("camera") == true) {
+        if (selectionTarget.includesCameraTarget) {
             val cameraTarget =
                 Tool.Camera.toAppModel(
                     context = requireContext(),
                     collator = collator,
-                    alias = prefs.getAppAlias(Tool.Camera.packageName),
-            )
+                )
             orderedTargets[launchTargetKey(cameraTarget)] = cameraTarget
         }
 
@@ -276,14 +114,10 @@ class GestureActionFragment : Fragment() {
                             tool.toAppModel(
                                 context = requireContext(),
                                 collator = collator,
-                                alias = prefs.getAppAlias(tool.packageName),
                             )
 
                         managedApp != null ->
-                            managedApp.toAppModel(
-                                collator = collator,
-                                alias = prefs.getAppAlias(managedApp.packageName),
-                            )
+                            managedApp.toAppModel(collator = collator)
 
                         else -> appModel
                     }
@@ -295,13 +129,11 @@ class GestureActionFragment : Fragment() {
                 Tool.Phone.toAppModel(
                     context = requireContext(),
                     collator = collator,
-                    alias = prefs.getAppAlias(Tool.Phone.packageName),
                 )
             val settingsTarget =
                 Tool.Settings.toAppModel(
                     context = requireContext(),
                     collator = collator,
-                    alias = prefs.getAppAlias(Tool.Settings.packageName),
                 )
             orderedTargets[launchTargetKey(phoneTarget)] = phoneTarget
             orderedTargets[launchTargetKey(settingsTarget)] = settingsTarget
@@ -310,21 +142,12 @@ class GestureActionFragment : Fragment() {
         return orderedTargets.values.toList()
     }
 
-    private fun getKeymapApp(type: String): AppModel =
-        when (type) {
-            "camera_press" -> prefs.getCameraKeyPressApp()
-            "camera_long_press" -> prefs.getCameraKeyLongPressApp()
-            "scrollwheel_press" -> prefs.getScrollwheelButtonPressApp()
-            "scrollwheel_long_press" -> prefs.getScrollwheelButtonLongPressApp()
-            else -> prefs.getCameraKeyPressApp()
-        }
-
     private fun availableActions(): Array<Action> {
-        if (keymapType != null) return emptyArray()
+        if (selectionTarget is KeymapSelectionTarget) return emptyArray()
 
         val excludedEverywhere =
             setOf(
-                Action.ShowAppList,
+                Action.ShowAppPicker,
                 Action.OpenQuickSettings,
                 Action.ShowNotification,
                 Action.ToggleFlashlight,
@@ -332,47 +155,21 @@ class GestureActionFragment : Fragment() {
                 Action.Disabled,
             )
 
-        val excludedForContext =
-            if (lockscreenShortcut) {
-                setOf(
-                    Action.LockScreen,
-                )
-            } else if (lockscreenDateTap) {
-                setOf(
-                    Action.LockScreen,
-                )
-            } else {
-                emptySet()
-            }
-
         return Constants.Action
             .values()
-            .filterNot { it in excludedEverywhere || it in excludedForContext }
+            .filterNot { it in excludedEverywhere || it in selectionTarget.disallowedActions }
             .sortedBy { if (it == Action.ShowRecents) 1 else 0 }
             .toTypedArray()
     }
 
     private fun handleLaunchTargetSelection(appModel: AppModel) {
-        if (gestureType != null) {
-            val type = gestureType ?: return
-            prefs.setGestureAction(type, Action.OpenApp, gestureScope)
-            prefs.setGestureApp(type, appModel, gestureScope)
-        } else if (sectionType != null) {
-            val section = sectionType ?: return
-            prefs.setSectionAction(section, Action.OpenApp)
-            prefs.setSectionApp(section, appModel)
-        } else if (lockscreenShortcut) {
-            prefs.setLockscreenShortcutAction(Action.OpenApp)
-            prefs.setLockscreenShortcutApp(appModel)
-        } else if (lockscreenDateTap) {
-            prefs.setLockscreenDateTapAction(Action.OpenApp)
-            prefs.setLockscreenDateTapApp(appModel)
-        } else if (keymapType != null) {
-            val type = keymapType ?: return
-            setKeymapAction(type, Action.OpenApp)
-            setKeymapApp(type, appModel)
-        }
+        selectionTarget.setAction(prefs, Action.OpenApp)
+        selectionTarget.setApp(prefs, appModel)
+        goBack()
+    }
 
+    private fun handleActionSelection(action: Action) {
+        selectionTarget.setAction(prefs, action)
         goBack()
     }
 
@@ -383,20 +180,38 @@ class GestureActionFragment : Fragment() {
             "${appModel.appPackage}|${appModel.appActivityName}"
         }
 
-    private fun setKeymapApp(
-        type: String,
-        appModel: AppModel,
-    ) {
-        when (type) {
-            "camera_press" -> prefs.setCameraKeyPressApp(appModel)
-            "camera_long_press" -> prefs.setCameraKeyLongPressApp(appModel)
-            "scrollwheel_press" -> prefs.setScrollwheelButtonPressApp(appModel)
-            "scrollwheel_long_press" -> prefs.setScrollwheelButtonLongPressApp(appModel)
+    private fun parseSelectionTarget(): AppSelectionTarget {
+        arguments?.getString(GESTURE_TYPE)?.takeIf { it.isNotEmpty() }?.let { gestureName ->
+            val gestureType = runCatching { GestureType.valueOf(gestureName) }.getOrNull()
+            if (gestureType != null) {
+                val gestureScope =
+                    arguments
+                        ?.getString(GESTURE_SCOPE)
+                        ?.let { runCatching { GestureScope.valueOf(it) }.getOrNull() }
+                        ?: GestureScope.Homescreen
+                return GestureSelectionTarget(GestureBinding(gestureType, gestureScope))
+            }
         }
-    }
 
-    private fun handleActionSelection(action: Action) {
-        setCurrentAction(action)
-        goBack()
+        arguments?.getString(SECTION_TYPE)?.takeIf { it.isNotEmpty() }?.let { sectionName ->
+            val sectionType = runCatching { StatusBarSectionType.valueOf(sectionName) }.getOrNull()
+            if (sectionType != null) {
+                return StatusBarSelectionTarget(sectionType)
+            }
+        }
+
+        if (arguments?.getBoolean(LOCKSCREEN_SHORTCUT, false) == true) {
+            return LockscreenShortcutSelectionTarget
+        }
+
+        if (arguments?.getBoolean(LOCKSCREEN_DATE_TAP, false) == true) {
+            return LockscreenDateTapSelectionTarget
+        }
+
+        KeymapType.fromArgument(arguments?.getString(KEYMAP_TYPE))?.let { keymapType ->
+            return KeymapSelectionTarget(keymapType)
+        }
+
+        error("No gesture, section, or keymap type provided")
     }
 }

@@ -17,7 +17,7 @@
     <string name="action_open_app">Abrir aplicación</string>
     <string name="action_lock_screen">Bloquear pantalla</string>
     <string name="action_show_notifications">Notificaciones (Android)</string>
-    <string name="action_show_app_list">Lista de aplicaciones</string>
+    <string name="action_show_app_picker">Lista de aplicaciones</string>
     <string name="action_quick_settings">Configuración rápida (Android)</string>
     <string name="action_show_recents">Aplicaciones recientes</string>
     <string name="action_show_notification_list">Notificaciones</string>
@@ -78,30 +78,10 @@
     <string name="status_bar_battery_icon">Mostrar icono</string>
 
     <!-- App drawer -->
-    <string name="app_drawer_title">Cajón de aplicaciones</string>
-    <string name="app_drawer_select_rename">Seleccionar App</string>
-    <string name="app_drawer_hidden_apps">Aplicaciones ocultas</string>
-    <string name="app_drawer_no_apps">Sin aplicaciones</string>
-    <string name="app_drawer_rename">Renombrar</string>
-    <string name="app_drawer_reset">Restablecer</string>
-    <string name="app_drawer_cancel">Cancelar</string>
+    <string name="app_picker_title">Cajón de aplicaciones</string>
+<string name="app_picker_no_apps">Sin aplicaciones</string>
 
-    <!-- App actions -->
-    <string name="app_actions_show">Mostrar</string>
-    <string name="app_actions_hide">Ocultar</string>
-    <string name="app_actions_rename">Renombrar</string>
-    <string name="app_actions_pin">Fijar</string>
-    <string name="app_actions_unpin">Desfijar</string>
-    <string name="app_actions_replace">Reemplazar</string>
-    <string name="app_actions_move_up">Subir</string>
-    <string name="app_actions_move_down">Bajar</string>
-    <string name="app_actions_app_info">Info de la app</string>
-    <string name="app_actions_uninstall">Desinstalar</string>
-    <string name="app_actions_confirm_title">Eliminar acceso directo</string>
-    <string name="app_actions_uninstall_title">Desinstalar app</string>
-    <string name="app_actions_confirm_message">¿Estás seguro de que quieres eliminar %1$s?</string>
-
-    <!-- Home screen tips -->
+<!-- Home screen tips -->
     <string name="tip_swipe_left">Deslice a la izquierda para todas las apps</string>
     <string name="tip_long_press">Mantenga pulsado para configuración</string>
 
@@ -110,12 +90,10 @@
     <string name="toast_unable_to_launch_app">No se puede abrir la app</string>
     <string name="toast_unable_to_launch_shortcut">No se puede abrir el acceso directo</string>
     <string name="toast_shortcuts_require_android">Los accesos directos requieren Android 7.1+</string>
-    <string name="toast_unable_to_open_app_info">No se puede abrir información de la app</string>
-    <string name="toast_action_requires_android_p">Esta acción requiere Android P (9) o superior</string>
+<string name="toast_action_requires_android_p">Esta acción requiere Android P (9) o superior</string>
     <string name="toast_lock_requires_android_9">Bloquear pantalla requiere Android 9 o superior</string>
-    <string name="toast_long_press_to_select">Mantenga pulsado para seleccionar app</string>
-    <string name="toast_unable_to_add_shortcut">No se puede añadir acceso directo</string>
-    <string name="toast_added_to_app_drawer">Añadido al cajón de aplicaciones</string>
+<string name="toast_unable_to_add_shortcut">No se puede añadir acceso directo</string>
+    <string name="toast_added_to_app_picker">Añadido al cajón de aplicaciones</string>
 
     <!-- Misc -->
     <string name="app_placeholder">Aplicación</string>
@@ -124,8 +102,6 @@
     <string name="content_desc_back">Atrás</string>
     <string name="content_desc_save">Guardar</string>
     <string name="content_desc_clear">Borrar</string>
-    <string name="content_desc_hide">Ocultar</string>
-    <string name="content_desc_app_info">Información de la app</string>
     <string name="content_desc_dismiss">Descartar</string>
 
     <string name="notification_list_title">Notificaciones</string>

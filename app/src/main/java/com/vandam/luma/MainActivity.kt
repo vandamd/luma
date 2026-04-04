@@ -32,7 +32,6 @@ import com.vandam.luma.data.AndroidLauncherApp
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants
 import com.vandam.luma.data.Constants.Action
-import com.vandam.luma.data.Constants.AppDrawerFlag
 import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.Prefs
@@ -574,7 +573,7 @@ class MainActivity : AppCompatActivity() {
 
         prefs.addPinnedShortcut(shortcutPackage, shortcutId, label)
 
-        showToast(this, getString(R.string.toast_added_to_app_drawer))
+        showToast(this, getString(R.string.toast_added_to_app_picker))
     }
 
     private fun updateSystemStatusBarVisibility(destinationId: Int?) {
@@ -630,7 +629,6 @@ class MainActivity : AppCompatActivity() {
             if (appModel.appPackage.isEmpty()) return
             viewModel.selectedApp(
                 appModel,
-                AppDrawerFlag.LaunchApp,
                 launchContext = this,
             )
             return
@@ -656,7 +654,6 @@ class MainActivity : AppCompatActivity() {
             if (appModel.appPackage.isEmpty()) return
             viewModel.selectedApp(
                 appModel,
-                AppDrawerFlag.LaunchApp,
                 launchContext = this,
             )
             return
@@ -681,7 +678,6 @@ class MainActivity : AppCompatActivity() {
         if (action == Action.OpenApp) {
             viewModel.selectedApp(
                 appModel,
-                AppDrawerFlag.LaunchApp,
                 launchContext = this,
             )
             return
@@ -696,19 +692,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun lockscreenNavigationCallbacks(): ActionExecutionCallbacks =
         ActionExecutionCallbacks(
-            showAppList = {},
+            showAppPicker = { showAppPicker(restoreUnlockGateOnBack = true) },
             showNotificationList = { showNotificationList(restoreUnlockGateOnBack = true) },
         )
 
-    private fun showAppList(restoreUnlockGateOnBack: Boolean = false) {
-        viewModel.getAppList()
+    private fun showAppPicker(restoreUnlockGateOnBack: Boolean = false) {
         try {
             navController.navigate(
-                R.id.appListFragment,
-                bundleOf(
-                    "flag" to AppDrawerFlag.LaunchApp.toString(),
-                    RESTORE_UNLOCK_GATE_ON_BACK to restoreUnlockGateOnBack,
-                ),
+                R.id.appsFragment,
+                bundleOf(RESTORE_UNLOCK_GATE_ON_BACK to restoreUnlockGateOnBack),
             )
         } catch (_: Exception) {
         }

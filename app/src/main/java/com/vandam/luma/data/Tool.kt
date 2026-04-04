@@ -37,23 +37,18 @@ enum class Tool(
     fun toAppModel(
         context: Context,
         collator: Collator,
-        alias: String = "",
     ): AppModel {
         val label = defaultLabel(context)
-        val sortLabel = alias.ifEmpty { label }
         return AppModel(
             appLabel = label,
-            key = collator.getCollationKey(sortLabel),
+            key = collator.getCollationKey(label),
             appPackage = packageName,
             appActivityName = id,
             user = android.os.Process.myUserHandle(),
-            appAlias = alias,
             hasNotification = false,
             entryType = AppEntryType.Tool,
         )
     }
-
-    fun toPinnedEntry(userSerial: Long): PinnedAppEntry = PinnedAppEntry(packageName, id, userSerial)
 
     companion object {
         const val SYNTHETIC_PACKAGE_PREFIX = "__tool__."

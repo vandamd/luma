@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.res.stringResource
@@ -18,10 +16,8 @@ import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SelectorButton
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
-import com.vandam.luma.ui.compose.SettingsItemSpacing
+import com.vandam.luma.ui.compose.SelectorButton
+import com.vandam.luma.ui.compose.SettingsScreen
 
 class LockscreenTapShortcutsFragment : Fragment() {
     private lateinit var prefs: Prefs
@@ -63,89 +59,83 @@ class LockscreenTapShortcutsFragment : Fragment() {
 
     @Composable
     fun Screen() {
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.settings_shortcuts),
-                onBack = ::goBack,
+        SettingsScreen(
+            title = stringResource(R.string.settings_shortcuts),
+            onBack = ::goBack,
+        ) {
+            GestureButton(
+                label = stringResource(R.string.gesture_swipe_left),
+                type = GestureType.SWIPE_LEFT,
+                action = swipeLeftActionState.value,
             )
-
-            ContentContainer {
-                Column(verticalArrangement = Arrangement.spacedBy(SettingsItemSpacing)) {
-                    GestureButton(
-                        label = stringResource(R.string.gesture_swipe_left),
-                        type = GestureType.SWIPE_LEFT,
-                        action = swipeLeftActionState.value,
+            GestureButton(
+                label = stringResource(R.string.gesture_swipe_right),
+                type = GestureType.SWIPE_RIGHT,
+                action = swipeRightActionState.value,
+            )
+            GestureButton(
+                label = stringResource(R.string.gesture_swipe_down),
+                type = GestureType.SWIPE_DOWN,
+                action = swipeDownActionState.value,
+            )
+            GestureButton(
+                label = stringResource(R.string.gesture_swipe_up),
+                type = GestureType.SWIPE_UP,
+                action = swipeUpActionState.value,
+            )
+            GestureButton(
+                label = stringResource(R.string.gesture_double_tap),
+                type = GestureType.DOUBLE_TAP,
+                action = doubleTapActionState.value,
+            )
+            SelectorButton(
+                label = stringResource(R.string.status_bar_connectivity_tap),
+                value = actionDisplayValue(connectivityActionState.value, prefs, StatusBarSectionType.CELLULAR),
+                onClick = {
+                    findNavController().navigate(
+                        R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
+                        bundleOf(GestureActionFragment.SECTION_TYPE to StatusBarSectionType.CELLULAR.name),
                     )
-                    GestureButton(
-                        label = stringResource(R.string.gesture_swipe_right),
-                        type = GestureType.SWIPE_RIGHT,
-                        action = swipeRightActionState.value,
+                },
+            )
+            SelectorButton(
+                label = stringResource(R.string.status_bar_battery_tap),
+                value = actionDisplayValue(batteryActionState.value, prefs, StatusBarSectionType.BATTERY),
+                onClick = {
+                    findNavController().navigate(
+                        R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
+                        bundleOf(GestureActionFragment.SECTION_TYPE to StatusBarSectionType.BATTERY.name),
                     )
-                    GestureButton(
-                        label = stringResource(R.string.gesture_swipe_down),
-                        type = GestureType.SWIPE_DOWN,
-                        action = swipeDownActionState.value,
+                },
+            )
+            SelectorButton(
+                label = stringResource(R.string.lockscreen_date_tap),
+                value = lockscreenDateTapActionDisplayValue(dateTapActionState.value, prefs),
+                onClick = {
+                    findNavController().navigate(
+                        R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
+                        bundleOf(GestureActionFragment.LOCKSCREEN_DATE_TAP to true),
                     )
-                    GestureButton(
-                        label = stringResource(R.string.gesture_swipe_up),
-                        type = GestureType.SWIPE_UP,
-                        action = swipeUpActionState.value,
+                },
+            )
+            SelectorButton(
+                label = stringResource(R.string.lockscreen_shortcut),
+                value = lockscreenActionDisplayValue(actionState.value, prefs),
+                onClick = {
+                    findNavController().navigate(
+                        R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
+                        bundleOf(GestureActionFragment.LOCKSCREEN_SHORTCUT to true),
                     )
-                    GestureButton(
-                        label = stringResource(R.string.gesture_double_tap),
-                        type = GestureType.DOUBLE_TAP,
-                        action = doubleTapActionState.value,
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.status_bar_connectivity_tap),
-                        value = actionDisplayValue(connectivityActionState.value, prefs, StatusBarSectionType.CELLULAR),
-                        onClick = {
-                            findNavController().navigate(
-                                R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
-                                bundleOf(GestureActionFragment.SECTION_TYPE to StatusBarSectionType.CELLULAR.name),
-                            )
-                        },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.status_bar_battery_tap),
-                        value = actionDisplayValue(batteryActionState.value, prefs, StatusBarSectionType.BATTERY),
-                        onClick = {
-                            findNavController().navigate(
-                                R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
-                                bundleOf(GestureActionFragment.SECTION_TYPE to StatusBarSectionType.BATTERY.name),
-                            )
-                        },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.lockscreen_date_tap),
-                        value = lockscreenDateTapActionDisplayValue(dateTapActionState.value, prefs),
-                        onClick = {
-                            findNavController().navigate(
-                                R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
-                                bundleOf(GestureActionFragment.LOCKSCREEN_DATE_TAP to true),
-                            )
-                        },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.lockscreen_shortcut),
-                        value = lockscreenActionDisplayValue(actionState.value, prefs),
-                        onClick = {
-                            findNavController().navigate(
-                                R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
-                                bundleOf(GestureActionFragment.LOCKSCREEN_SHORTCUT to true),
-                            )
-                        },
-                    )
-                    SelectorButton(
-                        label = stringResource(R.string.lockscreen_shortcut_icon),
-                        value = LockscreenShortcutIconFragment.iconDisplayName(shortcutIconState.value),
-                        iconRes = LockscreenShortcutIconFragment.iconDrawableRes(shortcutIconState.value),
-                        onClick = {
-                            findNavController().navigate(R.id.action_lockscreenTapShortcutsFragment_to_lockscreenShortcutIconFragment)
-                        },
-                    )
-                }
-            }
+                },
+            )
+            SelectorButton(
+                label = stringResource(R.string.lockscreen_shortcut_icon),
+                value = LockscreenShortcutIconFragment.iconDisplayName(shortcutIconState.value),
+                iconRes = LockscreenShortcutIconFragment.iconDrawableRes(shortcutIconState.value),
+                onClick = {
+                    findNavController().navigate(R.id.action_lockscreenTapShortcutsFragment_to_lockscreenShortcutIconFragment)
+                },
+            )
         }
     }
 

@@ -14,13 +14,12 @@
     <string name="settings_gestures">Gesti</string>
     <string name="settings_notifications">Notifiche</string>
     <string name="settings_status_bar">Barra di stato</string>
-    <string name="settings_hidden_apps">App nascoste</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Apri applicazione</string>
     <string name="action_lock_screen">Schermata di Blocco</string>
     <string name="action_show_notifications">Notifiche (Android)</string>
-    <string name="action_show_app_list">Elenco Applicazioni</string>
+    <string name="action_show_app_picker">Elenco Applicazioni</string>
     <string name="action_quick_settings">Impostazioni rapide (Android)</string>
     <string name="action_show_recents">App Recenti</string>
     <string name="action_show_notification_list">Notifiche</string>
@@ -85,30 +84,10 @@
     <string name="status_bar_battery_icon">Mostra icona</string>
 
     <!-- App drawer -->
-    <string name="app_drawer_title">Lista applicazioni</string>
-    <string name="app_drawer_select_rename">Seleziona App</string>
-    <string name="app_drawer_hidden_apps">App nascoste</string>
-    <string name="app_drawer_no_apps">Nessuna app trovata</string>
-    <string name="app_drawer_rename">Rinomina</string>
-    <string name="app_drawer_reset">Reimposta</string>
-    <string name="app_drawer_cancel">Annulla</string>
+    <string name="app_picker_title">Lista applicazioni</string>
+<string name="app_picker_no_apps">Nessuna app trovata</string>
 
-    <!-- App actions -->
-    <string name="app_actions_show">Mostra</string>
-    <string name="app_actions_hide">Nascondi</string>
-    <string name="app_actions_rename">Rinomina</string>
-    <string name="app_actions_pin">Aggiungi</string>
-    <string name="app_actions_unpin">Rimuovi</string>
-    <string name="app_actions_replace">Sostituisci</string>
-    <string name="app_actions_move_up">Sposta su</string>
-    <string name="app_actions_move_down">Sposta giù</string>
-    <string name="app_actions_app_info">Info app</string>
-    <string name="app_actions_uninstall">Disinstalla</string>
-    <string name="app_actions_confirm_title">Rimuovi collegamento</string>
-    <string name="app_actions_uninstall_title">Disinstalla app</string>
-    <string name="app_actions_confirm_message">Sei sicuro di voler rimuovere %1$s?</string>
-
-    <!-- Home screen tips -->
+<!-- Home screen tips -->
     <string name="tip_swipe_left">Scorri a sinistra per tutte le app</string>
     <string name="tip_long_press">Premi a lungo per le impostazioni</string>
 
@@ -117,12 +96,10 @@
     <string name="toast_unable_to_launch_app">Impossibile avviare l\'app</string>
     <string name="toast_unable_to_launch_shortcut">Impossibile avviare il collegamento</string>
     <string name="toast_shortcuts_require_android">I collegamenti richiedono Android 7.1+</string>
-    <string name="toast_unable_to_open_app_info">Impossibile aprire info app</string>
-    <string name="toast_action_requires_android_p">Questa azione richiede Android P (9) o superiore</string>
+<string name="toast_action_requires_android_p">Questa azione richiede Android P (9) o superiore</string>
     <string name="toast_lock_requires_android_9">Blocco schermo richiede Android 9 o superiore</string>
-    <string name="toast_long_press_to_select">Premi a lungo per selezionare l\'app</string>
-    <string name="toast_unable_to_add_shortcut">Impossibile aggiungere collegamento</string>
-    <string name="toast_added_to_app_drawer">Aggiunto alla lista applicazioni</string>
+<string name="toast_unable_to_add_shortcut">Impossibile aggiungere collegamento</string>
+    <string name="toast_added_to_app_picker">Aggiunto alla lista applicazioni</string>
 
     <!-- Misc -->
     <string name="app_placeholder">Applicazione</string>
@@ -131,8 +108,6 @@
     <string name="content_desc_back">Indietro</string>
     <string name="content_desc_save">Salva</string>
     <string name="content_desc_clear">Cancella</string>
-    <string name="content_desc_hide">Nascondi</string>
-    <string name="content_desc_app_info">Info app</string>
     <string name="content_desc_dismiss">Ignora</string>
 
     <plurals name="pages_count">

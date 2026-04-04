@@ -42,30 +42,10 @@
     </fragment>
 
     <fragment
-        android:id="@+id/appListFragment"
-        android:name="com.vandam.luma.ui.AppDrawerFragment"
-        android:label="app_list_fragment"
-        tools:layout="@layout/fragment_app_drawer">
-    </fragment>
-
-<fragment
-        android:id="@+id/renameFragment"
-        android:name="com.vandam.luma.ui.RenameFragment"
-        android:label="RenameFragment">
-        <argument
-            android:name="appPackage"
-            app:argType="string" />
-        <argument
-            android:name="appLabel"
-            app:argType="string" />
-        <argument
-            android:name="appAlias"
-            app:argType="string"
-            android:defaultValue="" />
-        <argument
-            android:name="homePosition"
-            app:argType="integer"
-            android:defaultValue="-1" />
+        android:id="@+id/appsFragment"
+        android:name="com.vandam.luma.ui.AppsFragment"
+        android:label="apps_fragment"
+        tools:layout="@layout/fragment_apps">
     </fragment>
     <fragment
         android:id="@+id/pagesFragment"
@@ -154,8 +134,8 @@
             android:id="@+id/action_settingsFragment_to_lockscreenFragment"
             app:destination="@id/lockscreenFragment" />
         <action
-            android:id="@+id/action_settingsFragment_to_miscellaneousFragment"
-            app:destination="@id/miscellaneousFragment" />
+            android:id="@+id/action_settingsFragment_to_generalFragment"
+            app:destination="@id/generalFragment" />
         <action
             android:id="@+id/action_settingsFragment_to_accountFragment"
             app:destination="@id/accountFragment" />
@@ -223,11 +203,11 @@
         android:name="com.vandam.luma.ui.LockscreenShortcutIconFragment"
         android:label="LockscreenShortcutIconFragment" />
     <fragment
-        android:id="@+id/miscellaneousFragment"
-        android:name="com.vandam.luma.ui.MiscellaneousFragment"
-        android:label="MiscellaneousFragment">
+        android:id="@+id/generalFragment"
+        android:name="com.vandam.luma.ui.GeneralFragment"
+        android:label="GeneralFragment">
         <action
-            android:id="@+id/action_miscellaneousFragment_to_hapticsFragment"
+            android:id="@+id/action_generalFragment_to_hapticsFragment"
             app:destination="@id/hapticsFragment" />
     </fragment>
     <fragment
@@ -246,37 +226,6 @@
         android:id="@+id/notificationListFragment"
         android:name="com.vandam.luma.ui.NotificationListFragment"
         android:label="NotificationListFragment" />
-    <fragment
-        android:id="@+id/appActionsFragment"
-        android:name="com.vandam.luma.ui.AppActionsFragment"
-        android:label="AppActionsFragment">
-        <argument
-            android:name="appPackage"
-            app:argType="string" />
-        <argument
-            android:name="appLabel"
-            app:argType="string" />
-        <argument
-            android:name="appAlias"
-            app:argType="string"
-            android:defaultValue="" />
-        <argument
-            android:name="appActivityName"
-            app:argType="string"
-            android:defaultValue="" />
-        <argument
-            android:name="homePosition"
-            app:argType="integer"
-            android:defaultValue="-1" />
-        <argument
-            android:name="isHidden"
-            app:argType="boolean"
-            android:defaultValue="false" />
-        <argument
-            android:name="userSerial"
-            app:argType="long"
-            android:defaultValue="-1L" />
-    </fragment>
     <fragment
         android:id="@+id/confirmFragment"
         android:name="com.vandam.luma.ui.ConfirmFragment"

@@ -4,24 +4,40 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
-import com.vandam.luma.ui.compose.SettingsComposable.ToggleTextButton
+import com.vandam.luma.ui.compose.SettingsScreen
+import com.vandam.luma.ui.compose.ToggleTextButton
+
+private data class HapticsToggleOption(
+    val title: String,
+    val state: androidx.compose.runtime.MutableState<Boolean>,
+    val checked: Boolean,
+    val enabled: Boolean,
+    val onValueChange: (Boolean) -> Unit,
+)
 
 class HapticsFragment : Fragment() {
-    private lateinit var prefs: Prefs
+    private val prefs by lazy { Prefs.getInstance(requireContext()) }
+    private val globalEnabled = mutableStateOf(false)
+    private val appTapEnabled = mutableStateOf(false)
+    private val longPressEnabled = mutableStateOf(false)
+    private val gestureActionsEnabled = mutableStateOf(false)
+    private val statusBarPressEnabled = mutableStateOf(false)
+    private val keymapsEnabled = mutableStateOf(false)
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        prefs = Prefs.getInstance(requireContext())
+    override fun onResume() {
+        super.onResume()
+        globalEnabled.value = prefs.hapticsEnabled
+        appTapEnabled.value = prefs.hapticsAppTapEnabled
+        longPressEnabled.value = prefs.hapticsLongPressEnabled
+        gestureActionsEnabled.value = prefs.hapticsGestureActionsEnabled
+        statusBarPressEnabled.value = prefs.hapticsStatusBarPressEnabled
+        keymapsEnabled.value = prefs.hapticsKeymapsEnabled
     }
 
     override fun onCreateView(
@@ -32,96 +48,66 @@ class HapticsFragment : Fragment() {
 
     @Composable
     private fun Screen() {
-        val globalEnabled = remember { mutableStateOf(prefs.hapticsEnabled) }
-        val appTapEnabled = remember { mutableStateOf(prefs.hapticsAppTapEnabled) }
-        val longPressEnabled = remember { mutableStateOf(prefs.hapticsLongPressEnabled) }
-        val gestureActionsEnabled = remember { mutableStateOf(prefs.hapticsGestureActionsEnabled) }
-        val statusBarPressEnabled = remember { mutableStateOf(prefs.hapticsStatusBarPressEnabled) }
-        val keymapsEnabled = remember { mutableStateOf(prefs.hapticsKeymapsEnabled) }
-
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.settings_haptics),
-                onBack = ::goBack,
+        val toggleOptions =
+            listOf(
+                HapticsToggleOption(
+                    title = stringResource(R.string.haptics_app_tap),
+                    state = appTapEnabled,
+                    checked = globalEnabled.value && appTapEnabled.value,
+                    enabled = globalEnabled.value,
+                    onValueChange = { prefs.hapticsAppTapEnabled = it },
+                ),
+                HapticsToggleOption(
+                    title = stringResource(R.string.haptics_long_press),
+                    state = longPressEnabled,
+                    checked = globalEnabled.value && longPressEnabled.value,
+                    enabled = globalEnabled.value,
+                    onValueChange = { prefs.hapticsLongPressEnabled = it },
+                ),
+                HapticsToggleOption(
+                    title = stringResource(R.string.haptics_gesture_actions),
+                    state = gestureActionsEnabled,
+                    checked = globalEnabled.value && gestureActionsEnabled.value,
+                    enabled = globalEnabled.value,
+                    onValueChange = { prefs.hapticsGestureActionsEnabled = it },
+                ),
+                HapticsToggleOption(
+                    title = stringResource(R.string.haptics_status_bar_press),
+                    state = statusBarPressEnabled,
+                    checked = globalEnabled.value && statusBarPressEnabled.value,
+                    enabled = globalEnabled.value,
+                    onValueChange = { prefs.hapticsStatusBarPressEnabled = it },
+                ),
+                HapticsToggleOption(
+                    title = stringResource(R.string.haptics_keymaps),
+                    state = keymapsEnabled,
+                    checked = globalEnabled.value && keymapsEnabled.value,
+                    enabled = globalEnabled.value,
+                    onValueChange = { prefs.hapticsKeymapsEnabled = it },
+                ),
             )
 
-            ContentContainer {
+        SettingsScreen(
+            title = stringResource(R.string.settings_haptics),
+            onBack = ::goBack,
+        ) {
+            ToggleTextButton(
+                title = stringResource(R.string.haptics_enabled),
+                checked = globalEnabled.value,
+                onValueChange = {
+                    globalEnabled.value = it
+                    prefs.hapticsEnabled = it
+                },
+            )
+            toggleOptions.forEach { option ->
                 ToggleTextButton(
-                    title = stringResource(R.string.haptics_enabled),
-                    checked = globalEnabled.value,
-                    onCheckedChange = {
-                        globalEnabled.value = it
-                        prefs.hapticsEnabled = it
+                    title = option.title,
+                    checked = option.checked,
+                    enabled = option.enabled,
+                    onValueChange = {
+                        option.state.value = it
+                        option.onValueChange(it)
                     },
-                    onClick = {
-                        globalEnabled.value = !globalEnabled.value
-                        prefs.hapticsEnabled = globalEnabled.value
-                    },
-                )
-                ToggleTextButton(
-                    title = stringResource(R.string.haptics_app_tap),
-                    checked = globalEnabled.value && appTapEnabled.value,
-                    onCheckedChange = {
-                        appTapEnabled.value = it
-                        prefs.hapticsAppTapEnabled = it
-                    },
-                    onClick = {
-                        appTapEnabled.value = !appTapEnabled.value
-                        prefs.hapticsAppTapEnabled = appTapEnabled.value
-                    },
-                    enabled = globalEnabled.value,
-                )
-                ToggleTextButton(
-                    title = stringResource(R.string.haptics_long_press),
-                    checked = globalEnabled.value && longPressEnabled.value,
-                    onCheckedChange = {
-                        longPressEnabled.value = it
-                        prefs.hapticsLongPressEnabled = it
-                    },
-                    onClick = {
-                        longPressEnabled.value = !longPressEnabled.value
-                        prefs.hapticsLongPressEnabled = longPressEnabled.value
-                    },
-                    enabled = globalEnabled.value,
-                )
-                ToggleTextButton(
-                    title = stringResource(R.string.haptics_gesture_actions),
-                    checked = globalEnabled.value && gestureActionsEnabled.value,
-                    onCheckedChange = {
-                        gestureActionsEnabled.value = it
-                        prefs.hapticsGestureActionsEnabled = it
-                    },
-                    onClick = {
-                        gestureActionsEnabled.value = !gestureActionsEnabled.value
-                        prefs.hapticsGestureActionsEnabled = gestureActionsEnabled.value
-                    },
-                    enabled = globalEnabled.value,
-                )
-                ToggleTextButton(
-                    title = stringResource(R.string.haptics_status_bar_press),
-                    checked = globalEnabled.value && statusBarPressEnabled.value,
-                    onCheckedChange = {
-                        statusBarPressEnabled.value = it
-                        prefs.hapticsStatusBarPressEnabled = it
-                    },
-                    onClick = {
-                        statusBarPressEnabled.value = !statusBarPressEnabled.value
-                        prefs.hapticsStatusBarPressEnabled = statusBarPressEnabled.value
-                    },
-                    enabled = globalEnabled.value,
-                )
-                ToggleTextButton(
-                    title = stringResource(R.string.haptics_keymaps),
-                    checked = globalEnabled.value && keymapsEnabled.value,
-                    onCheckedChange = {
-                        keymapsEnabled.value = it
-                        prefs.hapticsKeymapsEnabled = it
-                    },
-                    onClick = {
-                        keymapsEnabled.value = !keymapsEnabled.value
-                        prefs.hapticsKeymapsEnabled = keymapsEnabled.value
-                    },
-                    enabled = globalEnabled.value,
                 )
             }
         }

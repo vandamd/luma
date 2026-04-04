@@ -16,12 +16,11 @@ data class AppModel(
     val appPackage: String,
     val appActivityName: String,
     val user: UserHandle,
-    var appAlias: String,
     var hasNotification: Boolean = false,
     val entryType: AppEntryType = AppEntryType.LauncherApp,
 ) : Comparable<AppModel> {
     val displayName: String
-        get() = appAlias.ifEmpty { appLabel }
+        get() = appLabel
 
     override fun compareTo(other: AppModel): Int =
         when {

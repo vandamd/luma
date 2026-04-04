@@ -2,7 +2,6 @@ package com.vandam.luma.helper
 
 import android.content.Context
 import android.os.UserHandle
-import android.os.UserManager
 import com.vandam.luma.data.AppEntryType
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants
@@ -30,8 +29,6 @@ object HomeCleanupHelper {
         userHandle: UserHandle = android.os.Process.myUserHandle(),
     ) {
         val prefs = Prefs.getInstance(context)
-        val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
-        val userSerial = userManager.getSerialNumberForUser(userHandle)
         var needsHomeRefresh = false
         var needsAppListRefresh = false
 
@@ -55,13 +52,6 @@ object HomeCleanupHelper {
             }
         }
 
-        val hiddenApps = prefs.hiddenApps
-        val hiddenKey = prefs.getHiddenAppKey(packageName, userSerial)
-        if (hiddenApps.contains(hiddenKey)) {
-            prefs.hiddenApps = hiddenApps.filterNot { it == hiddenKey }.toMutableSet()
-            needsAppListRefresh = true
-        }
-
         val pinnedShortcuts = prefs.pinnedShortcuts
         val filteredShortcuts =
             pinnedShortcuts
@@ -71,29 +61,6 @@ object HomeCleanupHelper {
         if (filteredShortcuts.size != pinnedShortcuts.size) {
             prefs.pinnedShortcuts = filteredShortcuts
             needsAppListRefresh = true
-        }
-
-        val pinnedApps = prefs.pinnedApps
-        val serial = if (userSerial < 0L) prefs.mySerial else userSerial
-        val filtered =
-            pinnedApps
-                .filterNot { it.packageName == packageName && it.userSerial == serial }
-                .filterNot {
-                    it.packageName == Constants.PINNED_SHORTCUT_PACKAGE &&
-                        it.activityName.startsWith("$packageName|")
-                }
-        if (filtered.size != pinnedApps.size) {
-            prefs.pinnedApps = filtered
-            needsAppListRefresh = true
-        }
-
-        val hiddenShortcutIds = prefs.hiddenShortcutIds
-        val filteredHiddenIds =
-            hiddenShortcutIds
-                .filterNot { it.startsWith("$packageName|") }
-                .toSet()
-        if (filteredHiddenIds.size != hiddenShortcutIds.size) {
-            prefs.hiddenShortcutIds = filteredHiddenIds
         }
 
         if (needsHomeRefresh) {
@@ -131,7 +98,6 @@ object HomeCleanupHelper {
         AppModel(
             appLabel = "",
             appPackage = "",
-            appAlias = "",
             appActivityName = "",
             user = android.os.Process.myUserHandle(),
             key = null,

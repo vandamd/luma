@@ -1,7 +1,6 @@
 package com.vandam.luma.ui
 
 import android.content.Context
-import android.os.UserManager
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Filter
@@ -9,27 +8,21 @@ import android.widget.Filterable
 import android.widget.FrameLayout
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
-import com.vandam.luma.R
 import com.vandam.luma.data.AppEntryType
 import com.vandam.luma.data.AppModel
-import com.vandam.luma.data.PinnedAppEntry
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.databinding.AdapterAppDrawerBinding
+import com.vandam.luma.databinding.AdapterAppPickerBinding
 import com.vandam.luma.helper.performAppTapHapticFeedback
-import com.vandam.luma.helper.performLongPressHapticFeedback
 import java.text.Normalizer
 
-data class AppDrawerConfig(
+data class AppPickerConfig(
     val gravity: Int,
     val clickListener: (AppModel) -> Unit,
-    val appLongPressListener: ((AppModel) -> Unit)? = null,
     val showToolIcon: Boolean = true,
-    val showPinIcon: Boolean = true,
 )
 
-class AppDrawerAdapter(
-    private val context: Context,
-    private val config: AppDrawerConfig,
+class AppPickerAdapter(
+    private val config: AppPickerConfig,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>(),
     Filterable {
     companion object {
@@ -47,15 +40,12 @@ class AppDrawerAdapter(
     private var appsList: MutableList<AppModel> = mutableListOf()
     private var filteredApps: MutableList<AppModel> = mutableListOf()
     private val normalizedNameCache = mutableMapOf<String, String>()
-    private val prefs = Prefs.getInstance(context)
-    private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
-    private var pinnedSet: Set<PinnedAppEntry> = emptySet()
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int,
     ): RecyclerView.ViewHolder {
-        val binding = AdapterAppDrawerBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = AdapterAppPickerBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return AppViewHolder(binding)
     }
 
@@ -68,10 +58,7 @@ class AppDrawerAdapter(
             config.gravity,
             appModel,
             config.clickListener,
-            config.appLongPressListener,
             config.showToolIcon,
-            config.showPinIcon,
-            isPinned(appModel),
         )
     }
 
@@ -127,30 +114,21 @@ class AppDrawerAdapter(
         normalizedNameCache.clear()
         this.appsList = appsList
         filteredApps = appsList.toMutableList()
-        pinnedSet = prefs.pinnedApps.toSet()
         notifyDataSetChanged()
     }
 
-    private fun isPinned(appModel: AppModel): Boolean {
-        val serial = userManager.getSerialNumberForUser(appModel.user)
-        return pinnedSet.contains(PinnedAppEntry(appModel.appPackage, appModel.appActivityName, serial))
-    }
-
     class AppViewHolder(
-        private val binding: AdapterAppDrawerBinding,
+        private val binding: AdapterAppPickerBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(
             appLabelGravity: Int,
             appModel: AppModel,
             listener: (AppModel) -> Unit,
-            appLongPressListener: ((AppModel) -> Unit)? = null,
             showToolIcon: Boolean = true,
-            showPinIcon: Boolean = true,
-            isPinned: Boolean = false,
         ) {
             val context = itemView.context
-            configureAppTitle(context, appModel, appLabelGravity, showToolIcon, showPinIcon, isPinned)
-            setupClickListeners(context, appModel, listener, appLongPressListener)
+            configureAppTitle(context, appModel, appLabelGravity, showToolIcon)
+            setupClickListeners(context, appModel, listener)
         }
 
         private fun configureAppTitle(
@@ -158,8 +136,6 @@ class AppDrawerAdapter(
             appModel: AppModel,
             gravity: Int,
             showToolIcon: Boolean,
-            showPinIcon: Boolean,
-            isPinned: Boolean,
         ) {
             val showIndicator = Prefs.getInstance(context).showNotificationIndicator && appModel.hasNotification
             val displayName = if (showIndicator) "${appModel.displayName}*" else appModel.displayName
@@ -170,35 +146,23 @@ class AppDrawerAdapter(
             params.gravity = gravity
             binding.appTitleRow.layoutParams = params
 
-            val showPin = showPinIcon && isPinned
             val showTool = showToolIcon && appModel.entryType == AppEntryType.Tool
 
-            binding.appPinIcon.isVisible = showPin
             binding.appToolIcon.isVisible = showTool
-            binding.appIconSpacer.isVisible = showPin && showTool
-            binding.appIconGroup.isVisible = showPin || showTool
+            binding.appIconGroup.isVisible = showTool
         }
 
         private fun setupClickListeners(
             context: Context,
             appModel: AppModel,
             listener: (AppModel) -> Unit,
-            appLongPressListener: ((AppModel) -> Unit)? = null,
         ) {
             binding.appTitleFrame.isHapticFeedbackEnabled = false
             binding.appTitleFrame.setOnClickListener {
                 performAppTapHapticFeedback(context)
                 listener(appModel)
             }
-            if (appLongPressListener != null) {
-                binding.appTitleFrame.setOnLongClickListener {
-                    performLongPressHapticFeedback(context)
-                    appLongPressListener(appModel)
-                    true
-                }
-            } else {
-                binding.appTitleFrame.setOnLongClickListener(null)
-            }
+            binding.appTitleFrame.setOnLongClickListener(null)
         }
     }
 }

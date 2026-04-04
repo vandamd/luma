@@ -47,7 +47,6 @@ import com.vandam.luma.MainViewModel
 import com.vandam.luma.R
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants.Action
-import com.vandam.luma.data.Constants.AppDrawerFlag
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.HomeLayout
 import com.vandam.luma.data.Prefs
@@ -1074,18 +1073,11 @@ class HomeFragment :
     }
 
     private fun launchApp(appModel: AppModel) {
-        viewModel.selectedApp(appModel, AppDrawerFlag.LaunchApp, launchContext = requireActivity())
+        viewModel.selectedApp(appModel, launchContext = requireActivity())
     }
 
-    private fun showAppList(
-        flag: AppDrawerFlag,
-        n: Int = 0,
-    ) {
-        viewModel.getAppList(includeHidden = flag == AppDrawerFlag.SetHomeApp)
-        findNavController().navigate(
-            R.id.appListFragment,
-            bundleOf("flag" to flag.toString(), "n" to n),
-        )
+    private fun showAppPicker() {
+        findNavController().navigate(R.id.appsFragment)
     }
 
     private fun openGestureApp(gestureType: GestureType) {
@@ -1101,7 +1093,7 @@ class HomeFragment :
             action = action,
             callbacks =
                 ActionExecutionCallbacks(
-                    showAppList = { showAppList(AppDrawerFlag.LaunchApp) },
+                    showAppPicker = ::showAppPicker,
                     showNotificationList = {
                         try {
                             findNavController().navigate(R.id.action_mainFragment_to_notificationListFragment)
@@ -1194,7 +1186,7 @@ class HomeFragment :
     }
 
     private fun getAppDisplayName(appModel: AppModel): String {
-        val appName = if (appModel.appAlias.isNotEmpty()) appModel.appAlias else appModel.appLabel
+        val appName = appModel.appLabel
         if (!prefs.showNotificationIndicator) return appName
 
         val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()

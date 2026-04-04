@@ -95,7 +95,6 @@ object HomeItemsManager {
                     Tool.Phone.toAppModel(
                         context = context,
                         collator = collator,
-                        alias = prefs.getAppAlias(Tool.Phone.packageName),
                     ),
                 )
             }
@@ -110,7 +109,6 @@ object HomeItemsManager {
                         tool.toAppModel(
                             context = context,
                             collator = collator,
-                            alias = prefs.getAppAlias(tool.packageName),
                         ),
                     )
                 }
@@ -118,21 +116,11 @@ object HomeItemsManager {
             prefs.enabledManagedAppIds
                 .mapNotNull(ManagedAppCatalog::fromId)
                 .forEach { app ->
-                    middleItems.add(
-                        app.toAppModel(
-                            collator = collator,
-                            alias = prefs.getAppAlias(app.packageName),
-                        ),
-                    )
+                    middleItems.add(app.toAppModel(collator = collator))
                 }
 
             prefs.enabledAndroidApps.forEach { app ->
-                middleItems.add(
-                    app.toAppModel(
-                        collator = collator,
-                        alias = prefs.getAppAlias(app.packageName),
-                    ),
-                )
+                middleItems.add(app.toAppModel(collator = collator))
             }
 
             middleItems.sortWith { left, right ->
@@ -146,7 +134,6 @@ object HomeItemsManager {
                     Tool.Settings.toAppModel(
                         context = context,
                         collator = collator,
-                        alias = prefs.getAppAlias(Tool.Settings.packageName),
                     ),
                 )
             }
@@ -159,7 +146,6 @@ object HomeItemsManager {
             appPackage = "",
             appActivityName = "",
             user = android.os.Process.myUserHandle(),
-            appAlias = "",
             hasNotification = false,
             entryType = AppEntryType.Tool,
         )

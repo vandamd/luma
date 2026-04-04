@@ -28,20 +28,6 @@
                 android:visibility="gone">
 
                 <ImageView
-                    android:id="@+id/appPinIcon"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/pin_24px"
-                    android:visibility="gone" />
-
-                <View
-                    android:id="@+id/appIconSpacer"
-                    android:layout_width="4dp"
-                    android:layout_height="1dp"
-                    android:visibility="gone" />
-
-                <ImageView
                     android:id="@+id/appToolIcon"
                     android:layout_width="24dp"
                     android:layout_height="24dp"

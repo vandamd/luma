@@ -5,23 +5,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
-import com.vandam.luma.ui.compose.SettingsComposable.SimpleTextButton
+import com.vandam.luma.ui.compose.SingleChoiceOption
+import com.vandam.luma.ui.compose.SingleChoiceScreen
 
 class LockscreenShortcutIconFragment : Fragment() {
-    private lateinit var prefs: Prefs
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        prefs = Prefs.getInstance(requireContext())
-    }
+    private val prefs by lazy { Prefs.getInstance(requireContext()) }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -30,25 +23,20 @@ class LockscreenShortcutIconFragment : Fragment() {
     ): View = composeView(onSwipeBack = ::goBack) { Screen() }
 
     @Composable
-    fun Screen() {
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.lockscreen_shortcut_icon),
-                onBack = ::goBack,
-            )
-
-            ContentContainer {
-                for (icon in Prefs.LockscreenShortcutIcon.values()) {
-                    SimpleTextButton(
+    private fun Screen() =
+        SingleChoiceScreen(
+            title = stringResource(R.string.lockscreen_shortcut_icon),
+            onBack = ::goBack,
+            options =
+                Prefs.LockscreenShortcutIcon.values().map { icon ->
+                    SingleChoiceOption(
                         title = iconDisplayName(icon),
-                        underline = prefs.lockscreenShortcutIcon == icon,
+                        selected = prefs.lockscreenShortcutIcon == icon,
                         iconRes = iconDrawableRes(icon),
                         onClick = { select(icon) },
                     )
-                }
-            }
-        }
-    }
+                },
+        )
 
     private fun select(icon: Prefs.LockscreenShortcutIcon) {
         prefs.lockscreenShortcutIcon = icon

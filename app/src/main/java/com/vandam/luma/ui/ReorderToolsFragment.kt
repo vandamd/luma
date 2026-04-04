@@ -37,8 +37,7 @@ import com.vandam.luma.helper.launchAppModel
 import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.helper.performHapticFeedback
 import com.vandam.luma.style.SettingsTheme
-import com.vandam.luma.ui.compose.SettingsComposable.ContentContainer
-import com.vandam.luma.ui.compose.SettingsComposable.SettingsHeader
+import com.vandam.luma.ui.compose.SettingsScreen
 
 class ReorderToolsFragment : Fragment() {
     private lateinit var prefs: Prefs
@@ -83,39 +82,36 @@ class ReorderToolsFragment : Fragment() {
             }
         }
 
-        Column {
-            SettingsHeader(
-                title = stringResource(R.string.homescreen_reorder_tools),
-                onBack = ::goBack,
-            )
-
-            ContentContainer(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                items.forEachIndexed { index, appModel ->
-                    val itemKey = prefs.homeItemKey(appModel)
-                    ReorderRow(
-                        appModel = appModel,
-                        label = appModel.displayName,
-                        visibleOnHome = hiddenStates[itemKey] != true,
-                        canMoveUp = index > 0,
-                        canMoveDown = index < items.lastIndex,
-                        onOpen = {
-                            performAppTapHapticFeedback(context)
-                            launchAppModel(context, appModel)
-                        },
-                        onToggleVisibility = {
-                            val visible = hiddenStates[itemKey] != true
-                            hiddenStates[itemKey] = visible
-                            prefs.setHomeItemHidden(appModel, hidden = visible)
-                            HomeItemsManager.applyCurrentHomeLayout(context, prefs)
-                        },
-                        onMoveUp = {
-                            swapItems(items, index, index - 1)
-                        },
-                        onMoveDown = {
-                            swapItems(items, index, index + 1)
-                        },
-                    )
-                }
+        SettingsScreen(
+            title = stringResource(R.string.homescreen_reorder_tools),
+            onBack = ::goBack,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            items.forEachIndexed { index, appModel ->
+                val itemKey = prefs.homeItemKey(appModel)
+                ReorderRow(
+                    appModel = appModel,
+                    label = appModel.displayName,
+                    visibleOnHome = hiddenStates[itemKey] != true,
+                    canMoveUp = index > 0,
+                    canMoveDown = index < items.lastIndex,
+                    onOpen = {
+                        performAppTapHapticFeedback(context)
+                        launchAppModel(context, appModel)
+                    },
+                    onToggleVisibility = {
+                        val visible = hiddenStates[itemKey] != true
+                        hiddenStates[itemKey] = visible
+                        prefs.setHomeItemHidden(appModel, hidden = visible)
+                        HomeItemsManager.applyCurrentHomeLayout(context, prefs)
+                    },
+                    onMoveUp = {
+                        swapItems(items, index, index - 1)
+                    },
+                    onMoveDown = {
+                        swapItems(items, index, index + 1)
+                    },
+                )
             }
         }
     }

@@ -15,16 +15,13 @@ data class AndroidLauncherApp(
 
     fun toAppModel(
         collator: Collator,
-        alias: String = "",
     ): AppModel {
-        val sortLabel = alias.ifEmpty { label }
         return AppModel(
             appLabel = label,
-            key = collator.getCollationKey(sortLabel),
+            key = collator.getCollationKey(label),
             appPackage = packageName,
             appActivityName = activityName,
             user = Process.myUserHandle(),
-            appAlias = alias,
             hasNotification = false,
             entryType = AppEntryType.LauncherApp,
         )

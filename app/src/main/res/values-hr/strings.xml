@@ -13,13 +13,12 @@
     <string name="settings_pages">Stranice</string>
     <string name="settings_gestures">Geste</string>
     <string name="settings_notifications">Obavijesti</string>
-    <string name="settings_hidden_apps">Skrivene aplikacije</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Otvori aplikaciju</string>
     <string name="action_lock_screen">Zaključaj ekran</string>
     <string name="action_show_notifications">Obavijesti (Android)</string>
-    <string name="action_show_app_list">Popis aplikacija</string>
+    <string name="action_show_app_picker">Popis aplikacija</string>
     <string name="action_quick_settings">Brze postavke (Android)</string>
     <string name="action_show_recents">Nedavne aplikacije</string>
     <string name="action_show_notification_list">Obavijesti</string>
@@ -86,30 +85,10 @@
     <string name="status_bar_battery_icon">Prikaži ikonu</string>
 
     <!-- App drawer -->
-    <string name="app_drawer_title">Ladica s aplikacijama</string>
-    <string name="app_drawer_select_rename">Odaberi aplikaciju</string>
-    <string name="app_drawer_hidden_apps">Skrivene aplikacije</string>
-    <string name="app_drawer_no_apps">Nema pronađenih aplikacija</string>
-    <string name="app_drawer_rename">Preimenuj</string>
-    <string name="app_drawer_reset">Ponovno postavi</string>
-    <string name="app_drawer_cancel">Odustani</string>
+    <string name="app_picker_title">Ladica s aplikacijama</string>
+<string name="app_picker_no_apps">Nema pronađenih aplikacija</string>
 
-    <!-- App actions -->
-    <string name="app_actions_show">Prikaži</string>
-    <string name="app_actions_hide">Sakrij</string>
-    <string name="app_actions_rename">Preimenuj</string>
-    <string name="app_actions_pin">Prikvači</string>
-    <string name="app_actions_unpin">Odkvači</string>
-    <string name="app_actions_replace">Zamijeni</string>
-    <string name="app_actions_move_up">Pomakni gore</string>
-    <string name="app_actions_move_down">Pomakni dolje</string>
-    <string name="app_actions_app_info">Info aplikacije</string>
-    <string name="app_actions_uninstall">Deinstaliraj</string>
-    <string name="app_actions_confirm_title">Ukloni prečac</string>
-    <string name="app_actions_uninstall_title">Deinstaliraj aplikaciju</string>
-    <string name="app_actions_confirm_message">Jeste li sigurni da želite ukloniti %1$s?</string>
-
-    <!-- Home screen tips -->
+<!-- Home screen tips -->
     <string name="tip_swipe_left">Povuci lijevo za sve aplikacije</string>
     <string name="tip_long_press">Dugo pritisni za postavke</string>
 
@@ -118,12 +97,10 @@
     <string name="toast_unable_to_launch_app">Nije moguće pokrenuti aplikaciju</string>
     <string name="toast_unable_to_launch_shortcut">Nije moguće pokrenuti prečac</string>
     <string name="toast_shortcuts_require_android">Prečaci zahtijevaju Android 7.1+</string>
-    <string name="toast_unable_to_open_app_info">Nije moguće otvoriti info aplikacije</string>
-    <string name="toast_action_requires_android_p">Ova radnja zahtijeva Android P (9) ili noviji</string>
+<string name="toast_action_requires_android_p">Ova radnja zahtijeva Android P (9) ili noviji</string>
     <string name="toast_lock_requires_android_9">Zaključavanje ekrana zahtijeva Android 9 ili noviji</string>
-    <string name="toast_long_press_to_select">Dugo pritisni za odabir aplikacije</string>
-    <string name="toast_unable_to_add_shortcut">Nije moguće dodati prečac</string>
-    <string name="toast_added_to_app_drawer">Dodano u ladicu s aplikacijama</string>
+<string name="toast_unable_to_add_shortcut">Nije moguće dodati prečac</string>
+    <string name="toast_added_to_app_picker">Dodano u ladicu s aplikacijama</string>
 
     <!-- Misc -->
     <string name="app_placeholder">Aplikacija</string>
@@ -132,8 +109,6 @@
     <string name="content_desc_back">Natrag</string>
     <string name="content_desc_save">Spremi</string>
     <string name="content_desc_clear">Obriši</string>
-    <string name="content_desc_hide">Sakrij</string>
-    <string name="content_desc_app_info">Info aplikacije</string>
     <string name="content_desc_dismiss">Odbaci</string>
 
     <plurals name="pages_count">

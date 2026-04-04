@@ -14,13 +14,12 @@
     <string name="settings_gestures">ジェスチャー</string>
     <string name="settings_notifications">通知</string>
     <string name="settings_status_bar">ステータスバー</string>
-    <string name="settings_hidden_apps">非表示のアプリ</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">アプリを開く</string>
     <string name="action_lock_screen">画面をロック</string>
     <string name="action_show_notifications">通知 (Android)</string>
-    <string name="action_show_app_list">アプリ一覧</string>
+    <string name="action_show_app_picker">アプリ一覧</string>
     <string name="action_quick_settings">クイック設定 (Android)</string>
     <string name="action_show_recents">最近のアプリ</string>
     <string name="action_show_notification_list">通知</string>
@@ -85,30 +84,10 @@
     <string name="status_bar_battery_icon">アイコンを表示</string>
 
     <!-- App drawer -->
-    <string name="app_drawer_title">アプリドロワー</string>
-    <string name="app_drawer_select_rename">アプリを選択</string>
-    <string name="app_drawer_hidden_apps">非表示のアプリ</string>
-    <string name="app_drawer_no_apps">アプリが見つかりません</string>
-    <string name="app_drawer_rename">名前を変更</string>
-    <string name="app_drawer_reset">リセット</string>
-    <string name="app_drawer_cancel">キャンセル</string>
+    <string name="app_picker_title">アプリドロワー</string>
+<string name="app_picker_no_apps">アプリが見つかりません</string>
 
-    <!-- App actions -->
-    <string name="app_actions_show">表示</string>
-    <string name="app_actions_hide">非表示</string>
-    <string name="app_actions_rename">名前変更</string>
-    <string name="app_actions_pin">ピン留め</string>
-    <string name="app_actions_unpin">ピン留め解除</string>
-    <string name="app_actions_replace">置換</string>
-    <string name="app_actions_move_up">上に移動</string>
-    <string name="app_actions_move_down">下に移動</string>
-    <string name="app_actions_app_info">アプリ情報</string>
-    <string name="app_actions_uninstall">アンインストール</string>
-    <string name="app_actions_confirm_title">ショートカットを削除</string>
-    <string name="app_actions_uninstall_title">アプリをアンインストール</string>
-    <string name="app_actions_confirm_message">%1$s を削除してもよろしいですか？</string>
-
-    <!-- Home screen tips -->
+<!-- Home screen tips -->
     <string name="tip_swipe_left">左にスワイプですべてのアプリ</string>
     <string name="tip_long_press">長押しで設定</string>
 
@@ -117,12 +96,10 @@
     <string name="toast_unable_to_launch_app">アプリを起動できません</string>
     <string name="toast_unable_to_launch_shortcut">ショートカットを起動できません</string>
     <string name="toast_shortcuts_require_android">ショートカットにはAndroid 7.1以上が必要です</string>
-    <string name="toast_unable_to_open_app_info">アプリ情報を開けません</string>
-    <string name="toast_action_requires_android_p">この操作にはAndroid P (9) 以上が必要です</string>
+<string name="toast_action_requires_android_p">この操作にはAndroid P (9) 以上が必要です</string>
     <string name="toast_lock_requires_android_9">画面ロックにはAndroid 9以上が必要です</string>
-    <string name="toast_long_press_to_select">長押しでアプリを選択</string>
-    <string name="toast_unable_to_add_shortcut">ショートカットを追加できません</string>
-    <string name="toast_added_to_app_drawer">アプリドロワーに追加しました</string>
+<string name="toast_unable_to_add_shortcut">ショートカットを追加できません</string>
+    <string name="toast_added_to_app_picker">アプリドロワーに追加しました</string>
 
     <!-- Misc -->
     <string name="app_placeholder">アプリ</string>
@@ -131,8 +108,6 @@
     <string name="content_desc_back">戻る</string>
     <string name="content_desc_save">保存</string>
     <string name="content_desc_clear">クリア</string>
-    <string name="content_desc_hide">非表示</string>
-    <string name="content_desc_app_info">アプリ情報</string>
     <string name="content_desc_dismiss">閉じる</string>
 
     <plurals name="pages_count">
