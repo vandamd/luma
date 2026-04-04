@@ -10,7 +10,6 @@
     <!-- Settings screen -->
     <string name="settings_title">Luma Einstellungen (%1$s)</string>
     <string name="settings_auto_rotate">Automatisch drehen</string>
-    <string name="settings_pages">Seiten</string>
     <string name="settings_gestures">Gesten</string>
     <string name="settings_notifications">Benachrichtigungen</string>
     <string name="settings_status_bar">Statusleiste</string>
@@ -18,9 +17,6 @@
     <!-- Gesture actions -->
     <string name="action_open_app">App öffnen</string>
     <string name="action_lock_screen">Bildschirm sperren</string>
-    <string name="action_show_notifications">Benachrichtigungen (Android)</string>
-    <string name="action_show_app_picker">App-Übersicht</string>
-    <string name="action_quick_settings">Schnelleinstellungen (Android)</string>
     <string name="action_show_recents">Zuletzt verwendete Apps</string>
     <string name="action_show_notification_list">Benachrichtigungen</string>
     <string name="action_disabled">Deaktiviert</string>
@@ -35,8 +31,6 @@
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">Seitenindikator-Position</string>
-    <string name="pages_number_of_pages">Anzahl der Seiten</string>
-    <string name="pages_page_number_of_apps">Seite %1$d, Anzahl der Apps</string>
 
     <!-- Page indicator positions -->
     <string name="position_left">Links</string>
@@ -55,8 +49,6 @@
     <string name="status_bar_enabled">Aktiviert</string>
     <string name="status_bar_mode_none">Deaktiviert</string>
     <string name="status_bar_mode_android">Aktiviert (Android)</string>
-    <string name="status_bar_time">Uhrzeit</string>
-    <string name="status_bar_time_enabled">Aktiviert</string>
     <string name="status_bar_time_format">Uhrzeitformat</string>
     <string name="status_bar_time_standard">12-Stunden AM/PM</string>
     <string name="status_bar_time_24h">24-Stunden</string>
@@ -80,8 +72,6 @@
     <string name="status_bar_battery_icon">Symbol anzeigen</string>
 
     <!-- App drawer -->
-    <string name="app_picker_title">App-Übersicht</string>
-<string name="app_picker_no_apps">Keine Apps gefunden</string>
 
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Links swipen für alle Apps</string>
@@ -90,12 +80,8 @@
     <!-- Toast messages -->
     <string name="toast_app_not_found">App nicht gefunden</string>
     <string name="toast_unable_to_launch_app">App kann nicht gestartet werden</string>
-    <string name="toast_unable_to_launch_shortcut">Verknüpfung kann nicht gestartet werden</string>
-    <string name="toast_shortcuts_require_android">Verknüpfungen erfordern Android 7.1+</string>
 <string name="toast_action_requires_android_p">Diese Aktion erfordert Android P (9) oder höher</string>
     <string name="toast_lock_requires_android_9">Bildschirmsperre erfordert Android 9 oder höher</string>
-<string name="toast_unable_to_add_shortcut">Verknüpfung kann nicht hinzugefügt werden</string>
-    <string name="toast_added_to_app_picker">Zur App-Übersicht hinzugefügt</string>
 
     <!-- Misc -->
     <string name="app_placeholder">App</string>
@@ -109,13 +95,4 @@
     <string name="notification_list_title">Benachrichtigungen</string>
     <string name="notification_list_empty">Keine Benachrichtigungen</string>
     <string name="notification_list_no_permission">Tippen Sie hier, um Zugriff auf Benachrichtigungen zu gewähren</string>
-
-    <plurals name="pages_count">
-        <item quantity="one">%d Seite</item>
-        <item quantity="other">%d Seiten</item>
-    </plurals>
-    <plurals name="apps_count">
-        <item quantity="one">%d App</item>
-        <item quantity="other">%d Apps</item>
-    </plurals>
 </resources>

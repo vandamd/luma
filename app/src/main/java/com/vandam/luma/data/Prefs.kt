@@ -22,30 +22,7 @@ private const val HIDDEN_HOME_ITEM_KEYS = "HIDDEN_HOME_ITEM_KEYS"
 private const val HOME_PAGES = "HOME_PAGES"
 private const val HOME_APPS_PER_PAGE = "HOME_APPS_PER_PAGE_"
 
-private const val INVERT_COLOURS = "INVERT_COLOURS"
 private const val THEME_MODE = "theme_mode"
-private const val PINNED_SHORTCUTS = "PINNED_SHORTCUTS"
-
-data class ShortcutEntry(
-    val packageName: String,
-    val shortcutId: String,
-    val label: String,
-) {
-    val payload: String get() = "$packageName|$shortcutId"
-
-    fun serialize(): String = "$packageName|$shortcutId|$label"
-
-    companion object {
-        fun parse(entry: String): ShortcutEntry? {
-            val parts = entry.split("|")
-            return if (parts.size >= 3) {
-                ShortcutEntry(parts[0], parts[1], parts.drop(2).joinToString("|"))
-            } else {
-                null
-            }
-        }
-    }
-}
 
 private const val APP_NAME = "APP_NAME"
 private const val APP_PACKAGE = "APP_PACKAGE"
@@ -76,20 +53,13 @@ enum class StatusBarSectionType(
     val defaultAction: Constants.Action,
 ) {
     CELLULAR("SB_CELLULAR_ACTION", "SB_CELLULAR_APP", Constants.Action.NetworkShortcutLight),
-    TIME("SB_TIME_ACTION", "SB_TIME_APP", Constants.Action.ShowNotificationList),
     BATTERY("SB_BATTERY_ACTION", "SB_BATTERY_APP", Constants.Action.Disabled),
 }
 
 private const val PAGE_INDICATOR_POSITION = "page_indicator_position"
 private const val SHOW_NOTIFICATION_INDICATOR = "show_notification_indicator"
-private const val SHOW_STATUS_BAR_NOTIFICATION_INDICATOR = "show_status_bar_notification_indicator"
 private const val NOTIFICATION_INDICATOR_SECTION = "notification_indicator_section"
 private const val NOTIFICATION_INDICATOR_ALIGNMENT = "notification_indicator_alignment"
-private const val STATUS_BAR_ENABLED = "status_bar_enabled"
-private const val STATUS_BAR_MODE = "status_bar_mode"
-private const val STATUS_BAR_VISIBILITY_MODE = "status_bar_visibility_mode"
-private const val STATUS_BAR_TYPE = "status_bar_type"
-private const val TIME_ENABLED = "time_enabled"
 private const val TIME_FORMAT = "time_format"
 private const val SHOW_SECONDS = "show_seconds"
 private const val LEADING_ZERO = "leading_zero"
@@ -115,15 +85,12 @@ private const val SCROLLWHEEL_BUTTON_PRESS_ACTION = "scrollwheel_button_press_ac
 private const val SCROLLWHEEL_BUTTON_PRESS_APP = "scrollwheel_button_press_app"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION = "scrollwheel_button_long_press_action"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_APP = "scrollwheel_button_long_press_app"
-private const val SHOW_APP_PICKER_TOOL_ICONS = "show_app_picker_tool_icons"
-private const val LEGACY_SHOW_APP_DRAWER_TOOL_ICONS = "show_app_drawer_tool_icons"
 private const val LOCKSCREEN_DATE_FORMAT = "lockscreen_date_format"
 private const val LOCKSCREEN_DATE_TAP_ACTION = "lockscreen_date_tap_action"
 private const val LOCKSCREEN_DATE_TAP_APP = "lockscreen_date_tap_app"
 private const val LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR = "lockscreen_clock_notification_indicator"
 private const val LOCKSCREEN_SHORTCUT_ACTION = "lockscreen_shortcut_action"
 private const val LOCKSCREEN_SHORTCUT_APP = "lockscreen_shortcut_app"
-private const val LEGACY_ACTION_SHOW_APP_LIST = "ShowAppList"
 private const val LOCKSCREEN_SHORTCUT_ICON = "lockscreen_shortcut_icon"
 
 class Prefs(
@@ -144,13 +111,6 @@ class Prefs(
     enum class TimeFormat { Standard, TwentyFourHour }
 
     enum class ThemeMode { Dark, Light }
-
-    // Legacy combined setting kept for preference migration.
-    enum class StatusBarMode { Enabled, None, AndroidStatusBar }
-
-    enum class StatusBarVisibility { Disabled, Both, Homescreen, Lockscreen }
-
-    enum class StatusBarType { Luma, Android }
 
     enum class PageIndicatorPosition { Left, Right, Hidden }
 
@@ -296,11 +256,7 @@ class Prefs(
     ): Constants.Action {
         val string = prefs.getString(prefString, default.name) ?: default.name
         return try {
-            if (string == LEGACY_ACTION_SHOW_APP_LIST) {
-                Constants.Action.ShowAppPicker
-            } else {
-                Constants.Action.valueOf(string)
-            }
+            Constants.Action.valueOf(string)
         } catch (_: Exception) {
             default
         }
@@ -314,12 +270,7 @@ class Prefs(
     }
 
     var themeMode: ThemeMode
-        get() {
-            if (prefs.contains(THEME_MODE)) {
-                return enumPref(THEME_MODE, ThemeMode.Dark)
-            }
-            return if (prefs.getBoolean(INVERT_COLOURS, false)) ThemeMode.Light else ThemeMode.Dark
-        }
+        get() = enumPref(THEME_MODE, ThemeMode.Dark)
         set(value) = prefs.edit().putString(THEME_MODE, value.name).apply()
 
     fun isDarkTheme(): Boolean =
@@ -343,27 +294,6 @@ class Prefs(
         storeApp("$i", appModel)
     }
 
-    var pinnedShortcuts: Set<String>
-        get() = prefs.getStringSet(PINNED_SHORTCUTS, emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet(PINNED_SHORTCUTS, value).apply()
-
-    fun addPinnedShortcut(
-        packageName: String,
-        shortcutId: String,
-        label: String,
-    ) {
-        val entry = ShortcutEntry(packageName, shortcutId, label)
-        pinnedShortcuts = pinnedShortcuts + entry.serialize()
-    }
-
-    fun removePinnedShortcut(payload: String) {
-        pinnedShortcuts =
-            pinnedShortcuts
-                .filterNot { entry ->
-                    ShortcutEntry.parse(entry)?.payload == payload
-                }.toSet()
-    }
-
     fun getGestureApp(
         type: GestureType,
         scope: GestureScope = GestureScope.Homescreen,
@@ -380,19 +310,15 @@ class Prefs(
     fun getGestureAction(
         type: GestureType,
         scope: GestureScope = GestureScope.Homescreen,
-    ): Constants.Action =
-        validateGestureAction(loadAction(gestureActionKey(type, scope), defaultGestureAction(type, scope)))
+    ): Constants.Action = loadAction(gestureActionKey(type, scope), defaultGestureAction(type, scope))
 
     fun setGestureAction(
         type: GestureType,
         action: Constants.Action,
         scope: GestureScope = GestureScope.Homescreen,
     ) {
-        storeAction(gestureActionKey(type, scope), validateGestureAction(action))
+        storeAction(gestureActionKey(type, scope), action)
     }
-
-    private fun validateGestureAction(action: Constants.Action): Constants.Action =
-        validateTapShortcutAction(action)
 
     fun getCameraKeyPressAction(): Constants.Action {
         val action = loadAction(CAMERA_KEY_PRESS_ACTION, Constants.Action.OpenApp)
@@ -499,13 +425,13 @@ class Prefs(
         storeApp(type.appKey, appModel)
     }
 
-    fun getSectionAction(type: StatusBarSectionType): Constants.Action = validateTapShortcutAction(loadAction(type.actionKey, type.defaultAction))
+    fun getSectionAction(type: StatusBarSectionType): Constants.Action = loadAction(type.actionKey, type.defaultAction)
 
     fun setSectionAction(
         type: StatusBarSectionType,
         action: Constants.Action,
     ) {
-        storeAction(type.actionKey, validateTapShortcutAction(action))
+        storeAction(type.actionKey, action)
     }
 
     var lockscreenDateFormat: LockscreenDateFormat
@@ -516,18 +442,15 @@ class Prefs(
         get() = enumPref(LOCKSCREEN_SHORTCUT_ICON, LockscreenShortcutIcon.Ring)
         set(value) = prefs.edit().putString(LOCKSCREEN_SHORTCUT_ICON, value.name).apply()
 
-    fun getLockscreenDateTapAction(): Constants.Action =
-        validateTapShortcutAction(loadAction(LOCKSCREEN_DATE_TAP_ACTION, Constants.Action.Disabled))
+    fun getLockscreenDateTapAction(): Constants.Action = loadAction(LOCKSCREEN_DATE_TAP_ACTION, Constants.Action.Disabled)
 
     fun setLockscreenDateTapAction(action: Constants.Action) {
-        val normalizedAction = validateTapShortcutAction(action)
         val resolvedAction =
-            when (normalizedAction) {
+            when (action) {
                 Constants.Action.LockScreen,
-                Constants.Action.ShowAppPicker,
                 -> Constants.Action.Disabled
 
-                else -> normalizedAction
+                else -> action
             }
         storeAction(LOCKSCREEN_DATE_TAP_ACTION, resolvedAction)
     }
@@ -543,10 +466,9 @@ class Prefs(
         set(value) = prefs.edit().putBoolean(LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR, value).apply()
 
     fun getLockscreenShortcutAction(): Constants.Action {
-        val action = validateTapShortcutAction(loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp))
+        val action = loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp)
         return if (
             action == Constants.Action.LockScreen ||
-            action == Constants.Action.ShowAppPicker ||
             action == Constants.Action.Disabled
         ) {
             Constants.Action.OpenApp
@@ -556,15 +478,13 @@ class Prefs(
     }
 
     fun setLockscreenShortcutAction(action: Constants.Action) {
-        val normalizedAction = validateTapShortcutAction(action)
         val resolvedAction =
-            when (normalizedAction) {
+            when (action) {
                 Constants.Action.Disabled,
                 Constants.Action.LockScreen,
-                Constants.Action.ShowAppPicker,
                 -> Constants.Action.OpenApp
 
-                else -> normalizedAction
+                else -> action
             }
         storeAction(LOCKSCREEN_SHORTCUT_ACTION, resolvedAction)
     }
@@ -628,7 +548,6 @@ class Prefs(
         val entryType =
             when {
                 tool != null -> AppEntryType.Tool
-                pack == Constants.PINNED_SHORTCUT_PACKAGE -> AppEntryType.PinnedShortcut
                 else -> storedType
             }
         val myHandle = android.os.Process.myUserHandle()
@@ -692,10 +611,6 @@ class Prefs(
         get() = prefs.getBoolean(SHOW_NOTIFICATION_INDICATOR, true)
         set(value) = prefs.edit().putBoolean(SHOW_NOTIFICATION_INDICATOR, value).apply()
 
-    var showStatusBarNotificationIndicator: Boolean
-        get() = false
-        set(value) {}
-
     var notificationIndicatorSection: NotificationIndicatorSection
         get() = enumPref(NOTIFICATION_INDICATOR_SECTION, NotificationIndicatorSection.Time)
         set(value) = prefs.edit().putString(NOTIFICATION_INDICATOR_SECTION, value.name).apply()
@@ -703,31 +618,6 @@ class Prefs(
     var notificationIndicatorAlignment: NotificationIndicatorAlignment
         get() = enumPref(NOTIFICATION_INDICATOR_ALIGNMENT, NotificationIndicatorAlignment.After)
         set(value) = prefs.edit().putString(NOTIFICATION_INDICATOR_ALIGNMENT, value.name).apply()
-
-    var statusBarEnabled: Boolean
-        get() = true
-        set(value) {}
-
-    private fun legacyStatusBarMode(): StatusBarMode =
-        if (prefs.contains(STATUS_BAR_MODE)) {
-            enumPref(STATUS_BAR_MODE, StatusBarMode.Enabled)
-        } else if (prefs.getBoolean(STATUS_BAR_ENABLED, true)) {
-            StatusBarMode.Enabled
-        } else {
-            StatusBarMode.None
-        }
-
-    var statusBarVisibility: StatusBarVisibility
-        get() = StatusBarVisibility.Lockscreen
-        set(value) {}
-
-    var statusBarType: StatusBarType
-        get() = StatusBarType.Luma
-        set(value) {}
-
-    var statusBarMode: StatusBarMode
-        get() = StatusBarMode.Enabled
-        set(value) {}
 
     fun isStatusBarVisibleOnHomescreen(): Boolean = false
 
@@ -742,10 +632,6 @@ class Prefs(
     fun showsAndroidStatusBarOnHomescreen(): Boolean = false
 
     fun showsAndroidStatusBarOnLockscreen(): Boolean = false
-
-    var timeEnabled: Boolean
-        get() = false
-        set(value) {}
 
     var timeFormat: TimeFormat
         get() = enumPref(TIME_FORMAT, TimeFormat.TwentyFourHour)
@@ -815,20 +701,6 @@ class Prefs(
         get() = true
         set(value) {}
 
-    var showAppPickerToolIcons: Boolean
-        get() =
-            if (prefs.contains(SHOW_APP_PICKER_TOOL_ICONS)) {
-                prefs.getBoolean(SHOW_APP_PICKER_TOOL_ICONS, true)
-            } else {
-                prefs.getBoolean(LEGACY_SHOW_APP_DRAWER_TOOL_ICONS, true)
-            }
-        set(value) =
-            prefs
-                .edit()
-                .putBoolean(SHOW_APP_PICKER_TOOL_ICONS, value)
-                .remove(LEGACY_SHOW_APP_DRAWER_TOOL_ICONS)
-                .apply()
-
     fun isManagedAppEnabled(packageName: String): Boolean {
         val appId = ManagedAppCatalog.fromPackageName(packageName)?.id ?: return false
         return enabledManagedAppIds.contains(appId)
@@ -859,16 +731,6 @@ class Prefs(
         }
         return first
     }
-
-    private fun validateTapShortcutAction(action: Constants.Action): Constants.Action =
-        when (action) {
-            Constants.Action.OpenQuickSettings,
-            Constants.Action.ShowNotification,
-            Constants.Action.ShowAppPicker,
-            -> Constants.Action.Disabled
-
-            else -> action
-        }
 
     private fun initDefaults() {
         if (!firstTrueFalseAfter(FIRST_RUN_DEFAULTS)) return

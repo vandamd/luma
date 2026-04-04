@@ -10,7 +10,6 @@ import com.vandam.luma.data.Constants.Action
 private const val NETWORK_SHORTCUT_LIGHT_ROUTE = "networksettings"
 
 data class ActionExecutionCallbacks(
-    val showAppPicker: () -> Unit = {},
     val showNotificationList: () -> Unit = {},
 )
 
@@ -28,11 +27,6 @@ fun executeSecondaryAction(
             launchLightOsRoute(context, NETWORK_SHORTCUT_LIGHT_ROUTE)
         }
 
-        Action.ShowNotification -> {
-            expandNotificationDrawer(context)
-            true
-        }
-
         Action.LockScreen -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 ActionService.instance()?.lockScreen()
@@ -40,16 +34,6 @@ fun executeSecondaryAction(
             } else {
                 showToast(context, context.getString(R.string.toast_lock_requires_android_9), Toast.LENGTH_LONG)
             }
-            true
-        }
-
-        Action.ShowAppPicker -> {
-            callbacks.showAppPicker()
-            true
-        }
-
-        Action.OpenQuickSettings -> {
-            expandQuickSettings(context)
             true
         }
 
@@ -63,7 +47,6 @@ fun executeSecondaryAction(
             true
         }
 
-        Action.ToggleFlashlight,
         Action.OpenApp,
         Action.Disabled,
         -> {

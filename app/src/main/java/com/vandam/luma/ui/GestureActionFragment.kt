@@ -147,10 +147,6 @@ class GestureActionFragment : Fragment() {
 
         val excludedEverywhere =
             setOf(
-                Action.ShowAppPicker,
-                Action.OpenQuickSettings,
-                Action.ShowNotification,
-                Action.ToggleFlashlight,
                 Action.OpenApp,
                 Action.Disabled,
             )

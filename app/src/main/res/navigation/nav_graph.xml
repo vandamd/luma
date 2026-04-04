@@ -42,41 +42,9 @@
     </fragment>
 
     <fragment
-        android:id="@+id/appsFragment"
-        android:name="com.vandam.luma.ui.AppsFragment"
-        android:label="apps_fragment"
-        tools:layout="@layout/fragment_apps">
-    </fragment>
-    <fragment
-        android:id="@+id/pagesFragment"
-        android:name="com.vandam.luma.ui.PagesFragment"
-        android:label="PagesFragment">
-        <action
-            android:id="@+id/action_pagesFragment_to_pageCountFragment"
-            app:destination="@id/pageCountFragment" />
-        <action
-            android:id="@+id/action_pagesFragment_to_appCountFragment"
-            app:destination="@id/appCountFragment" />
-        <action
-            android:id="@+id/action_pagesFragment_to_pageIndicatorPositionFragment"
-            app:destination="@id/pageIndicatorPositionFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/pageCountFragment"
-        android:name="com.vandam.luma.ui.PageCountFragment"
-        android:label="PageCountFragment" />
-    <fragment
         android:id="@+id/pageIndicatorPositionFragment"
         android:name="com.vandam.luma.ui.PageIndicatorPositionFragment"
         android:label="PageIndicatorPositionFragment" />
-    <fragment
-        android:id="@+id/appCountFragment"
-        android:name="com.vandam.luma.ui.AppCountFragment"
-        android:label="AppCountFragment">
-        <argument
-            android:name="pageNumber"
-            app:argType="integer" />
-    </fragment>
     <fragment
         android:id="@+id/gesturesFragment"
         android:name="com.vandam.luma.ui.GesturesFragment"
@@ -119,14 +87,8 @@
             android:id="@+id/action_settingsFragment_to_keymapsFragment"
             app:destination="@id/keymapsFragment" />
         <action
-            android:id="@+id/action_settingsFragment_to_toolsFragment"
-            app:destination="@id/toolsFragment" />
-        <action
             android:id="@+id/action_settingsFragment_to_homescreenFragment"
             app:destination="@id/homescreenFragment" />
-        <action
-            android:id="@+id/action_settingsFragment_to_pagesFragment"
-            app:destination="@id/pagesFragment" />
         <action
             android:id="@+id/action_settingsFragment_to_gesturesFragment"
             app:destination="@id/gesturesFragment" />
@@ -152,9 +114,6 @@
         android:id="@+id/homescreenFragment"
         android:name="com.vandam.luma.ui.HomescreenFragment"
         android:label="HomescreenFragment">
-        <action
-            android:id="@+id/action_homescreenFragment_to_pagesFragment"
-            app:destination="@id/pagesFragment" />
         <action
             android:id="@+id/action_homescreenFragment_to_gesturesFragment"
             app:destination="@id/gesturesFragment" />
@@ -210,10 +169,6 @@
             android:id="@+id/action_generalFragment_to_hapticsFragment"
             app:destination="@id/hapticsFragment" />
     </fragment>
-    <fragment
-        android:id="@+id/toolsFragment"
-        android:name="com.vandam.luma.ui.ToolsFragment"
-        android:label="ToolsFragment" />
     <fragment
         android:id="@+id/hapticsFragment"
         android:name="com.vandam.luma.ui.HapticsFragment"

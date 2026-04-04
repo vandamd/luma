@@ -5,7 +5,6 @@ import java.text.CollationKey
 
 enum class AppEntryType {
     LauncherApp,
-    PinnedShortcut,
     Tool,
     ManagedApp,
 }

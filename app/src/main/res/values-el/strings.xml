@@ -10,7 +10,6 @@
     <!-- Settings screen -->
     <string name="settings_title">Ρυθμίσεις Luma (%1$s)</string>
     <string name="settings_auto_rotate">Αυτόματη περιστροφή</string>
-    <string name="settings_pages">Σελίδες</string>
     <string name="settings_gestures">Χεριρονομίες</string>
     <string name="settings_notifications">Ειδοποιήσεις</string>
     <string name="settings_status_bar">Γραμμή κατάστασης</string>
@@ -18,9 +17,6 @@
     <!-- Gesture actions -->
     <string name="action_open_app">Άνοιγμα εφαρμογής</string>
     <string name="action_lock_screen">Κλείδωμα οθόνης</string>
-    <string name="action_show_notifications">Ειδοποιήσεις (Android)</string>
-    <string name="action_show_app_picker">Λίστα εφαρμογών</string>
-    <string name="action_quick_settings">Γρήγορες ρυθμίσεις (Android)</string>
     <string name="action_show_recents">Πρόσφατες εφαρμογές</string>
     <string name="action_show_notification_list">Ειδοποιήσεις</string>
     <string name="action_disabled">Απενεργοποιημένο</string>
@@ -35,8 +31,6 @@
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">Θέση δείκτη σελίδας</string>
-    <string name="pages_number_of_pages">Αριθμός σελίδων</string>
-    <string name="pages_page_number_of_apps">Σελίδα %1$d, αριθμός εφαρμογών</string>
 
     <!-- Page indicator positions -->
     <string name="position_left">Αριστερά</string>
@@ -55,8 +49,6 @@
     <string name="status_bar_enabled">Ενεργό</string>
     <string name="status_bar_mode_none">Απενεργοποιημένο</string>
     <string name="status_bar_mode_android">Ενεργοποιημένο (Android)</string>
-    <string name="status_bar_time">Ώρα</string>
-    <string name="status_bar_time_enabled">Ενεργό</string>
     <string name="status_bar_time_format">Μορφή ώρας</string>
     <string name="status_bar_time_standard">12ωρη ΠΜ/ΜΜ</string>
     <string name="status_bar_time_24h">24ωρη</string>
@@ -80,8 +72,6 @@
     <string name="status_bar_battery_icon">Εμφάνιση εικονιδίου</string>
 
     <!-- App drawer -->
-    <string name="app_picker_title">Συρτάρι εφαρμογών</string>
-<string name="app_picker_no_apps">Δεν βρέθηκαν εφαρμογές</string>
 
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Σύρετε αριστερά για όλες τις εφαρμογές</string>
@@ -90,12 +80,8 @@
     <!-- Toast messages -->
     <string name="toast_app_not_found">Η εφαρμογή δεν βρέθηκε</string>
     <string name="toast_unable_to_launch_app">Δεν είναι δυνατή η εκκίνηση της εφαρμογής</string>
-    <string name="toast_unable_to_launch_shortcut">Δεν είναι δυνατή η εκκίνηση της συντόμευσης</string>
-    <string name="toast_shortcuts_require_android">Οι συντομεύσεις απαιτούν Android 7.1+</string>
 <string name="toast_action_requires_android_p">Αυτή η ενέργεια απαιτεί Android P (9) ή νεότερο</string>
     <string name="toast_lock_requires_android_9">Το κλείδωμα οθόνης απαιτεί Android 9 ή νεότερο</string>
-<string name="toast_unable_to_add_shortcut">Δεν είναι δυνατή η προσθήκη συντόμευσης</string>
-    <string name="toast_added_to_app_picker">Προστέθηκε στο συρτάρι εφαρμογών</string>
 
     <!-- Misc -->
     <string name="app_placeholder">Εφαρμογή</string>
@@ -109,13 +95,4 @@
     <string name="notification_list_title">Ειδοποιήσεις</string>
     <string name="notification_list_empty">Δεν υπάρχουν ειδοποιήσεις</string>
     <string name="notification_list_no_permission">Πατήστε εδώ για να παραχωρήσετε πρόσβαση στις ειδοποιήσεις</string>
-
-    <plurals name="pages_count">
-        <item quantity="one">%d Σελίδα</item>
-        <item quantity="other">%d Σελίδες</item>
-    </plurals>
-    <plurals name="apps_count">
-        <item quantity="one">%d Εφαρμογή</item>
-        <item quantity="other">%d Εφαρμογές</item>
-    </plurals>
 </resources>

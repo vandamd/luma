@@ -10,16 +10,12 @@
     <!-- Settings screen -->
     <string name="settings_title">Nastavení Luma (%1$s)</string>
     <string name="settings_auto_rotate">Automatické otáčení</string>
-    <string name="settings_pages">Stránky</string>
     <string name="settings_gestures">Gesta</string>
     <string name="settings_notifications">Oznámení</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Otevřít aplikaci</string>
     <string name="action_lock_screen">Zamknout obrazovku</string>
-    <string name="action_show_notifications">Oznámení (Android)</string>
-    <string name="action_show_app_picker">Seznam aplikací</string>
-    <string name="action_quick_settings">Rychlá nastavení (Android)</string>
     <string name="action_show_recents">Nedávné aplikace</string>
     <string name="action_show_notification_list">Oznámení</string>
     <string name="action_disabled">Vypnuto</string>
@@ -34,8 +30,6 @@
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">Pozice indikátoru stránky</string>
-    <string name="pages_number_of_pages">Počet stránek</string>
-    <string name="pages_page_number_of_apps">Stránka %1$d, počet aplikací</string>
 
     <!-- Page indicator positions -->
     <string name="position_left">Vlevo</string>
@@ -55,8 +49,6 @@
     <string name="status_bar_enabled">Povoleno</string>
     <string name="status_bar_mode_none">Zakázáno</string>
     <string name="status_bar_mode_android">Povoleno (Android)</string>
-    <string name="status_bar_time">Čas</string>
-    <string name="status_bar_time_enabled">Povoleno</string>
     <string name="status_bar_time_format">Formát času</string>
     <string name="status_bar_time_standard">12hodinový (AM/PM)</string>
     <string name="status_bar_time_24h">24hodinový</string>
@@ -80,8 +72,6 @@
     <string name="status_bar_battery_icon">Zobrazit ikonu</string>
 
     <!-- App drawer -->
-    <string name="app_picker_title">Šuplík aplikací</string>
-<string name="app_picker_no_apps">Nebyly nalezeny žádné aplikace</string>
 
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Přejeďte doleva pro všechny aplikace</string>
@@ -90,12 +80,8 @@
     <!-- Toast messages -->
     <string name="toast_app_not_found">Aplikace nenalezena</string>
     <string name="toast_unable_to_launch_app">Nelze spustit aplikaci</string>
-    <string name="toast_unable_to_launch_shortcut">Nelze spustit zkratku</string>
-    <string name="toast_shortcuts_require_android">Zkratky vyžadují Android 7.1+</string>
 <string name="toast_action_requires_android_p">Tato akce vyžaduje Android P (9) nebo vyšší</string>
     <string name="toast_lock_requires_android_9">Zamknutí obrazovky vyžaduje Android 9 nebo vyšší</string>
-<string name="toast_unable_to_add_shortcut">Nelze přidat zkratku</string>
-    <string name="toast_added_to_app_picker">Přidáno do šuplíku aplikací</string>
 
     <!-- Misc -->
     <string name="app_placeholder">Aplikace</string>
@@ -109,15 +95,4 @@
     <string name="notification_list_title">Oznámení</string>
     <string name="notification_list_empty">Žádná oznámení</string>
     <string name="notification_list_no_permission">Klepněte sem pro udělení přístupu k oznámením</string>
-
-    <plurals name="pages_count">
-        <item quantity="one">%d Stránka</item>
-        <item quantity="few">%d Stránky</item>
-        <item quantity="other">%d Stránek</item>
-    </plurals>
-    <plurals name="apps_count">
-        <item quantity="one">%d Aplikace</item>
-        <item quantity="few">%d Aplikace</item>
-        <item quantity="other">%d Aplikací</item>
-    </plurals>
 </resources>

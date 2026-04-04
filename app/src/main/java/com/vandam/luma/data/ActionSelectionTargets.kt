@@ -210,6 +210,5 @@ private val StatusBarSectionType.titleRes: Int
     get() =
         when (this) {
             StatusBarSectionType.CELLULAR -> R.string.status_bar_connectivity_tap
-            StatusBarSectionType.TIME -> R.string.status_bar_time
             StatusBarSectionType.BATTERY -> R.string.status_bar_battery_tap
         }

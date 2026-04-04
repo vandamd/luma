@@ -10,16 +10,12 @@
     <!-- Settings screen -->
     <string name="settings_title">Luma Ayarları (%1$s)</string>
     <string name="settings_auto_rotate">Otomatik döndürme</string>
-    <string name="settings_pages">Sayfalar</string>
     <string name="settings_gestures">Kaydırma</string>
     <string name="settings_notifications">Bildirimler</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Uygulama Çalıştır</string>
     <string name="action_lock_screen">Kilit Ekranı</string>
-    <string name="action_show_notifications">Bildirimler (Android)</string>
-    <string name="action_show_app_picker">Uygulama Listesi</string>
-    <string name="action_quick_settings">Hızlı Ayarlar (Android)</string>
     <string name="action_show_recents">Son Uygulamalar</string>
     <string name="action_show_notification_list">Bildirimler</string>
     <string name="action_disabled">Devre dışı</string>
@@ -39,8 +35,6 @@
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">Sayfa göstergesi konumu</string>
-    <string name="pages_number_of_pages">Sayfa sayısı</string>
-    <string name="pages_page_number_of_apps">Sayfa %1$d, uygulama sayısı</string>
 
     <!-- Page indicator positions -->
     <string name="position_left">Sol</string>
@@ -60,8 +54,6 @@
     <string name="status_bar_enabled">Etkin</string>
     <string name="status_bar_mode_none">Devre Dışı</string>
     <string name="status_bar_mode_android">Etkin (Android)</string>
-    <string name="status_bar_time">Saat</string>
-    <string name="status_bar_time_enabled">Etkin</string>
     <string name="status_bar_time_format">Saat biçimi</string>
     <string name="status_bar_time_standard">12 saat (AM/PM)</string>
     <string name="status_bar_time_24h">24 saat</string>
@@ -85,8 +77,6 @@
     <string name="status_bar_battery_icon">Simgeyi göster</string>
 
     <!-- App drawer -->
-    <string name="app_picker_title">Uygulama Çekmecesi</string>
-<string name="app_picker_no_apps">Herhangi bir uygulama bulunamadı</string>
 
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Tüm uygulamalar için sola kaydırın</string>
@@ -95,12 +85,8 @@
     <!-- Toast messages -->
     <string name="toast_app_not_found">Uygulama bulunamadı</string>
     <string name="toast_unable_to_launch_app">Uygulama başlatılamadı</string>
-    <string name="toast_unable_to_launch_shortcut">Kısayol başlatılamadı</string>
-    <string name="toast_shortcuts_require_android">Kısayollar Android 7.1+ gerektirir</string>
 <string name="toast_action_requires_android_p">Bu işlem Android P (9) veya üstünü gerektirir</string>
     <string name="toast_lock_requires_android_9">Ekran kilidi Android 9 veya üstünü gerektirir</string>
-<string name="toast_unable_to_add_shortcut">Kısayol eklenemedi</string>
-    <string name="toast_added_to_app_picker">Uygulama çekmecesine eklendi</string>
 
     <!-- Misc -->
     <string name="app_placeholder">Uygulama</string>
@@ -110,13 +96,4 @@
     <string name="content_desc_save">Kaydet</string>
     <string name="content_desc_clear">Temizle</string>
     <string name="content_desc_dismiss">Kapat</string>
-
-    <plurals name="pages_count">
-        <item quantity="one">%d Sayfa</item>
-        <item quantity="other">%d Sayfa</item>
-    </plurals>
-    <plurals name="apps_count">
-        <item quantity="one">%d Uygulama</item>
-        <item quantity="other">%d Uygulama</item>
-    </plurals>
 </resources>

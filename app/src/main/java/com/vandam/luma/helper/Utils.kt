@@ -9,32 +9,23 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.UserHandle
-import android.os.UserManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
-import com.vandam.luma.BuildConfig
 import com.vandam.luma.R
 import com.vandam.luma.data.AppEntryType
 import com.vandam.luma.data.AppModel
-import com.vandam.luma.data.Constants
 import com.vandam.luma.data.ManagedAppCatalog
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.data.ShortcutEntry
 import com.vandam.luma.data.Tool
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.text.Collator
 
-private const val TAG = "Utils"
 private const val LIGHT_OS_PACKAGE = "com.lightos"
 private const val LIGHT_OS_MAIN_ACTIVITY = "com.lightos.MainActivity"
 
@@ -149,25 +140,6 @@ fun launchAppModel(
         }
     }
 
-    if (packageName == Constants.PINNED_SHORTCUT_PACKAGE || appModel.entryType == AppEntryType.PinnedShortcut) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
-            showToast(appContext, appContext.getString(R.string.toast_shortcuts_require_android))
-            return true
-        }
-
-        val parts = appActivityName.split("|", limit = 2)
-        val shortcutPackage = parts.getOrNull(0) ?: return true
-        val shortcutId = parts.getOrNull(1) ?: return true
-
-        try {
-            val launcher = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-            launcher.startShortcut(shortcutPackage, shortcutId, null, null, android.os.Process.myUserHandle())
-        } catch (_: Exception) {
-            showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_shortcut))
-        }
-        return true
-    }
-
     val launcher = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
     val activityInfo = launcher.getActivityList(packageName, userHandle)
 
@@ -204,78 +176,6 @@ fun launchAppModel(
     }
     return true
 }
-
-suspend fun getAppsList(
-    context: Context,
-): MutableList<AppModel> =
-    withContext(Dispatchers.IO) {
-        val appList: MutableList<AppModel> = mutableListOf()
-
-        try {
-            val prefs = Prefs.getInstance(context)
-            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-            val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
-            val collator = Collator.getInstance()
-
-            for (profile in userManager.userProfiles) {
-                if (userManager.isQuietModeEnabled(profile)) continue
-
-                for (app in launcherApps.getActivityList(null, profile)) {
-                    if (app.applicationInfo.packageName == BuildConfig.APPLICATION_ID) continue
-
-                    val appModel =
-                        AppModel(
-                            app.label.toString(),
-                            collator.getCollationKey(app.label.toString()),
-                            app.applicationInfo.packageName,
-                            app.componentName.className,
-                            profile,
-                            false,
-                            AppEntryType.LauncherApp,
-                        )
-
-                    appList.add(appModel)
-                }
-            }
-
-            val userHandle = android.os.Process.myUserHandle()
-
-            for (entry in prefs.pinnedShortcuts) {
-                val shortcut = ShortcutEntry.parse(entry) ?: continue
-
-                val shortcutModel =
-                    AppModel(
-                        appLabel = shortcut.label,
-                        key = collator.getCollationKey(shortcut.label),
-                        appPackage = Constants.PINNED_SHORTCUT_PACKAGE,
-                        appActivityName = shortcut.payload,
-                        user = userHandle,
-                        hasNotification = false,
-                        entryType = AppEntryType.PinnedShortcut,
-                    )
-                appList.add(shortcutModel)
-            }
-
-            for (tool in Tool.entries) {
-                if (!prefs.isToolEnabled(tool)) continue
-                appList.add(tool.toAppModel(context, collator))
-            }
-
-            appList.sortBy {
-                it.displayName.lowercase()
-            }
-
-            val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()
-            appList.forEach { appModel ->
-                appModel.hasNotification = packagesWithNotifications.contains(appModel.appPackage)
-            }
-        } catch (e: java.lang.Exception) {
-            if (BuildConfig.DEBUG) {
-                Log.d("backup", "$e")
-            }
-        }
-        appList
-    }
 
 fun getDefaultLauncherPackage(context: Context): String {
     val intent = Intent()
@@ -382,30 +282,3 @@ fun dp2px(
             dp.toFloat(),
             resources.displayMetrics,
         ).toInt()
-
-@Suppress("SpellCheckingInspection")
-@SuppressLint("WrongConstant")
-fun expandNotificationDrawer(context: Context) {
-    // Source: https://stackoverflow.com/a/51132142
-    try {
-        val statusBarService = context.getSystemService("statusbar")
-        val statusBarManager = Class.forName("android.app.StatusBarManager")
-        val method = statusBarManager.getMethod("expandNotificationsPanel")
-        method.invoke(statusBarService)
-    } catch (e: Exception) {
-        Log.e(TAG, "Error expanding notification drawer", e)
-    }
-}
-
-@Suppress("SpellCheckingInspection")
-@SuppressLint("WrongConstant")
-fun expandQuickSettings(context: Context) {
-    try {
-        val statusBarService = context.getSystemService("statusbar")
-        val statusBarManager = Class.forName("android.app.StatusBarManager")
-        val method = statusBarManager.getMethod("expandSettingsPanel")
-        method.invoke(statusBarService)
-    } catch (e: Exception) {
-        Log.e(TAG, "Error expanding quick settings", e)
-    }
-}

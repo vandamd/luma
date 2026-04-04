@@ -16,9 +16,6 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
-import android.hardware.camera2.CameraAccessException
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.Network
@@ -70,7 +67,6 @@ class ActionService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private val keyguardManager by lazy { getSystemService(KEYGUARD_SERVICE) as KeyguardManager }
-    private val cameraManager by lazy { getSystemService(CAMERA_SERVICE) as CameraManager }
     private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
     private val notificationManager by lazy { getSystemService(NOTIFICATION_SERVICE) as NotificationManager }
     private val prefs by lazy { Prefs.getInstance(this) }
@@ -105,9 +101,6 @@ class ActionService : AccessibilityService() {
     private var currentForegroundPackage: String? = null
     private var lastForegroundPackage: String? = null
     private var lumaInForeground = false
-    private var torchCameraId: String? = null
-    private var torchEnabled = false
-    private var torchCallback: CameraManager.TorchCallback? = null
     private var cameraKeyDownTime = 0L
     private var scrollwheelKeyDownTime = 0L
     private var cameraLongPressFired = false
@@ -118,7 +111,6 @@ class ActionService : AccessibilityService() {
     override fun onServiceConnected() {
         configureServiceInfo()
         registerUnlockGateReceiver()
-        registerTorchCallback()
         MediaSessionHelper.init(this)
         instance = WeakReference(this)
         publishUnlockGateState()
@@ -134,7 +126,6 @@ class ActionService : AccessibilityService() {
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
-        unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         stopIncomingCallMonitor()
         instance = WeakReference(null)
@@ -150,7 +141,6 @@ class ActionService : AccessibilityService() {
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
-        unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         stopIncomingCallMonitor()
         instance = WeakReference(null)
@@ -830,10 +820,6 @@ class ActionService : AccessibilityService() {
                     }
                 }
 
-                Action.ToggleFlashlight -> {
-                    toggleFlashlight()
-                }
-
                 else -> {
                     false
                 }
@@ -845,78 +831,6 @@ class ActionService : AccessibilityService() {
             }
         }
         return handled
-    }
-
-    private fun registerTorchCallback() {
-        val callback =
-            object : CameraManager.TorchCallback() {
-                override fun onTorchModeChanged(
-                    cameraId: String,
-                    enabled: Boolean,
-                ) {
-                    if (cameraId == resolveTorchCameraId()) {
-                        torchEnabled = enabled
-                    }
-                }
-
-                override fun onTorchModeUnavailable(cameraId: String) {
-                    if (cameraId == resolveTorchCameraId()) {
-                        torchEnabled = false
-                    }
-                }
-            }
-        try {
-            cameraManager.registerTorchCallback(callback, mainHandler)
-            torchCallback = callback
-        } catch (exception: Exception) {
-            Log.e(TAG, "registerTorchCallback: failed", exception)
-        }
-    }
-
-    private fun unregisterTorchCallback() {
-        val callback = torchCallback ?: return
-        try {
-            cameraManager.unregisterTorchCallback(callback)
-        } catch (exception: Exception) {
-            Log.e(TAG, "unregisterTorchCallback: failed", exception)
-        } finally {
-            torchCallback = null
-        }
-    }
-
-    private fun resolveTorchCameraId(): String? {
-        torchCameraId?.let { return it }
-        val resolved =
-            runCatching {
-                cameraManager.cameraIdList.firstOrNull { cameraId ->
-                    val characteristics = cameraManager.getCameraCharacteristics(cameraId)
-                    characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
-                }
-            }.getOrNull()
-        torchCameraId = resolved
-        return resolved
-    }
-
-    private fun toggleFlashlight(): Boolean {
-        val cameraId = resolveTorchCameraId() ?: return false
-        return try {
-            val enabled = !torchEnabled
-            cameraManager.setTorchMode(cameraId, enabled)
-            torchEnabled = enabled
-            true
-        } catch (exception: CameraAccessException) {
-            Log.e(TAG, "toggleFlashlight: camera access failed", exception)
-            showToast(this, getString(R.string.toast_unable_to_toggle_flashlight))
-            false
-        } catch (exception: SecurityException) {
-            Log.e(TAG, "toggleFlashlight: security failure", exception)
-            showToast(this, getString(R.string.toast_unable_to_toggle_flashlight))
-            false
-        } catch (exception: IllegalArgumentException) {
-            Log.e(TAG, "toggleFlashlight: invalid camera id", exception)
-            showToast(this, getString(R.string.toast_unable_to_toggle_flashlight))
-            false
-        }
     }
 
     private fun resolveMediaAppPackage(mediaPkg: String): String =

@@ -10,7 +10,6 @@
     <!-- Settings screen -->
     <string name="settings_title">إعدادات Luma (%1$s)</string>
     <string name="settings_auto_rotate">التدوير التلقائي</string>
-    <string name="settings_pages">الصفحات</string>
     <string name="settings_gestures">إيماءات</string>
     <string name="settings_notifications">الإشعارات</string>
     <string name="settings_status_bar">شريط الحالة</string>
@@ -18,9 +17,6 @@
     <!-- Gesture actions -->
     <string name="action_open_app">فتح تطبيق</string>
     <string name="action_lock_screen">قفل الشاشة</string>
-    <string name="action_show_notifications">الإشعارات (Android)</string>
-    <string name="action_show_app_picker">قائمة التطبيقات</string>
-    <string name="action_quick_settings">الإعدادات السريعة (Android)</string>
     <string name="action_show_recents">التطبيقات الأخيرة</string>
     <string name="action_show_notification_list">الإشعارات</string>
     <string name="action_disabled">مُعطل</string>
@@ -35,8 +31,6 @@
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">موقع مؤشر الصفحة</string>
-    <string name="pages_number_of_pages">عدد الصفحات</string>
-    <string name="pages_page_number_of_apps">الصفحة %1$d، عدد التطبيقات</string>
 
     <!-- Page indicator positions -->
     <string name="position_left">يسار</string>
@@ -55,8 +49,6 @@
     <string name="status_bar_enabled">مفعّل</string>
     <string name="status_bar_mode_none">معطّل</string>
     <string name="status_bar_mode_android">مُفعَّل (Android)</string>
-    <string name="status_bar_time">الوقت</string>
-    <string name="status_bar_time_enabled">مفعّل</string>
     <string name="status_bar_time_format">تنسيق الوقت</string>
     <string name="status_bar_time_standard">12 ساعة صباحًا/مساءً</string>
     <string name="status_bar_time_24h">24 ساعة</string>
@@ -80,8 +72,6 @@
     <string name="status_bar_battery_icon">إظهار الأيقونة</string>
 
     <!-- App drawer -->
-    <string name="app_picker_title">قائمة التطبيقات</string>
-<string name="app_picker_no_apps">لم يتم العثور على تطبيقات</string>
 
 <!-- Home screen tips -->
     <string name="tip_swipe_left">اسحب لليسار لجميع التطبيقات</string>
@@ -90,12 +80,8 @@
     <!-- Toast messages -->
     <string name="toast_app_not_found">التطبيق غير موجود</string>
     <string name="toast_unable_to_launch_app">تعذر تشغيل التطبيق</string>
-    <string name="toast_unable_to_launch_shortcut">تعذر تشغيل الاختصار</string>
-    <string name="toast_shortcuts_require_android">الاختصارات تتطلب Android 7.1+</string>
 <string name="toast_action_requires_android_p">هذا الإجراء يتطلب Android P (9) أو أحدث</string>
     <string name="toast_lock_requires_android_9">قفل الشاشة يتطلب Android 9 أو أحدث</string>
-<string name="toast_unable_to_add_shortcut">تعذر إضافة الاختصار</string>
-    <string name="toast_added_to_app_picker">تمت الإضافة إلى قائمة التطبيقات</string>
 
     <!-- Misc -->
     <string name="app_placeholder">تطبيق</string>
@@ -109,21 +95,4 @@
     <string name="notification_list_title">الإشعارات</string>
     <string name="notification_list_empty">لا توجد إشعارات</string>
     <string name="notification_list_no_permission">اضغط هنا لمنح إذن الوصول إلى الإشعارات</string>
-
-    <plurals name="pages_count">
-        <item quantity="zero">لا توجد صفحات</item>
-        <item quantity="one">صفحة واحدة</item>
-        <item quantity="two">صفحتان</item>
-        <item quantity="few">%d صفحات</item>
-        <item quantity="many">%d صفحة</item>
-        <item quantity="other">%d صفحة</item>
-    </plurals>
-    <plurals name="apps_count">
-        <item quantity="zero">لا توجد تطبيقات</item>
-        <item quantity="one">تطبيق واحد</item>
-        <item quantity="two">تطبيقان</item>
-        <item quantity="few">%d تطبيقات</item>
-        <item quantity="many">%d تطبيق</item>
-        <item quantity="other">%d تطبيق</item>
-    </plurals>
 </resources>

@@ -15,22 +15,15 @@ object HomeLayout {
 }
 
 object Constants {
-    const val REQUEST_CONFIRM_PIN_SHORTCUT = "android.content.pm.action.CONFIRM_PIN_SHORTCUT"
-    const val PINNED_SHORTCUT_PACKAGE = "__pinned_shortcut__"
-
     enum class Action(
         @field:StringRes val displayNameRes: Int,
     ) {
         Disabled(R.string.action_disabled),
         OpenApp(R.string.action_open_app),
         NetworkShortcutLight(R.string.action_network_shortcut_light),
-        ShowAppPicker(R.string.action_show_app_picker),
         ShowNotificationList(R.string.action_show_notification_list),
         ShowRecents(R.string.action_show_recents),
         LockScreen(R.string.action_lock_screen),
-        ToggleFlashlight(R.string.action_toggle_flashlight),
-        OpenQuickSettings(R.string.action_quick_settings),
-        ShowNotification(R.string.action_show_notifications),
         ;
 
         fun displayName(context: Context): String = context.getString(displayNameRes)

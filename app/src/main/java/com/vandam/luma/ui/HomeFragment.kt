@@ -1076,10 +1076,6 @@ class HomeFragment :
         viewModel.selectedApp(appModel, launchContext = requireActivity())
     }
 
-    private fun showAppPicker() {
-        findNavController().navigate(R.id.appsFragment)
-    }
-
     private fun openGestureApp(gestureType: GestureType) {
         val app = prefs.getGestureApp(gestureType)
         if (app.appPackage.isNotEmpty()) {
@@ -1093,7 +1089,6 @@ class HomeFragment :
             action = action,
             callbacks =
                 ActionExecutionCallbacks(
-                    showAppPicker = ::showAppPicker,
                     showNotificationList = {
                         try {
                             findNavController().navigate(R.id.action_mainFragment_to_notificationListFragment)

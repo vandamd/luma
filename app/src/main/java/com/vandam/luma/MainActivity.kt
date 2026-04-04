@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.pm.LauncherApps
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -30,7 +29,6 @@ import androidx.navigation.Navigation
 import androidx.navigation.fragment.NavHostFragment
 import com.vandam.luma.data.AndroidLauncherApp
 import com.vandam.luma.data.AppModel
-import com.vandam.luma.data.Constants
 import com.vandam.luma.data.Constants.Action
 import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.GestureType
@@ -41,13 +39,11 @@ import com.vandam.luma.data.ToolSyncResult
 import com.vandam.luma.databinding.ActivityMainBinding
 import com.vandam.luma.helper.ActionExecutionCallbacks
 import com.vandam.luma.helper.ActionService
-import com.vandam.luma.helper.HomeCleanupHelper
 import com.vandam.luma.helper.ManagedAppManager
 import com.vandam.luma.helper.executeSecondaryAction
 import com.vandam.luma.helper.hideStatusBar
 import com.vandam.luma.helper.isAccessibilityEnabled
 import com.vandam.luma.helper.showStatusBar
-import com.vandam.luma.helper.showToast
 import com.vandam.luma.style.DisplayDefaults.withDisplayDefaults
 import com.vandam.luma.ui.HomeFragment
 import com.vandam.luma.ui.RESTORE_UNLOCK_GATE_ON_BACK
@@ -129,9 +125,6 @@ class MainActivity : AppCompatActivity() {
 
         window.addFlags(FLAG_LAYOUT_NO_LIMITS)
 
-        HomeCleanupHelper.setOnAppListCleanupCallback { viewModel.getAppList() }
-
-        handlePinShortcutRequest(intent)
         notifyUnlockGateLauncherIntent(intent)
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
@@ -148,7 +141,6 @@ class MainActivity : AppCompatActivity() {
         toolSyncReconnectWatchdogJob?.cancel()
         setLumaForeground(false)
         ActionService.instance()?.setRepeatedHomeGateEligible(false)
-        HomeCleanupHelper.setOnAppListCleanupCallback(null)
         super.onDestroy()
     }
 
@@ -184,7 +176,6 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handlePinShortcutRequest(intent)
         val launcherIntent = isLauncherIntent(intent)
 
         backToHomeScreen()
@@ -534,48 +525,6 @@ class MainActivity : AppCompatActivity() {
         ActionService.instance()?.setRepeatedHomeGateEligible(isEligible)
     }
 
-    private fun handlePinShortcutRequest(intent: Intent?) {
-        if (intent == null) return
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        if (intent.action != Constants.REQUEST_CONFIRM_PIN_SHORTCUT) return
-
-        val launcherApps = getSystemService(LauncherApps::class.java) ?: return
-        val request =
-            try {
-                launcherApps.getPinItemRequest(intent)
-            } catch (_: Exception) {
-                return
-            } ?: return
-
-        if (!request.isValid) return
-        if (request.requestType != LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) return
-
-        val shortcutInfo = request.shortcutInfo ?: return
-        val shortcutPackage = shortcutInfo.`package` ?: return
-        val shortcutId = shortcutInfo.id ?: return
-
-        val label =
-            shortcutInfo.shortLabel?.toString()
-                ?: shortcutInfo.longLabel?.toString()
-                ?: "Shortcut"
-
-        val accepted =
-            try {
-                request.accept()
-            } catch (_: Exception) {
-                false
-            }
-
-        if (!accepted) {
-            showToast(this, getString(R.string.toast_unable_to_add_shortcut))
-            return
-        }
-
-        prefs.addPinnedShortcut(shortcutPackage, shortcutId, label)
-
-        showToast(this, getString(R.string.toast_added_to_app_picker))
-    }
-
     private fun updateSystemStatusBarVisibility(destinationId: Int?) {
         val unlockGateVisible = ActionService.unlockGateState.value.visible
         val shouldShowSystemStatusBar =
@@ -692,19 +641,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun lockscreenNavigationCallbacks(): ActionExecutionCallbacks =
         ActionExecutionCallbacks(
-            showAppPicker = { showAppPicker(restoreUnlockGateOnBack = true) },
             showNotificationList = { showNotificationList(restoreUnlockGateOnBack = true) },
         )
-
-    private fun showAppPicker(restoreUnlockGateOnBack: Boolean = false) {
-        try {
-            navController.navigate(
-                R.id.appsFragment,
-                bundleOf(RESTORE_UNLOCK_GATE_ON_BACK to restoreUnlockGateOnBack),
-            )
-        } catch (_: Exception) {
-        }
-    }
 
     private fun showNotificationList(restoreUnlockGateOnBack: Boolean = false) {
         try {

@@ -10,16 +10,12 @@
     <!-- Settings screen -->
     <string name="settings_title">Luma nustatymai (%1$s)</string>
     <string name="settings_auto_rotate">Automatinis pasukimas</string>
-    <string name="settings_pages">Puslapiai</string>
     <string name="settings_gestures">Gestai</string>
     <string name="settings_notifications">Pranešimai</string>
 
     <!-- Gesture actions -->
     <string name="action_open_app">Atidaryti programėlę</string>
     <string name="action_lock_screen">Užrakinti ekraną</string>
-    <string name="action_show_notifications">Pranešimai (Android)</string>
-    <string name="action_show_app_picker">Programėlių sąrašas</string>
-    <string name="action_quick_settings">Greiti nustatymai (Android)</string>
     <string name="action_show_recents">Naujausios programėlės</string>
     <string name="action_show_notification_list">Pranešimai</string>
     <string name="action_disabled">Išjungtas</string>
@@ -38,8 +34,6 @@
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">Puslapio indikatoriaus pozicija</string>
-    <string name="pages_number_of_pages">Puslapių skaičius</string>
-    <string name="pages_page_number_of_apps">Puslapis %1$d, programėlių skaičius</string>
 
     <!-- Page indicator positions -->
     <string name="position_left">Kairė</string>
@@ -59,8 +53,6 @@
     <string name="status_bar_enabled">Įjungta</string>
     <string name="status_bar_mode_none">Išjungta</string>
     <string name="status_bar_mode_android">Įjungta (Android)</string>
-    <string name="status_bar_time">Laikas</string>
-    <string name="status_bar_time_enabled">Įjungta</string>
     <string name="status_bar_time_format">Laiko formatas</string>
     <string name="status_bar_time_standard">12 val. (AM/PM)</string>
     <string name="status_bar_time_24h">24 val.</string>
@@ -84,8 +76,6 @@
     <string name="status_bar_battery_icon">Rodyti piktogramą</string>
 
     <!-- App drawer -->
-    <string name="app_picker_title">Programėlių saugykla</string>
-<string name="app_picker_no_apps">Nerasta jokių programėlių</string>
 
 <!-- Home screen tips -->
     <string name="tip_swipe_left">Braukite kairėn visoms programėlėms</string>
@@ -94,12 +84,8 @@
     <!-- Toast messages -->
     <string name="toast_app_not_found">Programėlė nerasta</string>
     <string name="toast_unable_to_launch_app">Nepavyko paleisti programėlės</string>
-    <string name="toast_unable_to_launch_shortcut">Nepavyko paleisti nuorodos</string>
-    <string name="toast_shortcuts_require_android">Nuorodos reikalauja Android 7.1+</string>
 <string name="toast_action_requires_android_p">Šis veiksmas reikalauja Android P (9) ar naujesnės versijos</string>
     <string name="toast_lock_requires_android_9">Ekrano užrakinimas reikalauja Android 9 ar naujesnės versijos</string>
-<string name="toast_unable_to_add_shortcut">Nepavyko pridėti nuorodos</string>
-    <string name="toast_added_to_app_picker">Pridėta į programėlių saugyklą</string>
 
     <!-- Misc -->
     <string name="app_placeholder">Programėlė</string>
@@ -109,17 +95,4 @@
     <string name="content_desc_save">Įsaugoti</string>
     <string name="content_desc_clear">Išvalyti</string>
     <string name="content_desc_dismiss">Atmesti</string>
-
-    <plurals name="pages_count">
-        <item quantity="one">%d Puslapis</item>
-        <item quantity="few">%d Puslapiai</item>
-        <item quantity="many">%d Puslapio</item>
-        <item quantity="other">%d Puslapių</item>
-    </plurals>
-    <plurals name="apps_count">
-        <item quantity="one">%d Programa</item>
-        <item quantity="few">%d Programos</item>
-        <item quantity="many">%d Programos</item>
-        <item quantity="other">%d Programų</item>
-    </plurals>
 </resources>
