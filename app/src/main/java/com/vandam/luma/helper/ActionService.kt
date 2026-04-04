@@ -609,7 +609,7 @@ class ActionService : AccessibilityService() {
 
         val phase = unlockGateStateMachine.state.phase
 
-        if (phase == UnlockGatePhase.Idle && currentForegroundPackage != LIGHT_OS_PACKAGE &&
+        if (phase == UnlockGatePhase.Idle && !lumaInForeground && currentForegroundPackage != LIGHT_OS_PACKAGE &&
             currentForegroundPackage != packageName
         ) {
             val isVolumeUp = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
@@ -982,7 +982,7 @@ class ActionService : AccessibilityService() {
                 appModel.entryType == AppEntryType.Tool || Tool.fromPackageName(appModel.appPackage) != null -> LIGHT_OS_PACKAGE
                 else -> appModel.appPackage
             }
-        return currentForegroundPackage == targetPackage
+        return !lumaInForeground && currentForegroundPackage == targetPackage
     }
 
     private fun showToolLaunchMaskOnMain(isDark: Boolean) {
