@@ -1,11 +1,11 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
-    android:height="12dp"
-    android:viewportWidth="800"
-    android:viewportHeight="400">
-  <group android:translateX="-80" android:translateY="-280">
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+  <group android:translateY="960">
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M200,680q-17,0 -28.5,-11.5T160,640v-80H80v-160h80v-80q0,-17 11.5,-28.5T200,280h640q17,0 28.5,11.5T880,320v320q0,17 -11.5,28.5T840,680H200Zm40,-80h280v-240H240v240Z"/>
+        android:pathData="M140,-240q-41.67,0 -70.83,-29.17Q40,-298.33 40,-340v-280q0,-41.67 29.17,-70.83Q98.33,-720 140,-720h593.33q41.67,0 70.84,29.17 29.16,29.16 29.16,70.83v280q0,41.67 -29.16,70.83Q775,-240 733.33,-240H140Zm326.67,-66.67h266.66q14.17,0 23.75,-9.58 9.59,-9.58 9.59,-23.75v-280q0,-14.17 -9.59,-23.75 -9.58,-9.58 -23.75,-9.58H466.67v346.66Zm400,-78v-190.66h20q13.66,0 23.5,9.83Q920,-555.67 920,-542v124q0,13.67 -9.83,23.5 -9.84,9.83 -23.5,9.83h-20Z"/>
   </group>
 </vector>
