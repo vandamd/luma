@@ -25,6 +25,7 @@ object Constants {
         ShowRecents(R.string.action_show_recents),
         LockScreen(R.string.action_lock_screen),
         ToggleFlashlight(R.string.action_toggle_flashlight),
+        GoBack(R.string.action_go_back),
         ;
 
         fun displayName(context: Context): String = context.getString(displayNameRes)

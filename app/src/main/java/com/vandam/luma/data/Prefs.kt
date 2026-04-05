@@ -324,49 +324,38 @@ class Prefs(
         storeAction(gestureActionKey(type, scope), action)
     }
 
-    fun getCameraKeyPressAction(): Constants.Action {
-        val action = loadAction(CAMERA_KEY_PRESS_ACTION, Constants.Action.OpenApp)
-        return if (action == Constants.Action.OpenApp || action == Constants.Action.Disabled) action else Constants.Action.Disabled
-    }
+    private fun validateCameraAction(action: Constants.Action): Constants.Action =
+        if (
+            action == Constants.Action.Disabled ||
+            action == Constants.Action.OpenApp ||
+            action == Constants.Action.GoBack
+        ) {
+            action
+        } else {
+            Constants.Action.Disabled
+        }
+
+    fun getCameraKeyPressAction(): Constants.Action = validateCameraAction(loadAction(CAMERA_KEY_PRESS_ACTION, Constants.Action.OpenApp))
 
     fun setCameraKeyPressAction(action: Constants.Action) {
-        storeAction(
-            CAMERA_KEY_PRESS_ACTION,
-            if (action == Constants.Action.OpenApp ||
-                action == Constants.Action.Disabled
-            ) {
-                action
-            } else {
-                Constants.Action.Disabled
-            },
-        )
+        storeAction(CAMERA_KEY_PRESS_ACTION, validateCameraAction(action))
     }
 
-    fun getCameraKeyPressApp(): AppModel = loadApp(CAMERA_KEY_PRESS_APP)
-        .let { storedApp ->
-            if (storedApp.appPackage.isBlank()) defaultCameraToolApp() else storedApp
-        }
+    fun getCameraKeyPressApp(): AppModel =
+        loadApp(CAMERA_KEY_PRESS_APP)
+            .let { storedApp ->
+                if (storedApp.appPackage.isBlank()) defaultCameraToolApp() else storedApp
+            }
 
     fun setCameraKeyPressApp(appModel: AppModel) {
         storeApp(CAMERA_KEY_PRESS_APP, appModel)
     }
 
-    fun getCameraKeyLongPressAction(): Constants.Action {
-        val action = loadAction(CAMERA_KEY_LONG_PRESS_ACTION, Constants.Action.Disabled)
-        return if (action == Constants.Action.OpenApp || action == Constants.Action.Disabled) action else Constants.Action.Disabled
-    }
+    fun getCameraKeyLongPressAction(): Constants.Action =
+        validateCameraAction(loadAction(CAMERA_KEY_LONG_PRESS_ACTION, Constants.Action.Disabled))
 
     fun setCameraKeyLongPressAction(action: Constants.Action) {
-        storeAction(
-            CAMERA_KEY_LONG_PRESS_ACTION,
-            if (action == Constants.Action.OpenApp ||
-                action == Constants.Action.Disabled
-            ) {
-                action
-            } else {
-                Constants.Action.Disabled
-            },
-        )
+        storeAction(CAMERA_KEY_LONG_PRESS_ACTION, validateCameraAction(action))
     }
 
     fun getCameraKeyLongPressApp(): AppModel =
@@ -382,7 +371,8 @@ class Prefs(
         if (
             action == Constants.Action.Disabled ||
             action == Constants.Action.OpenApp ||
-            action == Constants.Action.ToggleFlashlight
+            action == Constants.Action.ToggleFlashlight ||
+            action == Constants.Action.GoBack
         ) {
             action
         } else {
