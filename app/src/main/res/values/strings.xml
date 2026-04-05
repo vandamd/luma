@@ -147,7 +147,7 @@
 
     <!-- Login -->
     <string name="login_title">Login</string>
-    <string name="login_message">Please enter your account number below.\nTo create an account, visit:\n\nhttps://dashboard.noscoll.ing</string>
+    <string name="login_message">Please enter your account number below.\nTo create an account, visit:\n\nhttps://dashboard.noscroll.ing</string>
     <string name="login_error_account_number">Enter a 16-digit account number.</string>
     <string name="login_error_invalid_account">That account number was not found.</string>
     <string name="login_error_sync_failed">Unable to sync tools.</string>
