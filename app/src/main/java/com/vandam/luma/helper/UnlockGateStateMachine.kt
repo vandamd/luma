@@ -82,6 +82,7 @@ internal sealed interface UnlockGateEvent {
         val nowUptimeMs: Long,
         val gateEnabled: Boolean,
         val deviceLocked: Boolean,
+        val ringingCall: Boolean,
     ) : UnlockGateEvent
 
     data class SetHomeContentTop(
@@ -102,6 +103,7 @@ internal sealed interface UnlockGateEvent {
         val nowUptimeMs: Long,
         val gateEnabled: Boolean,
         val deviceLocked: Boolean,
+        val ringingCall: Boolean,
     ) : UnlockGateEvent
 
     data class RestoreRequested(
@@ -221,6 +223,10 @@ internal class UnlockGateStateMachine(
                             wakeArmed = false,
                         ),
                     )
+                } else if (event.ringingCall) {
+                    Reduction(
+                        currentState.enterIdle(),
+                    )
                 } else {
                     Reduction(
                         currentState.enterVisible(
@@ -288,6 +294,10 @@ internal class UnlockGateStateMachine(
                         )
                 if (!shouldShowUnlockGate) {
                     Reduction(currentState.copy(wakeArmed = false))
+                } else if (event.ringingCall) {
+                    Reduction(
+                        currentState.enterIdle(),
+                    )
                 } else {
                     Reduction(
                         currentState.enterVisible(

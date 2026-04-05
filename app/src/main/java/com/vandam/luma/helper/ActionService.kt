@@ -960,6 +960,14 @@ class ActionService : AccessibilityService() {
             false
         }
 
+    private fun isPhoneRinging(): Boolean =
+        try {
+            @Suppress("DEPRECATION")
+            getSystemService(TelephonyManager::class.java)?.callState == TelephonyManager.CALL_STATE_RINGING
+        } catch (_: SecurityException) {
+            false
+        }
+
     private fun isCameraKeyTargetForeground(
         pressAction: Action,
         longPressAction: Action,
@@ -1200,6 +1208,7 @@ class ActionService : AccessibilityService() {
                                         nowUptimeMs = SystemClock.uptimeMillis(),
                                         gateEnabled = true,
                                         deviceLocked = keyguardManager.isDeviceLocked,
+                                        ringingCall = isPhoneRinging(),
                                     ),
                                 )
                             }
@@ -1212,6 +1221,7 @@ class ActionService : AccessibilityService() {
                                         nowUptimeMs = SystemClock.uptimeMillis(),
                                         gateEnabled = true,
                                         deviceLocked = keyguardManager.isDeviceLocked,
+                                        ringingCall = isPhoneRinging(),
                                     ),
                                 )
                             }
@@ -2500,7 +2510,7 @@ class ActionService : AccessibilityService() {
 
     private fun handleIncomingRinging() {
         val phase = unlockGateStateMachine.state.phase
-        if (phase != UnlockGatePhase.Idle) {
+        if (phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing) {
             dispatchUnlockGateEventOnMain(
                 UnlockGateEvent.DismissRequested(
                     nowUptimeMs = SystemClock.uptimeMillis(),
