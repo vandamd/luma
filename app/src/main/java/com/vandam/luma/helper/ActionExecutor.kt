@@ -46,6 +46,11 @@ fun executeSecondaryAction(
             true
         }
 
+        Action.GoBack -> {
+            initActionService(context)?.goBack()
+            true
+        }
+
         Action.ShowNotificationList -> {
             callbacks.showNotificationList()
             true

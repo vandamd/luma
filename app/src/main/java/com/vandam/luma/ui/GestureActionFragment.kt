@@ -125,16 +125,20 @@ class GestureActionFragment : Fragment() {
                 val managedApp = ManagedAppCatalog.fromPackageName(appModel.appPackage)
                 val resolvedModel =
                     when {
-                        tool != null ->
+                        tool != null -> {
                             tool.toAppModel(
                                 context = requireContext(),
                                 collator = collator,
                             )
+                        }
 
-                        managedApp != null ->
+                        managedApp != null -> {
                             managedApp.toAppModel(collator = collator)
+                        }
 
-                        else -> appModel
+                        else -> {
+                            appModel
+                        }
                     }
                 orderedTargets[launchTargetKey(resolvedModel)] = resolvedModel
             }
@@ -164,11 +168,13 @@ class GestureActionFragment : Fragment() {
                 KeymapType.ScrollwheelPress,
                 KeymapType.ScrollwheelLongPress,
                 -> {
-                    arrayOf(Action.ToggleFlashlight)
+                    arrayOf(Action.ToggleFlashlight, Action.GoBack)
                 }
 
-                else -> {
-                    emptyArray()
+                KeymapType.CameraPress,
+                KeymapType.CameraLongPress,
+                -> {
+                    arrayOf(Action.GoBack)
                 }
             }
         }

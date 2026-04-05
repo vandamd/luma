@@ -161,8 +161,9 @@ class ActionService : AccessibilityService() {
     @RequiresApi(Build.VERSION_CODES.P)
     fun lockScreen(): Boolean = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
 
-    @RequiresApi(Build.VERSION_CODES.P)
     fun showRecents(): Boolean = performGlobalAction(GLOBAL_ACTION_RECENTS)
+
+    fun goBack(): Boolean = performGlobalAction(GLOBAL_ACTION_BACK)
 
     fun showToolLaunchMask(isDark: Boolean) {
         runOnMainThread {
