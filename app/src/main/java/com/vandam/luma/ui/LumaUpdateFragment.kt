@@ -7,17 +7,21 @@ import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
 import com.vandam.luma.helper.LumaUpdateManager
 import com.vandam.luma.ui.compose.BottomActionText
 import com.vandam.luma.ui.compose.MessageText
-import com.vandam.luma.ui.compose.SettingsInsetContentPadding
+import com.vandam.luma.ui.compose.SettingsListContentPadding
 import com.vandam.luma.ui.compose.SettingsScreen
 import kotlinx.coroutines.launch
 
@@ -34,12 +38,23 @@ class LumaUpdateFragment : Fragment() {
     private fun Screen() {
         val scope = rememberCoroutineScope()
         var isInstallingUpdate by remember { mutableStateOf(false) }
+        val releaseNotes by produceState("", versionName) {
+            value = if (versionName.isBlank()) "" else LumaUpdateManager.fetchReleaseNotes(versionName)
+        }
+        val message =
+            buildString {
+                append(stringResource(R.string.settings_update_luma_message, versionName))
+                if (releaseNotes.isNotBlank()) {
+                    append("\n\n")
+                    append(releaseNotes)
+                }
+            }
 
         SettingsScreen(
             title = stringResource(R.string.settings_update_luma),
             onBack = ::goBack,
-            scrollable = false,
-            contentPadding = SettingsInsetContentPadding,
+            scrollable = releaseNotes.isNotBlank(),
+            contentPadding = SettingsListContentPadding,
             footer = {
                 BottomActionText(
                     title = stringResource(R.string.settings_update_luma),
@@ -59,7 +74,10 @@ class LumaUpdateFragment : Fragment() {
                 }
             },
         ) {
-            MessageText(text = stringResource(R.string.settings_update_luma_message, versionName))
+            MessageText(
+                text = message,
+                modifier = Modifier.padding(end = 26.dp),
+            )
         }
     }
 

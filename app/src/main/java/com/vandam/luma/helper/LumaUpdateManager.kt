@@ -6,8 +6,8 @@ import com.vandam.luma.LumaApplication
 import com.vandam.luma.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.Main
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -43,6 +43,11 @@ object LumaUpdateManager {
             AvailableUpdate(
                 versionName = latestVersion,
             )
+        }
+
+    suspend fun fetchReleaseNotes(versionName: String): String =
+        withContext(Dispatchers.IO) {
+            fetchRelease(versionName)?.body.orEmpty().trim()
         }
 
     suspend fun installUpdate(
@@ -292,6 +297,7 @@ object LumaUpdateManager {
     private data class GitHubLatestReleaseResponse(
         @SerialName("tag_name")
         val tagName: String = "",
+        val body: String = "",
         val assets: List<GitHubReleaseAsset> = emptyList(),
     )
 
