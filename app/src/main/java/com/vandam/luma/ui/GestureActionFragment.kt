@@ -183,6 +183,7 @@ class GestureActionFragment : Fragment() {
             setOf(
                 Action.OpenApp,
                 Action.Disabled,
+                Action.GoBack,
             )
 
         return Constants.Action
