@@ -54,6 +54,19 @@ jobs:
         with:
           name: app-prerelease
           path: ${{ github.workspace }}/luma_${{ env.PRERELEASE_TAG }}.apk
+      - name: Fetch tags
+        run: git fetch --tags --force
+      - name: Generate release notes
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            BODY=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
+          else
+            BODY=$(git log --pretty=format:"- %s (%h)" HEAD~10..HEAD)
+          fi
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -61,4 +74,4 @@ jobs:
           tag_name: ${{ env.PRERELEASE_TAG }}
           target_commitish: ${{ env.TARGET_REF }}
           prerelease: true
-          generate_release_notes: true
+          body: ${{ env.RELEASE_BODY }}
