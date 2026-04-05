@@ -2218,7 +2218,6 @@ class ActionService : AccessibilityService() {
         }
 
         val pct = level * 100 / scale
-        val charging = LumaStatusBarUi.batteryIconRes(sticky) == R.drawable.battery_charging
         val iconRes = LumaStatusBarUi.batteryIconRes(sticky)
 
         batteryLayout.visibility = View.VISIBLE

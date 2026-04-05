@@ -804,11 +804,6 @@ class HomeFragment :
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         if (level < 0 || scale <= 0) return
         val pct = level * 100 / scale
-        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        val charging =
-            status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
-
         val icon = LumaStatusBarUi.batteryIconRes(intent)
         binding.statusBatteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
         binding.statusBatteryText.text = "$pct%"
