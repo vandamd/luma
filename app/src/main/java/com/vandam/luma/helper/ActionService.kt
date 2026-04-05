@@ -2226,8 +2226,6 @@ class ActionService : AccessibilityService() {
         batteryText.text = "$pct%"
         batteryIcon.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
         batteryIcon.setImageResource(iconRes)
-        batteryIcon.scaleType = if (charging) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.FIT_END
-        batteryIcon.scaleX = if (charging) 1f else -1f
         batteryIcon.setColorFilter(textColor)
         LumaStatusBarUi.updateSectionBaseline(batteryLayout)
     }
@@ -2237,38 +2235,50 @@ class ActionService : AccessibilityService() {
         textColor: Int,
     ) {
         val connectivityLayout = view.findViewById<LinearLayout>(R.id.statusConnectivityLayout)
+        val airplaneIcon = view.findViewById<ImageView>(R.id.statusAirplane)
         val networkType = view.findViewById<TextView>(R.id.statusNetworkType)
         val signalIcon = view.findViewById<ImageView>(R.id.statusSignal)
         val wifiIcon = view.findViewById<ImageView>(R.id.statusWifi)
         val bluetoothIcon = view.findViewById<ImageView>(R.id.statusBluetooth)
 
-        if (prefs.cellularEnabled) {
-            val level = prefs.lastCellularSignalLevel
-            if (level != null) {
-                LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
-            } else {
-                signalIcon.visibility = View.GONE
-            }
-            val label = LumaStatusBarUi.networkLabelForType(prefs.lastCellularNetworkType)
-            networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
-            networkType.text = label
-        } else {
+        val airplaneMode = Settings.Global.getInt(contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0)
+
+        if (airplaneMode != 0 && prefs.cellularEnabled) {
+            LumaStatusBarUi.showTinted(airplaneIcon, R.drawable.airplane, textColor)
             signalIcon.visibility = View.GONE
             networkType.visibility = View.GONE
-        }
+            wifiIcon.visibility = View.GONE
+        } else {
+            airplaneIcon.visibility = View.GONE
 
-        if (prefs.wifiEnabled) {
-            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val wm = getSystemService(Context.WIFI_SERVICE) as WifiManager
-            val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
-            if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                val level = wm.calculateSignalLevel(activeCaps.signalStrength)
-                LumaStatusBarUi.showTinted(wifiIcon, LumaStatusBarUi.wifiDrawableForLevel(level), textColor)
+            if (prefs.cellularEnabled) {
+                val level = prefs.lastCellularSignalLevel
+                if (level != null) {
+                    LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
+                } else {
+                    signalIcon.visibility = View.GONE
+                }
+                val label = LumaStatusBarUi.networkLabelForType(prefs.lastCellularNetworkType)
+                networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
+                networkType.text = label
+            } else {
+                signalIcon.visibility = View.GONE
+                networkType.visibility = View.GONE
+            }
+
+            if (prefs.wifiEnabled) {
+                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val wm = getSystemService(Context.WIFI_SERVICE) as WifiManager
+                val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
+                if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+                    val level = wm.calculateSignalLevel(activeCaps.signalStrength)
+                    LumaStatusBarUi.showTinted(wifiIcon, LumaStatusBarUi.wifiDrawableForLevel(level), textColor)
+                } else {
+                    wifiIcon.visibility = View.GONE
+                }
             } else {
                 wifiIcon.visibility = View.GONE
             }
-        } else {
-            wifiIcon.visibility = View.GONE
         }
 
         if (prefs.bluetoothEnabled) {
@@ -2283,7 +2293,8 @@ class ActionService : AccessibilityService() {
         }
 
         val anyVisible =
-            networkType.visibility == View.VISIBLE ||
+            airplaneIcon.visibility == View.VISIBLE ||
+                networkType.visibility == View.VISIBLE ||
                 signalIcon.visibility == View.VISIBLE ||
                 wifiIcon.visibility == View.VISIBLE ||
                 bluetoothIcon.visibility == View.VISIBLE

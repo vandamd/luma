@@ -4,12 +4,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.os.bundleOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
@@ -29,7 +29,10 @@ class SettingsFragment : Fragment() {
         val context = LocalContext.current
         val versionName = requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName ?: ""
         val availableUpdate by produceState<LumaUpdateManager.AvailableUpdate?>(initialValue = null) {
-            value = LumaUpdateManager.fetchAvailableUpdate(context)
+            value =
+                runCatching {
+                    LumaUpdateManager.fetchAvailableUpdate(context)
+                }.getOrNull()
         }
         SettingsScreen(
             title = stringResource(R.string.settings_title, versionName),

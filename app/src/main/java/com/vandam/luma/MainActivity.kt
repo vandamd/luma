@@ -277,14 +277,21 @@ class MainActivity : AppCompatActivity() {
 
         val fallbackDestination =
             when (destinationId) {
-                R.id.loginFragment -> R.id.onboardingPermissionsFragment
-                R.id.onboardingPermissionsFragment ->
+                R.id.loginFragment -> {
+                    R.id.onboardingPermissionsFragment
+                }
+
+                R.id.onboardingPermissionsFragment -> {
                     if (prefs.accountNumber.isNotBlank()) {
                         R.id.mainFragment
                     } else {
                         R.id.onboardingWelcomeFragment
                     }
-                else -> return
+                }
+
+                else -> {
+                    return
+                }
             }
 
         val currentDestinationId = navController.currentDestination?.id ?: return
@@ -373,11 +380,15 @@ class MainActivity : AppCompatActivity() {
         }
         toolSyncJob =
             lifecycleScope.launch {
-                ToolSyncManager
-                    .observeSyncResults(this@MainActivity, accountNumber)
-                    .collectLatest { result ->
-                        handleToolSyncResult(result, "subscription")
-                    }
+                runCatching {
+                    ToolSyncManager
+                        .observeSyncResults(this@MainActivity, accountNumber)
+                        .collectLatest { result ->
+                            handleToolSyncResult(result, "subscription")
+                        }
+                }.onFailure { error ->
+                    Log.w(LOG_TAG, "Tool sync subscription failed", error)
+                }
             }
 
         toolSyncWebSocketJob =

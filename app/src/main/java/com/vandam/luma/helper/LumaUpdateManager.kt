@@ -122,15 +122,17 @@ object LumaUpdateManager {
             (context.applicationContext as? LumaApplication)?.convexClient
                 ?: return null
 
-        return client
-            .subscribe<Map<String, String>>(
-                name = VERSION_QUERY_PATH,
-                args = emptyMap(),
-            ).first()
-            .getOrNull()
-            ?.get("luma")
-            ?.let(::normalizeVersion)
-            ?.takeIf { it.isNotBlank() }
+        return runCatching {
+            client
+                .subscribe<Map<String, String>>(
+                    name = VERSION_QUERY_PATH,
+                    args = emptyMap(),
+                ).first()
+                .getOrNull()
+                ?.get("luma")
+                ?.let(::normalizeVersion)
+                ?.takeIf { it.isNotBlank() }
+        }.getOrNull()
     }
 
     private fun fetchRelease(versionName: String): GitHubLatestReleaseResponse? {
@@ -164,8 +166,7 @@ object LumaUpdateManager {
         return null
     }
 
-    private fun normalizeVersion(versionName: String): String =
-        versionName.trim().removePrefix("v").trim()
+    private fun normalizeVersion(versionName: String): String = versionName.trim().removePrefix("v").trim()
 
     private fun compareVersions(
         left: String,

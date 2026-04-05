@@ -6,48 +6,46 @@
         android:layout_width="0dp"
         android:layout_height="48dp"
         android:layout_weight="1"
-        android:baselineAligned="true"
-        android:baselineAlignedChildIndex="0"
         android:gravity="bottom"
         android:orientation="horizontal"
         android:clipToPadding="false"
         android:paddingBottom="32dp">
 
+        <ImageView
+            android:id="@+id/statusAirplane"
+            android:layout_width="wrap_content"
+            android:layout_height="14dp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/statusNetworkType"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="4dp"
             android:fontFamily="@font/public_sans"
             android:includeFontPadding="false"
+            android:baselineAlignBottom="true"
             android:textColor="?attr/primaryColor"
             android:textSize="@dimen/luma_status_bar_text_size"
             android:visibility="gone" />
 
         <ImageView
             android:id="@+id/statusSignal"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
-            android:baselineAlignBottom="true"
+            android:layout_width="wrap_content"
+            android:layout_height="14dp"
             android:visibility="gone"
             android:src="@drawable/signal_4" />
 
         <ImageView
             android:id="@+id/statusWifi"
-            android:layout_width="14dp"
-            android:layout_height="10dp"
-            android:layout_marginStart="6dp"
-            android:baselineAlignBottom="true"
-            android:scaleType="fitXY"
+            android:layout_width="wrap_content"
+            android:layout_height="14dp"
             android:visibility="gone"
             android:src="@drawable/wifi_full" />
 
         <ImageView
             android:id="@+id/statusBluetooth"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
-            android:layout_marginStart="6dp"
-            android:baselineAlignBottom="true"
+            android:layout_width="wrap_content"
+            android:layout_height="14dp"
             android:visibility="gone"
             android:src="@drawable/bluetooth" />
 
@@ -58,8 +56,6 @@
         android:layout_width="0dp"
         android:layout_height="48dp"
         android:layout_weight="1"
-        android:baselineAligned="true"
-        android:baselineAlignedChildIndex="0"
         android:gravity="bottom|end"
         android:orientation="horizontal"
         android:clipToPadding="false"
@@ -69,18 +65,18 @@
             android:id="@+id/statusBatteryText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="2dp"
+            android:layout_marginTop="4dp"
             android:fontFamily="@font/public_sans"
             android:includeFontPadding="false"
+            android:baselineAlignBottom="true"
             android:textColor="?attr/primaryColor"
             android:textSize="@dimen/luma_status_bar_text_size" />
 
         <ImageView
             android:id="@+id/statusBattery"
-            android:layout_width="18dp"
-            android:layout_height="10dp"
-            android:baselineAlignBottom="true"
-            android:scaleType="fitEnd"
+            android:layout_width="wrap_content"
+            android:layout_height="18dp"
             android:src="@drawable/battery_full" />
 
     </LinearLayout>

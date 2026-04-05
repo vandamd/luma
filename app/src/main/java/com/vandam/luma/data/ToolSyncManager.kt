@@ -88,25 +88,30 @@ object ToolSyncManager {
             (context.applicationContext as? LumaApplication)?.convexClient
                 ?: return flowOf(ToolSyncResult.Failure("Convex URL not configured"))
 
-        return client
-            .subscribe<DeviceSyncPayload?>(
-                name = QUERY_PATH,
-                args = mapOf("accountNumber" to accountNumber),
-            ).map { result ->
-                result.fold(
-                    onSuccess = { payload ->
-                        if (payload == null) {
-                            ToolSyncResult.InvalidAccount
-                        } else {
-                            applyPayload(context, payload)
-                        }
-                    },
-                    onFailure = { error ->
-                        Log.w(LOG_TAG, "Tool sync failed", error)
-                        ToolSyncResult.Failure(error.message ?: "Unable to sync tools")
-                    },
-                )
-            }
+        return runCatching {
+            client
+                .subscribe<DeviceSyncPayload?>(
+                    name = QUERY_PATH,
+                    args = mapOf("accountNumber" to accountNumber),
+                ).map { result ->
+                    result.fold(
+                        onSuccess = { payload ->
+                            if (payload == null) {
+                                ToolSyncResult.InvalidAccount
+                            } else {
+                                applyPayload(context, payload)
+                            }
+                        },
+                        onFailure = { error ->
+                            Log.w(LOG_TAG, "Tool sync failed", error)
+                            ToolSyncResult.Failure(error.message ?: "Unable to sync tools")
+                        },
+                    )
+                }
+        }.getOrElse { error ->
+            Log.w(LOG_TAG, "Failed to observe sync results", error)
+            flowOf(ToolSyncResult.Failure(error.message ?: "Unable to connect to server"))
+        }
     }
 
     private fun applyPayload(
