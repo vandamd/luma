@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<merge xmlns:android="http://schemas.android.com/apk/res/android">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
 
     <LinearLayout
         android:id="@+id/statusConnectivityLayout"
         android:layout_width="0dp"
-        android:layout_height="48dp"
+        android:layout_height="match_parent"
         android:layout_weight="1"
-        android:gravity="bottom"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:clipToPadding="false"
         android:paddingBottom="32dp">
@@ -22,8 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/public_sans"
-            android:includeFontPadding="false"
-            android:baselineAlignBottom="true"
+            android:layout_marginEnd="2dp"
             android:textColor="?attr/primaryColor"
             android:textSize="@dimen/luma_status_bar_text_size"
             android:visibility="gone" />
@@ -54,9 +56,9 @@
     <LinearLayout
         android:id="@+id/statusBatteryLayout"
         android:layout_width="0dp"
-        android:layout_height="48dp"
+        android:layout_height="match_parent"
         android:layout_weight="1"
-        android:gravity="bottom|end"
+        android:gravity="center_vertical|end"
         android:orientation="horizontal"
         android:clipToPadding="false"
         android:paddingBottom="32dp">
@@ -65,20 +67,17 @@
             android:id="@+id/statusBatteryText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="2dp"
-            android:layout_marginTop="4dp"
             android:fontFamily="@font/public_sans"
-            android:includeFontPadding="false"
-            android:baselineAlignBottom="true"
+            android:layout_marginEnd="4dp"
             android:textColor="?attr/primaryColor"
             android:textSize="@dimen/luma_status_bar_text_size" />
 
         <ImageView
             android:id="@+id/statusBattery"
             android:layout_width="wrap_content"
-            android:layout_height="18dp"
+            android:layout_height="20dp"
             android:src="@drawable/battery_full" />
 
     </LinearLayout>
 
-</merge>
+</LinearLayout>
