@@ -46,7 +46,7 @@ jobs:
         run: |
           VERSION_NAME=$(sed -n 's/^\s*versionName\s*"\([^"]\+\)".*/\1/p' app/build.gradle | head -n1)
           echo "VERSION=$VERSION_NAME" >> $GITHUB_ENV
-          echo "PRERELEASE_TAG=${VERSION_NAME}-prerelease.${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "PRERELEASE_TAG=$VERSION_NAME" >> $GITHUB_ENV
       - name: Copy signed APK to workspace with versioned name
         run: cp "${{ steps.sign_app.outputs.signedReleaseFile }}" "${{ github.workspace }}/luma_${{ env.PRERELEASE_TAG }}.apk"
       - name: Upload APK artifact
