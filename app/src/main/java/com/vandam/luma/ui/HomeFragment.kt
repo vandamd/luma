@@ -20,6 +20,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.UserManager
 import android.provider.Settings
+import android.telephony.ServiceState
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
@@ -872,7 +873,8 @@ class HomeFragment :
             object :
                 TelephonyCallback(),
                 TelephonyCallback.SignalStrengthsListener,
-                TelephonyCallback.DataConnectionStateListener {
+                TelephonyCallback.DataConnectionStateListener,
+                TelephonyCallback.ServiceStateListener {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     if (_binding == null) return
                     val level = signalStrength.level.coerceIn(0, 4)
@@ -889,6 +891,12 @@ class HomeFragment :
                         prefs.lastCellularNetworkType = networkType
                     }
                     updateNetworkTypeFromInt(networkType)
+                }
+
+                override fun onServiceStateChanged(serviceState: ServiceState) {
+                    if (_binding == null) return
+                    prefs.cellularServiceAvailable = serviceState.state == ServiceState.STATE_IN_SERVICE
+                    primeConnectivityState()
                 }
             }
         telephonyCallback = callback
@@ -907,6 +915,11 @@ class HomeFragment :
                 prefs.lastCellularSignalLevel = level
                 updateSignalIcon(level)
             }
+        } catch (_: SecurityException) {
+        }
+        try {
+            val state = tm.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
+            prefs.cellularServiceAvailable = state == ServiceState.STATE_IN_SERVICE
         } catch (_: SecurityException) {
         }
         prefs.lastCellularNetworkType?.let { updateNetworkTypeFromInt(it) }
@@ -939,10 +952,18 @@ class HomeFragment :
     }
 
     private fun updateSignalIcon(level: Int) {
-        binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(level))
+        if (!prefs.cellularServiceAvailable) {
+            binding.statusSignal.showTinted(R.drawable.signal_nodata)
+        } else {
+            binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(level))
+        }
     }
 
     private fun updateNetworkTypeFromInt(type: Int) {
+        if (!prefs.cellularServiceAvailable) {
+            binding.statusNetworkType.visibility = View.GONE
+            return
+        }
         val label = LumaStatusBarUi.networkLabelForType(type)
         binding.statusNetworkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
         binding.statusNetworkType.text = label

@@ -70,6 +70,7 @@ private const val WIFI_ENABLED = "wifi_enabled"
 private const val BLUETOOTH_ENABLED = "bluetooth_enabled"
 private const val LAST_CELLULAR_SIGNAL_LEVEL = "last_cellular_signal_level"
 private const val LAST_CELLULAR_NETWORK_TYPE = "last_cellular_network_type"
+private const val CELLULAR_SERVICE_AVAILABLE = "cellular_service_available"
 private const val FONT_SIZE_OPTION = "font_size_option"
 private const val HAPTICS_ENABLED = "haptics_enabled"
 private const val HAPTICS_APP_TAP_ENABLED = "haptics_app_tap_enabled"
@@ -670,6 +671,10 @@ class Prefs(
     var lastCellularNetworkType: Int?
         get() = prefs.getInt(LAST_CELLULAR_NETWORK_TYPE, Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }
         set(value) = prefs.edit().putInt(LAST_CELLULAR_NETWORK_TYPE, value ?: Int.MIN_VALUE).apply()
+
+    var cellularServiceAvailable: Boolean
+        get() = prefs.getBoolean(CELLULAR_SERVICE_AVAILABLE, true)
+        set(value) = prefs.edit().putBoolean(CELLULAR_SERVICE_AVAILABLE, value).apply()
 
     var hapticsEnabled: Boolean
         get() = prefs.getBoolean(HAPTICS_ENABLED, true)
