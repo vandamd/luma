@@ -2180,6 +2180,7 @@ class ActionService : AccessibilityService() {
         view.findViewById<TextView>(R.id.statusBatteryText).setTextColor(textColor)
 
         updateSecureLockMaskBatteryStatus(view, textColor)
+        getSystemService(TelephonyManager::class.java)?.let { updateUnlockGateCellularSnapshot(it) }
         if (unlockGateStateMachine.state.phase != UnlockGatePhase.Dismissing) {
             updateSecureLockMaskConnectivityStatus(view, textColor)
         }
@@ -2452,7 +2453,9 @@ class ActionService : AccessibilityService() {
                     networkType: Int,
                 ) {
                     runOnMainThread {
-                        prefs.lastCellularNetworkType = networkType
+                        if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
+                            prefs.lastCellularNetworkType = networkType
+                        }
                         refreshUnlockGateConnectivityStatus()
                     }
                 }

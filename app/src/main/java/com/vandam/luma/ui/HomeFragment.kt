@@ -885,7 +885,9 @@ class HomeFragment :
                     networkType: Int,
                 ) {
                     if (_binding == null) return
-                    prefs.lastCellularNetworkType = networkType
+                    if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
+                        prefs.lastCellularNetworkType = networkType
+                    }
                     updateNetworkTypeFromInt(networkType)
                 }
             }
