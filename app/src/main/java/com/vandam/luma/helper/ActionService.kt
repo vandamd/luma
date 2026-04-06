@@ -2226,7 +2226,6 @@ class ActionService : AccessibilityService() {
         batteryIcon.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
         batteryIcon.setImageResource(iconRes)
         batteryIcon.setColorFilter(textColor)
-        LumaStatusBarUi.updateSectionBaseline(batteryLayout)
     }
 
     private fun updateSecureLockMaskConnectivityStatus(
@@ -2298,7 +2297,6 @@ class ActionService : AccessibilityService() {
                 wifiIcon.visibility == View.VISIBLE ||
                 bluetoothIcon.visibility == View.VISIBLE
         connectivityLayout.visibility = if (anyVisible) View.VISIBLE else View.INVISIBLE
-        LumaStatusBarUi.updateSectionBaseline(connectivityLayout)
     }
 
     private fun shouldShowUnlockGateStatusBar(): Boolean =

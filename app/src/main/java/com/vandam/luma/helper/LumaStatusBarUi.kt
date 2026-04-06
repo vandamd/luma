@@ -5,7 +5,6 @@ import android.os.BatteryManager
 import android.telephony.TelephonyManager
 import android.view.View
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
@@ -19,10 +18,6 @@ object LumaStatusBarUi {
         imageView.visibility = View.VISIBLE
         imageView.setImageResource(icon)
         imageView.setColorFilter(tintColor)
-    }
-
-    fun updateSectionBaseline(layout: LinearLayout) {
-        layout.isBaselineAligned = false
     }
 
     fun clockPlaceholder(prefs: Prefs): String {
