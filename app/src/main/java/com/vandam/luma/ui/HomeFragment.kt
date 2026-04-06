@@ -911,7 +911,7 @@ class HomeFragment :
     private fun updateCellularSnapshot(tm: TelephonyManager) {
         try {
             val state = tm.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
-            prefs.cellularServiceAvailable = state == ServiceState.STATE_IN_SERVICE
+            prefs.cellularServiceState = state
         } catch (_: SecurityException) {
         }
         try {
