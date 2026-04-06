@@ -2488,13 +2488,6 @@ class ActionService : AccessibilityService() {
             }
         } catch (_: SecurityException) {
         }
-        try {
-            val networkType = telephonyManager.dataNetworkType
-            if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
-                prefs.lastCellularNetworkType = networkType
-            }
-        } catch (_: SecurityException) {
-        }
     }
 
     private fun startIncomingCallMonitor() {

@@ -909,12 +909,7 @@ class HomeFragment :
             }
         } catch (_: SecurityException) {
         }
-        try {
-            val networkType = tm.dataNetworkType
-            prefs.lastCellularNetworkType = networkType
-            updateNetworkTypeFromInt(networkType)
-        } catch (_: SecurityException) {
-        }
+        prefs.lastCellularNetworkType?.let { updateNetworkTypeFromInt(it) }
     }
 
     private fun applyCachedCellularState(fillMissingOnly: Boolean = false) {
