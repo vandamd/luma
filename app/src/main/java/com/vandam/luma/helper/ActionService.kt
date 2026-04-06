@@ -2180,7 +2180,9 @@ class ActionService : AccessibilityService() {
         view.findViewById<TextView>(R.id.statusBatteryText).setTextColor(textColor)
 
         updateSecureLockMaskBatteryStatus(view, textColor)
-        updateSecureLockMaskConnectivityStatus(view, textColor)
+        if (unlockGateStateMachine.state.phase != UnlockGatePhase.Dismissing) {
+            updateSecureLockMaskConnectivityStatus(view, textColor)
+        }
         syncUnlockGateStatusBarMonitors()
     }
 
@@ -2347,6 +2349,7 @@ class ActionService : AccessibilityService() {
     private fun refreshUnlockGateConnectivityStatus() {
         val view = unlockGateView ?: return
         if (!shouldShowUnlockGateStatusBar()) return
+        if (unlockGateStateMachine.state.phase == UnlockGatePhase.Dismissing) return
         updateSecureLockMaskConnectivityStatus(view, unlockGateTextColor(view))
     }
 
@@ -2483,7 +2486,10 @@ class ActionService : AccessibilityService() {
         } catch (_: SecurityException) {
         }
         try {
-            prefs.lastCellularNetworkType = telephonyManager.dataNetworkType
+            val networkType = telephonyManager.dataNetworkType
+            if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
+                prefs.lastCellularNetworkType = networkType
+            }
         } catch (_: SecurityException) {
         }
     }
