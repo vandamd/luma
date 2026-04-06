@@ -22,12 +22,7 @@ object LumaStatusBarUi {
     }
 
     fun updateSectionBaseline(layout: LinearLayout) {
-        for (index in 0 until layout.childCount) {
-            if (layout.getChildAt(index).visibility != View.GONE) {
-                layout.baselineAlignedChildIndex = index
-                return
-            }
-        }
+        layout.isBaselineAligned = false
     }
 
     fun clockPlaceholder(prefs: Prefs): String {
@@ -58,15 +53,33 @@ object LumaStatusBarUi {
     fun networkLabelForType(type: Int?): String =
         when (type) {
             TelephonyManager.NETWORK_TYPE_NR -> "5G"
+
             TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
+
             TelephonyManager.NETWORK_TYPE_HSPAP,
             TelephonyManager.NETWORK_TYPE_HSPA,
             TelephonyManager.NETWORK_TYPE_HSDPA,
             TelephonyManager.NETWORK_TYPE_HSUPA,
             TelephonyManager.NETWORK_TYPE_UMTS,
+            TelephonyManager.NETWORK_TYPE_EVDO_0,
+            TelephonyManager.NETWORK_TYPE_EVDO_A,
+            TelephonyManager.NETWORK_TYPE_EVDO_B,
+            TelephonyManager.NETWORK_TYPE_EHRPD,
+            TelephonyManager.NETWORK_TYPE_TD_SCDMA,
             -> "3G"
+
+            TelephonyManager.NETWORK_TYPE_GSM -> "2G"
+
+            TelephonyManager.NETWORK_TYPE_CDMA -> "CDMA"
+
+            TelephonyManager.NETWORK_TYPE_1xRTT -> "1x"
+
             TelephonyManager.NETWORK_TYPE_EDGE -> "E"
+
             TelephonyManager.NETWORK_TYPE_GPRS -> "G"
+
+            TelephonyManager.NETWORK_TYPE_IWLAN -> "IWLAN"
+
             else -> ""
         }
 
