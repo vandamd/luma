@@ -2507,14 +2507,14 @@ class ActionService : AccessibilityService() {
 
     private fun updateUnlockGateCellularSnapshot(telephonyManager: TelephonyManager) {
         try {
-            telephonyManager.signalStrength?.let {
-                prefs.lastCellularSignalLevel = it.level.coerceIn(0, 4)
-            }
+            val state = telephonyManager.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
+            prefs.cellularServiceState = state
         } catch (_: SecurityException) {
         }
         try {
-            val state = telephonyManager.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
-            prefs.cellularServiceState = state
+            telephonyManager.signalStrength?.let {
+                prefs.lastCellularSignalLevel = it.level.coerceIn(0, 4)
+            }
         } catch (_: SecurityException) {
         }
     }
