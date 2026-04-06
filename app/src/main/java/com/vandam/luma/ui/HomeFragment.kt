@@ -889,8 +889,10 @@ class HomeFragment :
                     if (_binding == null) return
                     if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
                         prefs.lastCellularNetworkType = networkType
+                        updateNetworkTypeFromInt(networkType)
+                    } else {
+                        prefs.lastCellularNetworkType?.let { updateNetworkTypeFromInt(it) }
                     }
-                    updateNetworkTypeFromInt(networkType)
                 }
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
