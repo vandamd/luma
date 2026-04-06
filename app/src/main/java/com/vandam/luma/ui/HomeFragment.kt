@@ -928,18 +928,40 @@ class HomeFragment :
     }
 
     private fun applyCachedCellularState(fillMissingOnly: Boolean = false) {
+        val state = prefs.cellularServiceState
         val cachedSignalLevel = prefs.lastCellularSignalLevel
         val cachedNetworkType = prefs.lastCellularNetworkType
-        if ((!fillMissingOnly || binding.statusSignal.visibility != View.VISIBLE) && cachedSignalLevel != null) {
-            updateSignalIcon(cachedSignalLevel)
-        } else if (!fillMissingOnly) {
-            binding.statusSignal.visibility = View.GONE
+
+        when (state) {
+            ServiceState.STATE_OUT_OF_SERVICE -> {
+                binding.statusSignal.showTinted(R.drawable.signal_nodata)
+                binding.statusNetworkType.visibility = View.GONE
+            }
+
+            ServiceState.STATE_EMERGENCY_ONLY -> {
+                if (cachedSignalLevel != null) {
+                    binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(cachedSignalLevel))
+                } else {
+                    binding.statusSignal.visibility = View.GONE
+                }
+                binding.statusNetworkType.visibility = View.VISIBLE
+                binding.statusNetworkType.text = "SOS"
+            }
+
+            else -> {
+                if ((!fillMissingOnly || binding.statusSignal.visibility != View.VISIBLE) && cachedSignalLevel != null) {
+                    updateSignalIcon(cachedSignalLevel)
+                } else if (!fillMissingOnly) {
+                    binding.statusSignal.visibility = View.GONE
+                }
+                if ((!fillMissingOnly || binding.statusNetworkType.visibility != View.VISIBLE) && cachedNetworkType != null) {
+                    updateNetworkTypeFromInt(cachedNetworkType)
+                } else if (!fillMissingOnly) {
+                    binding.statusNetworkType.visibility = View.GONE
+                }
+            }
         }
-        if ((!fillMissingOnly || binding.statusNetworkType.visibility != View.VISIBLE) && cachedNetworkType != null) {
-            updateNetworkTypeFromInt(cachedNetworkType)
-        } else if (!fillMissingOnly) {
-            binding.statusNetworkType.visibility = View.GONE
-        }
+
         if (binding.statusSignal.visibility != View.VISIBLE && binding.statusNetworkType.visibility != View.VISIBLE) {
             hideCellular()
         }
