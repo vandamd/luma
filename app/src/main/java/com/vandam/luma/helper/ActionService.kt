@@ -33,6 +33,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.telecom.TelecomManager
+import android.telephony.ServiceState
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
@@ -2180,7 +2181,10 @@ class ActionService : AccessibilityService() {
         view.findViewById<TextView>(R.id.statusBatteryText).setTextColor(textColor)
 
         updateSecureLockMaskBatteryStatus(view, textColor)
-        updateSecureLockMaskConnectivityStatus(view, textColor)
+        getSystemService(TelephonyManager::class.java)?.let { updateUnlockGateCellularSnapshot(it) }
+        if (unlockGateStateMachine.state.phase != UnlockGatePhase.Dismissing) {
+            updateSecureLockMaskConnectivityStatus(view, textColor)
+        }
         syncUnlockGateStatusBarMonitors()
     }
 
@@ -2250,15 +2254,30 @@ class ActionService : AccessibilityService() {
             airplaneIcon.visibility = View.GONE
 
             if (prefs.cellularEnabled) {
-                val level = prefs.lastCellularSignalLevel
-                if (level != null) {
-                    LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
+                val state = prefs.cellularServiceState
+                if (state == ServiceState.STATE_EMERGENCY_ONLY) {
+                    val level = prefs.lastCellularSignalLevel
+                    if (level != null) {
+                        LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
+                    } else {
+                        signalIcon.visibility = View.GONE
+                    }
+                    networkType.visibility = View.VISIBLE
+                    networkType.text = "SOS"
+                } else if (state == ServiceState.STATE_IN_SERVICE) {
+                    val level = prefs.lastCellularSignalLevel
+                    if (level != null) {
+                        LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
+                    } else {
+                        signalIcon.visibility = View.GONE
+                    }
+                    val label = LumaStatusBarUi.networkLabelForType(prefs.lastCellularNetworkType)
+                    networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
+                    networkType.text = label
                 } else {
-                    signalIcon.visibility = View.GONE
+                    LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
+                    networkType.visibility = View.GONE
                 }
-                val label = LumaStatusBarUi.networkLabelForType(prefs.lastCellularNetworkType)
-                networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
-                networkType.text = label
             } else {
                 signalIcon.visibility = View.GONE
                 networkType.visibility = View.GONE
@@ -2347,6 +2366,7 @@ class ActionService : AccessibilityService() {
     private fun refreshUnlockGateConnectivityStatus() {
         val view = unlockGateView ?: return
         if (!shouldShowUnlockGateStatusBar()) return
+        if (unlockGateStateMachine.state.phase == UnlockGatePhase.Dismissing) return
         updateSecureLockMaskConnectivityStatus(view, unlockGateTextColor(view))
     }
 
@@ -2435,7 +2455,8 @@ class ActionService : AccessibilityService() {
             object :
                 TelephonyCallback(),
                 TelephonyCallback.SignalStrengthsListener,
-                TelephonyCallback.DataConnectionStateListener {
+                TelephonyCallback.DataConnectionStateListener,
+                TelephonyCallback.ServiceStateListener {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     val level = signalStrength.level.coerceIn(0, 4)
                     runOnMainThread {
@@ -2449,7 +2470,16 @@ class ActionService : AccessibilityService() {
                     networkType: Int,
                 ) {
                     runOnMainThread {
-                        prefs.lastCellularNetworkType = networkType
+                        if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
+                            prefs.lastCellularNetworkType = networkType
+                        }
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+
+                override fun onServiceStateChanged(serviceState: ServiceState) {
+                    runOnMainThread {
+                        prefs.cellularServiceState = serviceState.state
                         refreshUnlockGateConnectivityStatus()
                     }
                 }
@@ -2477,13 +2507,14 @@ class ActionService : AccessibilityService() {
 
     private fun updateUnlockGateCellularSnapshot(telephonyManager: TelephonyManager) {
         try {
-            telephonyManager.signalStrength?.let {
-                prefs.lastCellularSignalLevel = it.level.coerceIn(0, 4)
-            }
+            val state = telephonyManager.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
+            prefs.cellularServiceState = state
         } catch (_: SecurityException) {
         }
         try {
-            prefs.lastCellularNetworkType = telephonyManager.dataNetworkType
+            telephonyManager.signalStrength?.let {
+                prefs.lastCellularSignalLevel = it.level.coerceIn(0, 4)
+            }
         } catch (_: SecurityException) {
         }
     }
