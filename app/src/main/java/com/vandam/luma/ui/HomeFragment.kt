@@ -756,7 +756,6 @@ class HomeFragment :
         if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
-            updateSectionBaseline(binding.statusBatteryLayout)
             binding.statusBatteryLayout.visibility = View.INVISIBLE
             return
         }
@@ -771,7 +770,6 @@ class HomeFragment :
         if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
-            updateSectionBaseline(binding.statusBatteryLayout)
             binding.statusBatteryLayout.visibility = View.INVISIBLE
             return
         }
@@ -808,7 +806,6 @@ class HomeFragment :
         binding.statusBatteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
         binding.statusBatteryText.text = "$pct%"
         binding.statusBattery.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
-        updateSectionBaseline(binding.statusBatteryLayout)
         binding.statusBattery.setImageResource(icon)
         binding.statusBattery.setColorFilter(binding.statusBatteryText.currentTextColor)
     }
@@ -821,7 +818,6 @@ class HomeFragment :
         if (prefs.cellularEnabled) startCellularMonitor() else hideCellular()
         if (prefs.wifiEnabled) startWifiMonitor() else hideWifi()
         if (prefs.bluetoothEnabled) startBluetoothMonitor() else hideBluetooth()
-        updateSectionBaseline(binding.statusConnectivityLayout)
     }
 
     private fun stopConnectivityMonitors() {
@@ -855,7 +851,6 @@ class HomeFragment :
         } else {
             hideBluetooth()
         }
-        updateSectionBaseline(binding.statusConnectivityLayout)
     }
 
     private fun primeCellularState() {
@@ -954,10 +949,6 @@ class HomeFragment :
         val label = LumaStatusBarUi.networkLabelForType(type)
         binding.statusNetworkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
         binding.statusNetworkType.text = label
-    }
-
-    private fun updateSectionBaseline(layout: LinearLayout) {
-        LumaStatusBarUi.updateSectionBaseline(layout)
     }
 
     private fun hideCellular() {
