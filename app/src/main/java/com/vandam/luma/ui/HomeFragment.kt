@@ -910,16 +910,16 @@ class HomeFragment :
 
     private fun updateCellularSnapshot(tm: TelephonyManager) {
         try {
+            val state = tm.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
+            prefs.cellularServiceAvailable = state == ServiceState.STATE_IN_SERVICE
+        } catch (_: SecurityException) {
+        }
+        try {
             tm.signalStrength?.let {
                 val level = it.level.coerceIn(0, 4)
                 prefs.lastCellularSignalLevel = level
                 updateSignalIcon(level)
             }
-        } catch (_: SecurityException) {
-        }
-        try {
-            val state = tm.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
-            prefs.cellularServiceState = state
         } catch (_: SecurityException) {
         }
         prefs.lastCellularNetworkType?.let { updateNetworkTypeFromInt(it) }
