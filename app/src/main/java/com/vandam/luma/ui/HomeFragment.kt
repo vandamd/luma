@@ -896,7 +896,7 @@ class HomeFragment :
                 override fun onServiceStateChanged(serviceState: ServiceState) {
                     if (_binding == null) return
                     prefs.cellularServiceState = serviceState.state
-                    primeConnectivityState()
+                    applyCachedCellularState()
                 }
             }
         telephonyCallback = callback
