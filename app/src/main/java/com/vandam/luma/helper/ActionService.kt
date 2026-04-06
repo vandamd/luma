@@ -2254,10 +2254,17 @@ class ActionService : AccessibilityService() {
             airplaneIcon.visibility = View.GONE
 
             if (prefs.cellularEnabled) {
-                if (!prefs.cellularServiceAvailable) {
-                    LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
-                    networkType.visibility = View.GONE
-                } else {
+                val state = prefs.cellularServiceState
+                if (state == ServiceState.STATE_EMERGENCY_ONLY) {
+                    val level = prefs.lastCellularSignalLevel
+                    if (level != null) {
+                        LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
+                    } else {
+                        signalIcon.visibility = View.GONE
+                    }
+                    networkType.visibility = View.VISIBLE
+                    networkType.text = "SOS"
+                } else if (state == ServiceState.STATE_IN_SERVICE) {
                     val level = prefs.lastCellularSignalLevel
                     if (level != null) {
                         LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
@@ -2267,6 +2274,9 @@ class ActionService : AccessibilityService() {
                     val label = LumaStatusBarUi.networkLabelForType(prefs.lastCellularNetworkType)
                     networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
                     networkType.text = label
+                } else {
+                    LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
+                    networkType.visibility = View.GONE
                 }
             } else {
                 signalIcon.visibility = View.GONE
@@ -2469,7 +2479,7 @@ class ActionService : AccessibilityService() {
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
                     runOnMainThread {
-                        prefs.cellularServiceAvailable = serviceState.state == ServiceState.STATE_IN_SERVICE
+                        prefs.cellularServiceState = serviceState.state
                         refreshUnlockGateConnectivityStatus()
                     }
                 }
@@ -2504,7 +2514,7 @@ class ActionService : AccessibilityService() {
         }
         try {
             val state = telephonyManager.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
-            prefs.cellularServiceAvailable = state == ServiceState.STATE_IN_SERVICE
+            prefs.cellularServiceState = state
         } catch (_: SecurityException) {
         }
     }
