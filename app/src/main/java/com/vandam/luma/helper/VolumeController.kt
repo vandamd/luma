@@ -101,6 +101,7 @@ class VolumeController(
     }
 
     fun handleVolumeKey(keyCode: Int): Boolean {
+        if (ActionService.instance() == null) return false
         val am = audioManager ?: return false
         val nm = notificationManager ?: return false
 
