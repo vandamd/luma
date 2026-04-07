@@ -75,6 +75,7 @@ class VolumeController(
     private var volumeWorkerHandler: Handler? = null
     private var lastKnownVolumeState: VolumeState? = null
     private var volumeApplyGeneration = 0L
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
     private val isVolumeIndicatorVisible: Boolean
         get() = ActionService.instance()?.isVolumeOnlyOverlayVisible() == true
@@ -251,7 +252,6 @@ class VolumeController(
         notificationManager: NotificationManager,
     ) {
         val handler = volumeWorkerHandler ?: return
-        val mainHandler = Handler(Looper.getMainLooper())
 
         handler.removeCallbacksAndMessages(null)
         handler.post {
