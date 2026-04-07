@@ -119,6 +119,7 @@ class ActionService : AccessibilityService() {
     private var scrollwheelKeyDownTime = 0L
     private var cameraLongPressFired = false
     private var cameraKeyPassThroughActive = false
+    private var cameraKeyPassThroughInterrupted = false
     private var scrollwheelLongPressFired = false
     private var homeKeyDownTime = 0L
     private var homeLongPressFired = false
@@ -140,6 +141,7 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cameraKeyPassThroughActive = false
+        cameraKeyPassThroughInterrupted = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
@@ -158,6 +160,7 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cameraKeyPassThroughActive = false
+        cameraKeyPassThroughInterrupted = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
@@ -312,6 +315,9 @@ class ActionService : AccessibilityService() {
         consumedMappedKeyUps.clear()
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+        if (cameraKeyPassThroughActive) {
+            cameraKeyPassThroughInterrupted = true
+        }
         cameraKeyPassThroughActive = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
@@ -502,6 +508,10 @@ class ActionService : AccessibilityService() {
     private fun handleCameraKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != CAMERA_KEY_CODE) return false
 
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            cameraKeyPassThroughInterrupted = false
+        }
+
         if (cameraKeyPassThroughActive) {
             return when (event.action) {
                 KeyEvent.ACTION_DOWN -> {
@@ -513,6 +523,7 @@ class ActionService : AccessibilityService() {
                     cameraKeyDownTime = 0L
                     cameraLongPressFired = false
                     cameraKeyPassThroughActive = false
+                    cameraKeyPassThroughInterrupted = false
                     false
                 }
 
@@ -520,6 +531,14 @@ class ActionService : AccessibilityService() {
                     false
                 }
             }
+        }
+
+        if (cameraKeyPassThroughInterrupted && event.action == KeyEvent.ACTION_UP) {
+            mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+            cameraKeyDownTime = 0L
+            cameraLongPressFired = false
+            cameraKeyPassThroughInterrupted = false
+            return true
         }
 
         val pressAction = prefs.getCameraKeyPressAction()
@@ -537,6 +556,7 @@ class ActionService : AccessibilityService() {
             cameraKeyDownTime = 0L
             cameraLongPressFired = false
             cameraKeyPassThroughActive = true
+            cameraKeyPassThroughInterrupted = false
             return false
         }
 
