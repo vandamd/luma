@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.Divider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -87,12 +88,16 @@ class ReorderToolsFragment : Fragment() {
             onBack = ::goBack,
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
+            var visibleCount = 0
             items.forEachIndexed { index, appModel ->
                 val itemKey = prefs.homeItemKey(appModel)
+                val isVisible = hiddenStates[itemKey] != true
+                if (isVisible) visibleCount++
+                
                 ReorderRow(
                     appModel = appModel,
                     label = appModel.displayName,
-                    visibleOnHome = hiddenStates[itemKey] != true,
+                    visibleOnHome = isVisible,
                     canMoveUp = index > 0,
                     canMoveDown = index < items.lastIndex,
                     onOpen = {
@@ -112,6 +117,16 @@ class ReorderToolsFragment : Fragment() {
                         swapItems(items, index, index + 1)
                     },
                 )
+                
+                if (isVisible && visibleCount % 6 == 0 && index < items.lastIndex) {
+                    Divider(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .padding(end = 37.dp),
+                        color = Color.White,
+                        thickness = 0.8.dp,
+                    )
+                }
             }
         }
     }
