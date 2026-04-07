@@ -41,6 +41,8 @@ import com.vandam.luma.helper.ActionExecutionCallbacks
 import com.vandam.luma.helper.ActionService
 import com.vandam.luma.helper.ApkInstaller
 import com.vandam.luma.helper.ManagedAppManager
+import com.vandam.luma.helper.UnlockGatePhase
+import com.vandam.luma.helper.VolumeController
 import com.vandam.luma.helper.executeSecondaryAction
 import com.vandam.luma.helper.hideStatusBar
 import com.vandam.luma.helper.isAccessibilityEnabled
@@ -59,6 +61,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var navController: NavController
     private lateinit var viewModel: MainViewModel
     private lateinit var binding: ActivityMainBinding
+    private lateinit var volumeController: VolumeController
     private var consumeHandledVolumeKeyUp = false
     private var shouldFinishOnStop = false
     private var toolSyncJob: Job? = null
@@ -98,6 +101,7 @@ class MainActivity : AppCompatActivity() {
             setupNavGraph()
         }
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+        volumeController = VolumeController(this).also { it.init() }
         navController.addOnDestinationChangedListener { _, destination, _ ->
             updateSystemStatusBarVisibility(destination.id)
             syncRepeatedHomeGateEligibility(destination.id)
@@ -142,6 +146,7 @@ class MainActivity : AppCompatActivity() {
         toolSyncReconnectWatchdogJob?.cancel()
         setLumaForeground(false)
         ActionService.instance()?.setRepeatedHomeGateEligible(false)
+        volumeController.destroy()
         super.onDestroy()
     }
 
@@ -207,12 +212,16 @@ class MainActivity : AppCompatActivity() {
             return true
         }
 
-        if (event.action != KeyEvent.ACTION_DOWN || navController.currentDestination?.id != R.id.mainFragment) {
+        if (event.action != KeyEvent.ACTION_DOWN) {
             return super.dispatchKeyEvent(event)
         }
 
-        val homeFragment = getVisibleHomeFragment() ?: return super.dispatchKeyEvent(event)
-        val handled = homeFragment.handleHardwareVolumeKey(event.keyCode)
+        val phase = ActionService.unlockGateState.value.phase
+        if (phase == UnlockGatePhase.SecureMask || phase == UnlockGatePhase.AwaitingCredential) {
+            return super.dispatchKeyEvent(event)
+        }
+
+        val handled = volumeController.handleVolumeKey(event.keyCode)
         if (handled) {
             consumeHandledVolumeKeyUp = true
             return true
