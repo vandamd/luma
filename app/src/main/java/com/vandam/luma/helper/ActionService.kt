@@ -106,7 +106,6 @@ class ActionService : AccessibilityService() {
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
     private var currentForegroundPackage: String? = null
     private var lastForegroundPackage: String? = null
-    private var lumaInForeground = false
     private var torchCameraId: String? = null
     private var torchEnabled = false
     private var torchCallback: CameraManager.TorchCallback? = null
@@ -275,12 +274,10 @@ class ActionService : AccessibilityService() {
                         lastForegroundPackage = currentForegroundPackage
                     }
                     currentForegroundPackage = packageName
-                    lumaInForeground = false
-                } else {
+                } else if (MainActivity.isLumaForeground()) {
                     if (currentForegroundPackage != null) {
                         lastForegroundPackage = currentForegroundPackage
                     }
-                    lumaInForeground = true
                 }
             }
 
@@ -357,7 +354,7 @@ class ActionService : AccessibilityService() {
                                 if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
-                                } else if (lumaInForeground) {
+                                } else if (isLumaForeground()) {
                                     openLastUsedApp()
                                 } else {
                                     launchLumaHome(suppressLauncherIntentHandling = true)
@@ -435,7 +432,7 @@ class ActionService : AccessibilityService() {
                                 if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
-                                } else if (lumaInForeground) {
+                                } else if (isLumaForeground()) {
                                     openLastUsedApp()
                                 } else {
                                     launchLumaHome(suppressLauncherIntentHandling = true)
@@ -611,7 +608,7 @@ class ActionService : AccessibilityService() {
 
         val phase = unlockGateStateMachine.state.phase
 
-        if (phase == UnlockGatePhase.Idle && !lumaInForeground && currentForegroundPackage != LIGHT_OS_PACKAGE &&
+        if (phase == UnlockGatePhase.Idle && !isLumaForeground() && currentForegroundPackage != LIGHT_OS_PACKAGE &&
             currentForegroundPackage != packageName
         ) {
             val isVolumeUp = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
@@ -992,8 +989,10 @@ class ActionService : AccessibilityService() {
                 appModel.entryType == AppEntryType.Tool || Tool.fromPackageName(appModel.appPackage) != null -> LIGHT_OS_PACKAGE
                 else -> appModel.appPackage
             }
-        return !lumaInForeground && currentForegroundPackage == targetPackage
+        return !isLumaForeground() && currentForegroundPackage == targetPackage
     }
+
+    private fun isLumaForeground(): Boolean = MainActivity.isLumaForeground()
 
     private fun showToolLaunchMaskOnMain(isDark: Boolean) {
         cancelPendingCallbacks()
@@ -1714,25 +1713,43 @@ class ActionService : AccessibilityService() {
                 this.title = title
             }
 
-    private fun createVolumeOnlyOverlayLayoutParams(): WindowManager.LayoutParams =
-        WindowManager
+    private fun createVolumeOnlyOverlayLayoutParams(compactPadding: Boolean): WindowManager.LayoutParams {
+        val flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        return WindowManager
             .LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                flags,
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
                 title = VOLUME_ONLY_OVERLAY_WINDOW_TITLE
             }
+    }
 
-    private fun showVolumeOnlyOverlay(
+    private fun handleVolumeIndicatorTap() {
+        performAppTapHapticFeedback(this)
+        val phase = unlockGateStateMachine.state.phase
+        if (phase != UnlockGatePhase.Idle) {
+            hideUnlockGateVolumeIndicator()
+            dispatchUnlockGateEventOnMain(
+                UnlockGateEvent.DismissRequested(
+                    nowUptimeMs = SystemClock.uptimeMillis(),
+                    minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                ),
+            )
+        } else {
+            hideVolumeOnlyOverlay()
+        }
+        launchLightOsRoute(this, NOTIFICATION_SETTINGS_LIGHT_ROUTE)
+    }
+
+    fun showVolumeOnlyOverlay(
         labelRes: Int,
         progress: Float,
+        compactPadding: Boolean = false,
     ) {
         runOnMainThread {
             val isDark = prefs.isDarkTheme()
@@ -1742,13 +1759,20 @@ class ActionService : AccessibilityService() {
                     volumeOnlyOverlayView = it
                 }
 
-            val indicator = view.findViewById<LinearLayout>(R.id.volumeIndicator)
+            val indicator = view as LinearLayout
             indicator.visibility = View.VISIBLE
+            val density = indicator.context.resources.displayMetrics.density
+            val paddingBottomPx = if (compactPadding) (2.3f * density).toInt() else (9.3f * density).toInt()
+            indicator.setPadding(
+                indicator.paddingLeft,
+                indicator.paddingTop,
+                indicator.paddingRight,
+                paddingBottomPx,
+            )
             val label = indicator.findViewById<TextView>(R.id.volumeIndicatorLabel)
             label.setText(labelRes)
             label.setTextColor(textColor)
-            label.isClickable = false
-            label.isFocusable = false
+            label.setOnClickListener { handleVolumeIndicatorTap() }
             indicator.findViewById<View>(R.id.volumeIndicatorTrackLine).setBackgroundColor(textColor)
             indicator.findViewById<View>(R.id.volumeIndicatorFill).apply {
                 setBackgroundColor(textColor)
@@ -1756,7 +1780,7 @@ class ActionService : AccessibilityService() {
                 scaleX = progress.coerceIn(0f, 1f)
             }
 
-            val layoutParams = createVolumeOnlyOverlayLayoutParams()
+            val layoutParams = createVolumeOnlyOverlayLayoutParams(compactPadding)
             if (!view.isAttachedToWindow) {
                 try {
                     windowManager.addView(view, layoutParams)
@@ -1776,7 +1800,7 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun hideVolumeOnlyOverlay() {
+    fun hideVolumeOnlyOverlay() {
         runOnMainThread {
             volumeOnlyOverlayHideRunnable?.let { mainHandler.removeCallbacks(it) }
             volumeOnlyOverlayHideRunnable = null
@@ -1789,6 +1813,8 @@ class ActionService : AccessibilityService() {
             }
         }
     }
+
+    fun isVolumeOnlyOverlayVisible(): Boolean = volumeOnlyOverlayView?.isAttachedToWindow == true
 
     private fun currentUnlockGateTopInsetPx(): Int =
         unlockGateStateMachine.state.let { state ->
@@ -2342,10 +2368,21 @@ class ActionService : AccessibilityService() {
             return
         }
 
+        val phase = unlockGateStateMachine.state.phase
+        val isInteractive = phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing
         val textColor = unlockGateTextColor(view)
         label.apply {
             setText(unlockGateVolumeIndicatorLabelRes)
             setTextColor(textColor)
+            isClickable = isInteractive
+            isFocusable = isInteractive
+            setOnClickListener(
+                if (isInteractive) {
+                    View.OnClickListener { handleVolumeIndicatorTap() }
+                } else {
+                    null
+                },
+            )
         }
         indicator.findViewById<View>(R.id.volumeIndicatorTrackLine).setBackgroundColor(textColor)
         indicator.findViewById<View>(R.id.volumeIndicatorFill).apply {

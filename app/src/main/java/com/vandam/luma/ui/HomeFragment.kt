@@ -1,13 +1,11 @@
 package com.vandam.luma.ui
 
 import android.annotation.SuppressLint
-import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -16,8 +14,6 @@ import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.HandlerThread
 import android.os.UserManager
 import android.provider.Settings
 import android.telephony.ServiceState
@@ -27,7 +23,6 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -35,7 +30,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -64,7 +58,6 @@ import java.util.Calendar
 private const val TAG = "HomeFragment"
 private const val NETWORK_SHORTCUT_LIGHT_ROUTE = "networksettings"
 private const val NOTIFICATION_SETTINGS_LIGHT_ROUTE = "notificationsettings"
-private const val VOLUME_INDICATOR_HIDE_DELAY_MS = 1500L
 private const val STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS = 120L
 
 private val FragmentHomeBinding.statusBattery: ImageView
@@ -91,60 +84,6 @@ private val FragmentHomeBinding.statusSignal: ImageView
 private val FragmentHomeBinding.statusWifi: ImageView
     get() = statusBar.findViewById(R.id.statusWifi)
 
-private data class VolumeIndicatorState(
-    val labelRes: Int,
-    val progress: Float,
-)
-
-private enum class VolumeStateType {
-    Media,
-    Ringer,
-    Vibrate,
-    Silent,
-}
-
-private data class VolumeState(
-    val type: VolumeStateType,
-    val volume: Int = 0,
-    val maxVolume: Int = 0,
-) {
-    fun toIndicatorState(): VolumeIndicatorState =
-        when (type) {
-            VolumeStateType.Media -> {
-                VolumeIndicatorState(
-                    labelRes = R.string.volume_indicator_media,
-                    progress = if (maxVolume <= 0) 0f else volume.toFloat() / maxVolume.toFloat(),
-                )
-            }
-
-            VolumeStateType.Ringer -> {
-                VolumeIndicatorState(
-                    labelRes = R.string.volume_indicator_ringer,
-                    progress = if (maxVolume <= 0) 0f else volume.toFloat() / maxVolume.toFloat(),
-                )
-            }
-
-            VolumeStateType.Vibrate -> {
-                VolumeIndicatorState(
-                    labelRes = R.string.volume_indicator_vibrate,
-                    progress = 0f,
-                )
-            }
-
-            VolumeStateType.Silent -> {
-                VolumeIndicatorState(
-                    labelRes = R.string.volume_indicator_silent,
-                    progress = 0f,
-                )
-            }
-        }
-}
-
-private data class VolumePrediction(
-    val state: VolumeState,
-    val promptForSilentAccess: Boolean = false,
-)
-
 class HomeFragment :
     Fragment(),
     View.OnClickListener {
@@ -157,23 +96,7 @@ class HomeFragment :
     private var bluetoothReceiver: BroadcastReceiver? = null
     private var telephonyCallback: TelephonyCallback? = null
     private var wifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
-    private var volumeIndicatorHideJob: Job? = null
-    private var audioManager: AudioManager? = null
-    private var notificationManager: NotificationManager? = null
-    private var volumeWorkerThread: HandlerThread? = null
-    private var volumeWorkerHandler: Handler? = null
-    private var lastKnownVolumeState: VolumeState? = null
-    private var pendingVolumeIndicatorState: VolumeIndicatorState? = null
-    private var volumeApplyGeneration = 0L
     private var isUnlockGateVisible = false
-    private val applyVolumeIndicatorRunnable =
-        Runnable {
-            val currentBinding = _binding ?: return@Runnable
-            val state = pendingVolumeIndicatorState ?: return@Runnable
-            pendingVolumeIndicatorState = null
-            currentBinding.volumeIndicatorLabel.setText(state.labelRes)
-            updateVolumeIndicatorFill(state.progress)
-        }
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
@@ -199,18 +122,6 @@ class HomeFragment :
 
     override fun onDestroyView() {
         super.onDestroyView()
-        volumeIndicatorHideJob?.cancel()
-        volumeIndicatorHideJob = null
-        volumeWorkerHandler?.removeCallbacksAndMessages(null)
-        volumeWorkerThread?.quitSafely()
-        volumeWorkerHandler = null
-        volumeWorkerThread = null
-        audioManager = null
-        notificationManager = null
-        lastKnownVolumeState = null
-        pendingVolumeIndicatorState = null
-        volumeApplyGeneration = 0L
-        _binding?.root?.removeCallbacks(applyVolumeIndicatorRunnable)
         isUnlockGateVisible = false
         _binding = null
     }
@@ -221,14 +132,6 @@ class HomeFragment :
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        audioManager = requireContext().getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        volumeWorkerThread =
-            HandlerThread("HomeVolumeWorker").also {
-                it.start()
-                volumeWorkerHandler = Handler(it.looper)
-            }
-
         viewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
         currentPage = viewModel.getCurrentHomePage()
 
@@ -236,7 +139,6 @@ class HomeFragment :
         initPageNavigation()
         initSwipeTouchListener()
         initStatusBarClickListeners()
-        initVolumeIndicator()
         observeUnlockGateClockVisibility()
         binding.touchArea.post { syncUnlockGateHomeContentTop() }
     }
@@ -261,7 +163,6 @@ class HomeFragment :
     override fun onPause() {
         super.onPause()
         HomeCleanupHelper.setOnHomeCleanupCallback(null)
-        hideVolumeIndicator()
         stopBatteryMonitor()
         stopConnectivityMonitors()
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility(null)
@@ -276,39 +177,6 @@ class HomeFragment :
         } catch (e: Exception) {
             Log.e(TAG, "Error handling app click", e)
         }
-    }
-
-    fun handleHardwareVolumeKey(keyCode: Int): Boolean {
-        if (_binding == null) return false
-        val audioManager = audioManager ?: return false
-        val notificationManager = notificationManager ?: return false
-
-        val isVolumeUp =
-            when (keyCode) {
-                KeyEvent.KEYCODE_VOLUME_UP -> true
-                KeyEvent.KEYCODE_VOLUME_DOWN -> false
-                else -> return false
-            }
-
-        val currentState =
-            if (binding.volumeIndicator.visibility == View.VISIBLE) {
-                lastKnownVolumeState ?: readCurrentVolumeState(audioManager)
-            } else {
-                readCurrentVolumeState(audioManager)
-            }
-        val prediction = predictNextVolumeState(currentState, isVolumeUp, notificationManager.isNotificationPolicyAccessGranted)
-        if (prediction.promptForSilentAccess) {
-            showToast(requireContext(), getString(R.string.toast_volume_silent_requires_permission), Toast.LENGTH_LONG)
-            openNotificationPolicyAccessSettings(requireContext())
-        }
-
-        lastKnownVolumeState = prediction.state
-        showVolumeIndicator(prediction.state.toIndicatorState())
-        val generation = ++volumeApplyGeneration
-        if (!prediction.promptForSilentAccess) {
-            enqueueVolumeApply(prediction.state, generation)
-        }
-        return true
     }
 
     private fun initSwipeTouchListener() {
@@ -328,20 +196,6 @@ class HomeFragment :
     private fun initStatusBarClickListeners() {
         binding.statusConnectivityLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.CELLULAR) }
         binding.statusBatteryLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.BATTERY) }
-    }
-
-    private fun initVolumeIndicator() {
-        val ta = requireContext().obtainStyledAttributes(intArrayOf(R.attr.primaryColor))
-        val primaryColor = ta.getColor(0, 0)
-        ta.recycle()
-        binding.volumeIndicatorTrackLine.setBackgroundColor(primaryColor)
-        binding.volumeIndicatorFill.setBackgroundColor(primaryColor)
-        binding.volumeIndicatorFill.pivotX = 0f
-        binding.volumeIndicatorFill.scaleX = 0f
-        binding.volumeIndicatorLabel.setOnClickListener {
-            performAppTapHaptic()
-            launchLightOsRoute(requireActivity(), NOTIFICATION_SETTINGS_LIGHT_ROUTE)
-        }
     }
 
     private fun handleSectionPress(section: StatusBarSectionType) {
@@ -504,232 +358,6 @@ class HomeFragment :
                 }
             }
         }
-    }
-
-    private fun readCurrentVolumeState(audioManager: AudioManager): VolumeState {
-        if (audioManager.isMusicActive) {
-            return VolumeState(
-                type = VolumeStateType.Media,
-                volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC),
-                maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1),
-            )
-        }
-
-        val maxRingVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING).coerceAtLeast(1)
-        when (audioManager.ringerMode) {
-            AudioManager.RINGER_MODE_VIBRATE -> {
-                return VolumeState(
-                    type = VolumeStateType.Vibrate,
-                    maxVolume = maxRingVolume,
-                )
-            }
-
-            AudioManager.RINGER_MODE_SILENT -> {
-                return VolumeState(
-                    type = VolumeStateType.Silent,
-                    maxVolume = maxRingVolume,
-                )
-            }
-
-            else -> {
-                return VolumeState(
-                    type = VolumeStateType.Ringer,
-                    volume = audioManager.getStreamVolume(AudioManager.STREAM_RING),
-                    maxVolume = maxRingVolume,
-                )
-            }
-        }
-    }
-
-    private fun predictNextVolumeState(
-        currentState: VolumeState,
-        isVolumeUp: Boolean,
-        canEnterSilent: Boolean,
-    ): VolumePrediction =
-        when (currentState.type) {
-            VolumeStateType.Media -> {
-                val targetVolume =
-                    if (isVolumeUp) {
-                        (currentState.volume + 1).coerceAtMost(currentState.maxVolume)
-                    } else {
-                        (currentState.volume - 1).coerceAtLeast(0)
-                    }
-                VolumePrediction(currentState.copy(volume = targetVolume))
-            }
-
-            VolumeStateType.Ringer -> {
-                if (isVolumeUp) {
-                    val targetVolume =
-                        if (currentState.volume == 0) {
-                            1
-                        } else {
-                            (currentState.volume + 1).coerceAtMost(currentState.maxVolume)
-                        }
-                    VolumePrediction(currentState.copy(volume = targetVolume))
-                } else {
-                    if (currentState.volume > 1) {
-                        VolumePrediction(currentState.copy(volume = currentState.volume - 1))
-                    } else {
-                        VolumePrediction(
-                            VolumeState(
-                                type = VolumeStateType.Vibrate,
-                                maxVolume = currentState.maxVolume,
-                            ),
-                        )
-                    }
-                }
-            }
-
-            VolumeStateType.Vibrate -> {
-                if (isVolumeUp) {
-                    VolumePrediction(
-                        VolumeState(
-                            type = VolumeStateType.Ringer,
-                            volume = 1,
-                            maxVolume = currentState.maxVolume,
-                        ),
-                    )
-                } else {
-                    if (canEnterSilent) {
-                        VolumePrediction(
-                            VolumeState(
-                                type = VolumeStateType.Silent,
-                                maxVolume = currentState.maxVolume,
-                            ),
-                        )
-                    } else {
-                        VolumePrediction(currentState, promptForSilentAccess = true)
-                    }
-                }
-            }
-
-            VolumeStateType.Silent -> {
-                if (isVolumeUp) {
-                    VolumePrediction(
-                        VolumeState(
-                            type = VolumeStateType.Vibrate,
-                            maxVolume = currentState.maxVolume,
-                        ),
-                    )
-                } else {
-                    VolumePrediction(currentState)
-                }
-            }
-        }
-
-    private fun enqueueVolumeApply(
-        state: VolumeState,
-        generation: Long,
-    ) {
-        val audioManager = audioManager ?: return
-        val notificationManager = notificationManager ?: return
-        val handler = volumeWorkerHandler ?: return
-
-        handler.removeCallbacksAndMessages(null)
-        handler.post {
-            applyVolumeState(audioManager, notificationManager, state)
-            val actualState = readCurrentVolumeState(audioManager)
-            _binding?.root?.post {
-                if (_binding == null) return@post
-                if (generation != volumeApplyGeneration) return@post
-                lastKnownVolumeState = actualState
-                if (binding.volumeIndicator.visibility == View.VISIBLE) {
-                    scheduleVolumeIndicatorUiUpdate(actualState.toIndicatorState())
-                }
-            }
-        }
-    }
-
-    private fun applyVolumeState(
-        audioManager: AudioManager,
-        notificationManager: NotificationManager,
-        state: VolumeState,
-    ) {
-        when (state.type) {
-            VolumeStateType.Media -> {
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, state.volume, 0)
-            }
-
-            VolumeStateType.Ringer -> {
-                trySetRingerMode(audioManager, notificationManager, AudioManager.RINGER_MODE_NORMAL)
-                audioManager.setStreamVolume(AudioManager.STREAM_RING, state.volume, 0)
-            }
-
-            VolumeStateType.Vibrate -> {
-                audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
-                trySetRingerMode(audioManager, notificationManager, AudioManager.RINGER_MODE_VIBRATE)
-            }
-
-            VolumeStateType.Silent -> {
-                audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
-                trySetRingerMode(audioManager, notificationManager, AudioManager.RINGER_MODE_SILENT)
-            }
-        }
-    }
-
-    private fun trySetRingerMode(
-        audioManager: AudioManager,
-        notificationManager: NotificationManager,
-        mode: Int,
-        promptForPolicyAccess: Boolean = false,
-    ): Boolean {
-        if (mode == AudioManager.RINGER_MODE_SILENT && !notificationManager.isNotificationPolicyAccessGranted) {
-            if (promptForPolicyAccess) {
-                showToast(requireContext(), getString(R.string.toast_volume_silent_requires_permission), Toast.LENGTH_LONG)
-                openNotificationPolicyAccessSettings(requireContext())
-            }
-            return false
-        }
-
-        return try {
-            audioManager.ringerMode = mode
-            true
-        } catch (_: SecurityException) {
-            if (promptForPolicyAccess) {
-                showToast(requireContext(), getString(R.string.toast_volume_silent_requires_permission), Toast.LENGTH_LONG)
-                openNotificationPolicyAccessSettings(requireContext())
-            }
-            false
-        }
-    }
-
-    private fun showVolumeIndicator(state: VolumeIndicatorState) {
-        binding.volumeIndicator.visibility = View.VISIBLE
-        scheduleVolumeIndicatorUiUpdate(state)
-        restartVolumeIndicatorHideTimer()
-    }
-
-    private fun scheduleVolumeIndicatorUiUpdate(state: VolumeIndicatorState) {
-        pendingVolumeIndicatorState = state
-        ActionService.instance()?.showUnlockGateVolumeIndicator(state.labelRes, state.progress)
-        binding.root.removeCallbacks(applyVolumeIndicatorRunnable)
-        binding.root.postOnAnimation(applyVolumeIndicatorRunnable)
-    }
-
-    private fun updateVolumeIndicatorFill(progress: Float) {
-        val clampedProgress = progress.coerceIn(0f, 1f)
-        binding.volumeIndicatorFill.scaleX = clampedProgress
-    }
-
-    private fun restartVolumeIndicatorHideTimer() {
-        volumeIndicatorHideJob?.cancel()
-        volumeIndicatorHideJob =
-            viewLifecycleOwner.lifecycleScope.launch {
-                delay(VOLUME_INDICATOR_HIDE_DELAY_MS)
-                hideVolumeIndicator()
-            }
-    }
-
-    private fun hideVolumeIndicator() {
-        volumeIndicatorHideJob?.cancel()
-        volumeIndicatorHideJob = null
-        ActionService.instance()?.hideUnlockGateVolumeIndicator()
-
-        if (_binding == null) return
-
-        binding.root.removeCallbacks(applyVolumeIndicatorRunnable)
-        pendingVolumeIndicatorState = null
-        binding.volumeIndicator.visibility = View.GONE
     }
 
     private fun observeUnlockGateClockVisibility() {

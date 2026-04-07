@@ -1,51 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/volumeIndicator"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:color/black"
-    android:gravity="top">
+    android:layout_gravity="top"
+    android:background="?attr/primaryShadeDarkColor"
+    android:paddingEnd="23.5dp"
+    android:paddingTop="9.3dp"
+    android:paddingBottom="9.3dp"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:visibility="gone">
 
-    <LinearLayout
-        android:id="@+id/volumeIndicator"
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/volumeIndicatorLabel"
+        style="@style/TextSmall"
+        android:layout_width="80dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:layout_marginEnd="23.5dp"
-        android:layout_marginTop="9.3dp"
-        android:layout_marginBottom="9.3dp"
-        android:baselineAligned="false"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:visibility="gone">
+        android:gravity="center"
+        android:text="@string/volume_indicator_ringer" />
 
-        <TextView
-            android:id="@+id/volumeIndicatorLabel"
-            style="@style/TextSmall"
-            android:layout_width="99dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="@string/volume_indicator_ringer" />
+    <FrameLayout
+        android:id="@+id/volumeIndicatorTrack"
+        android:layout_width="0dp"
+        android:layout_height="4.5dp"
+        android:layout_weight="1">
 
-        <FrameLayout
-            android:id="@+id/volumeIndicatorTrack"
-            android:layout_width="0dp"
-            android:layout_height="4.5dp"
-            android:layout_weight="1">
+        <View
+            android:id="@+id/volumeIndicatorTrackLine"
+            android:layout_width="match_parent"
+            android:layout_height="0.8dp"
+            android:layout_gravity="center_vertical" />
 
-            <View
-                android:id="@+id/volumeIndicatorTrackLine"
-                android:layout_width="match_parent"
-                android:layout_height="0.8dp"
-                android:layout_gravity="center_vertical" />
+        <View
+            android:id="@+id/volumeIndicatorFill"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical" />
 
-            <View
-                android:id="@+id/volumeIndicatorFill"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_gravity="center_vertical" />
+    </FrameLayout>
 
-        </FrameLayout>
-
-    </LinearLayout>
-
-</FrameLayout>
+</LinearLayout>
