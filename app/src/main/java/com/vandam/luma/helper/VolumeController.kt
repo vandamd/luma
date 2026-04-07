@@ -98,7 +98,6 @@ class VolumeController(
         audioManager = null
         notificationManager = null
         lastKnownVolumeState = null
-        volumeApplyGeneration = 0L
     }
 
     fun handleVolumeKey(keyCode: Int): Boolean {
