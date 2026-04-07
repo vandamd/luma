@@ -106,7 +106,6 @@ class ActionService : AccessibilityService() {
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
     private var currentForegroundPackage: String? = null
     private var lastForegroundPackage: String? = null
-    private var lumaInForeground = false
     private var torchCameraId: String? = null
     private var torchEnabled = false
     private var torchCallback: CameraManager.TorchCallback? = null
@@ -275,14 +274,10 @@ class ActionService : AccessibilityService() {
                         lastForegroundPackage = currentForegroundPackage
                     }
                     currentForegroundPackage = packageName
-                    lumaInForeground = false
                 } else if (MainActivity.isLumaForeground()) {
                     if (currentForegroundPackage != null) {
                         lastForegroundPackage = currentForegroundPackage
                     }
-                    lumaInForeground = true
-                } else {
-                    lumaInForeground = false
                 }
             }
 
@@ -997,10 +992,7 @@ class ActionService : AccessibilityService() {
         return !isLumaForeground() && currentForegroundPackage == targetPackage
     }
 
-    private fun isLumaForeground(): Boolean {
-        lumaInForeground = MainActivity.isLumaForeground()
-        return lumaInForeground
-    }
+    private fun isLumaForeground(): Boolean = MainActivity.isLumaForeground()
 
     private fun showToolLaunchMaskOnMain(isDark: Boolean) {
         cancelPendingCallbacks()
