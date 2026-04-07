@@ -157,23 +157,14 @@ class HomeFragment :
     private var bluetoothReceiver: BroadcastReceiver? = null
     private var telephonyCallback: TelephonyCallback? = null
     private var wifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
-    private var volumeIndicatorHideJob: Job? = null
     private var audioManager: AudioManager? = null
     private var notificationManager: NotificationManager? = null
     private var volumeWorkerThread: HandlerThread? = null
     private var volumeWorkerHandler: Handler? = null
     private var lastKnownVolumeState: VolumeState? = null
-    private var pendingVolumeIndicatorState: VolumeIndicatorState? = null
     private var volumeApplyGeneration = 0L
     private var isUnlockGateVisible = false
-    private val applyVolumeIndicatorRunnable =
-        Runnable {
-            val currentBinding = _binding ?: return@Runnable
-            val state = pendingVolumeIndicatorState ?: return@Runnable
-            pendingVolumeIndicatorState = null
-            currentBinding.volumeIndicatorLabel.setText(state.labelRes)
-            updateVolumeIndicatorFill(state.progress)
-        }
+    private var volumeIndicatorVisible = false
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
@@ -199,8 +190,6 @@ class HomeFragment :
 
     override fun onDestroyView() {
         super.onDestroyView()
-        volumeIndicatorHideJob?.cancel()
-        volumeIndicatorHideJob = null
         volumeWorkerHandler?.removeCallbacksAndMessages(null)
         volumeWorkerThread?.quitSafely()
         volumeWorkerHandler = null
@@ -208,9 +197,7 @@ class HomeFragment :
         audioManager = null
         notificationManager = null
         lastKnownVolumeState = null
-        pendingVolumeIndicatorState = null
         volumeApplyGeneration = 0L
-        _binding?.root?.removeCallbacks(applyVolumeIndicatorRunnable)
         isUnlockGateVisible = false
         _binding = null
     }
@@ -236,7 +223,6 @@ class HomeFragment :
         initPageNavigation()
         initSwipeTouchListener()
         initStatusBarClickListeners()
-        initVolumeIndicator()
         observeUnlockGateClockVisibility()
         binding.touchArea.post { syncUnlockGateHomeContentTop() }
     }
@@ -291,7 +277,7 @@ class HomeFragment :
             }
 
         val currentState =
-            if (binding.volumeIndicator.visibility == View.VISIBLE) {
+            if (volumeIndicatorVisible) {
                 lastKnownVolumeState ?: readCurrentVolumeState(audioManager)
             } else {
                 readCurrentVolumeState(audioManager)
@@ -328,20 +314,6 @@ class HomeFragment :
     private fun initStatusBarClickListeners() {
         binding.statusConnectivityLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.CELLULAR) }
         binding.statusBatteryLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.BATTERY) }
-    }
-
-    private fun initVolumeIndicator() {
-        val ta = requireContext().obtainStyledAttributes(intArrayOf(R.attr.primaryColor))
-        val primaryColor = ta.getColor(0, 0)
-        ta.recycle()
-        binding.volumeIndicatorTrackLine.setBackgroundColor(primaryColor)
-        binding.volumeIndicatorFill.setBackgroundColor(primaryColor)
-        binding.volumeIndicatorFill.pivotX = 0f
-        binding.volumeIndicatorFill.scaleX = 0f
-        binding.volumeIndicatorLabel.setOnClickListener {
-            performAppTapHaptic()
-            launchLightOsRoute(requireActivity(), NOTIFICATION_SETTINGS_LIGHT_ROUTE)
-        }
     }
 
     private fun handleSectionPress(section: StatusBarSectionType) {
@@ -633,8 +605,8 @@ class HomeFragment :
                 if (_binding == null) return@post
                 if (generation != volumeApplyGeneration) return@post
                 lastKnownVolumeState = actualState
-                if (binding.volumeIndicator.visibility == View.VISIBLE) {
-                    scheduleVolumeIndicatorUiUpdate(actualState.toIndicatorState())
+                if (volumeIndicatorVisible) {
+                    showVolumeIndicator(actualState.toIndicatorState())
                 }
             }
         }
@@ -694,42 +666,13 @@ class HomeFragment :
     }
 
     private fun showVolumeIndicator(state: VolumeIndicatorState) {
-        binding.volumeIndicator.visibility = View.VISIBLE
-        scheduleVolumeIndicatorUiUpdate(state)
-        restartVolumeIndicatorHideTimer()
-    }
-
-    private fun scheduleVolumeIndicatorUiUpdate(state: VolumeIndicatorState) {
-        pendingVolumeIndicatorState = state
-        ActionService.instance()?.showUnlockGateVolumeIndicator(state.labelRes, state.progress)
-        binding.root.removeCallbacks(applyVolumeIndicatorRunnable)
-        binding.root.postOnAnimation(applyVolumeIndicatorRunnable)
-    }
-
-    private fun updateVolumeIndicatorFill(progress: Float) {
-        val clampedProgress = progress.coerceIn(0f, 1f)
-        binding.volumeIndicatorFill.scaleX = clampedProgress
-    }
-
-    private fun restartVolumeIndicatorHideTimer() {
-        volumeIndicatorHideJob?.cancel()
-        volumeIndicatorHideJob =
-            viewLifecycleOwner.lifecycleScope.launch {
-                delay(VOLUME_INDICATOR_HIDE_DELAY_MS)
-                hideVolumeIndicator()
-            }
+        volumeIndicatorVisible = true
+        ActionService.instance()?.showVolumeOnlyOverlay(state.labelRes, state.progress, tappable = true)
     }
 
     private fun hideVolumeIndicator() {
-        volumeIndicatorHideJob?.cancel()
-        volumeIndicatorHideJob = null
-        ActionService.instance()?.hideUnlockGateVolumeIndicator()
-
-        if (_binding == null) return
-
-        binding.root.removeCallbacks(applyVolumeIndicatorRunnable)
-        pendingVolumeIndicatorState = null
-        binding.volumeIndicator.visibility = View.GONE
+        volumeIndicatorVisible = false
+        ActionService.instance()?.hideVolumeOnlyOverlay()
     }
 
     private fun observeUnlockGateClockVisibility() {
