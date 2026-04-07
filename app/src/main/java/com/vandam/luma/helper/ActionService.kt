@@ -530,7 +530,7 @@ class ActionService : AccessibilityService() {
         if (
             event.action == KeyEvent.ACTION_DOWN &&
             event.repeatCount == 0 &&
-            shouldPassThroughCameraKey()
+            shouldPassThroughCameraKey(pressAction, longPressAction)
         ) {
             consumedMappedKeyUps.remove(CAMERA_KEY_CODE)
             mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
@@ -987,7 +987,13 @@ class ActionService : AccessibilityService() {
             currentForegroundPackage
         }
 
-    private fun shouldPassThroughCameraKey(): Boolean = shouldPassThroughToActiveCameraOwner()
+    private fun shouldPassThroughCameraKey(
+        pressAction: Action,
+        longPressAction: Action,
+    ): Boolean =
+        shouldPassThroughToActiveCameraOwner() ||
+            isKeyTargetForeground(pressAction, { prefs.getCameraKeyPressApp() }) ||
+            isKeyTargetForeground(longPressAction, { prefs.getCameraKeyLongPressApp() })
 
     private fun shouldPassThroughToActiveCameraOwner(): Boolean {
         if (!isAnyCameraActive()) return false
