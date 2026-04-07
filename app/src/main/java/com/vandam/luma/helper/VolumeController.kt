@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.view.KeyEvent
 import android.widget.Toast
 import com.vandam.luma.R
@@ -249,14 +250,19 @@ class VolumeController(
         notificationManager: NotificationManager,
     ) {
         val handler = volumeWorkerHandler ?: return
+        val mainHandler = Handler(Looper.getMainLooper())
 
         handler.removeCallbacksAndMessages(null)
         handler.post {
             applyVolumeState(audioManager, notificationManager, state)
             val actualState = readCurrentVolumeState(audioManager)
-            lastKnownVolumeState = actualState
-            if (isVolumeIndicatorVisible) {
-                showVolumeIndicator(actualState.toIndicatorState())
+            mainHandler.post {
+                if (generation == volumeApplyGeneration) {
+                    lastKnownVolumeState = actualState
+                    if (isVolumeIndicatorVisible) {
+                        showVolumeIndicator(actualState.toIndicatorState())
+                    }
+                }
             }
         }
     }
