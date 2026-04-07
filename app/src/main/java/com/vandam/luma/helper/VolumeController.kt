@@ -315,6 +315,6 @@ class VolumeController(
     }
 
     private fun showVolumeIndicator(state: VolumeIndicatorState) {
-        ActionService.instance()?.showVolumeOnlyOverlay(state.labelRes, state.progress, tappable = true)
+        ActionService.instance()?.showVolumeOnlyOverlay(state.labelRes, state.progress, compactPadding = true)
     }
 }

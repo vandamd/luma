@@ -1721,7 +1721,7 @@ class ActionService : AccessibilityService() {
                 this.title = title
             }
 
-    private fun createVolumeOnlyOverlayLayoutParams(tappable: Boolean): WindowManager.LayoutParams {
+    private fun createVolumeOnlyOverlayLayoutParams(compactPadding: Boolean): WindowManager.LayoutParams {
         val flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
         return WindowManager
             .LayoutParams(
@@ -1737,10 +1737,27 @@ class ActionService : AccessibilityService() {
             }
     }
 
+    private fun handleVolumeIndicatorTap() {
+        performAppTapHapticFeedback(this)
+        val phase = unlockGateStateMachine.state.phase
+        if (phase != UnlockGatePhase.Idle) {
+            hideUnlockGateVolumeIndicator()
+            dispatchUnlockGateEventOnMain(
+                UnlockGateEvent.DismissRequested(
+                    nowUptimeMs = SystemClock.uptimeMillis(),
+                    minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                ),
+            )
+        } else {
+            hideVolumeOnlyOverlay()
+        }
+        launchLightOsRoute(this, NOTIFICATION_SETTINGS_LIGHT_ROUTE)
+    }
+
     fun showVolumeOnlyOverlay(
         labelRes: Int,
         progress: Float,
-        tappable: Boolean = false,
+        compactPadding: Boolean = false,
     ) {
         runOnMainThread {
             val isDark = prefs.isDarkTheme()
@@ -1753,7 +1770,7 @@ class ActionService : AccessibilityService() {
             val indicator = view as LinearLayout
             indicator.visibility = View.VISIBLE
             val density = indicator.context.resources.displayMetrics.density
-            val paddingBottomPx = if (tappable) (2.3f * density).toInt() else (9.3f * density).toInt()
+            val paddingBottomPx = if (compactPadding) (2.3f * density).toInt() else (9.3f * density).toInt()
             indicator.setPadding(
                 indicator.paddingLeft,
                 indicator.paddingTop,
@@ -1763,11 +1780,7 @@ class ActionService : AccessibilityService() {
             val label = indicator.findViewById<TextView>(R.id.volumeIndicatorLabel)
             label.setText(labelRes)
             label.setTextColor(textColor)
-            label.setOnClickListener {
-                performAppTapHapticFeedback(this@ActionService)
-                hideVolumeOnlyOverlay()
-                launchLightOsRoute(this@ActionService, NOTIFICATION_SETTINGS_LIGHT_ROUTE)
-            }
+            label.setOnClickListener { handleVolumeIndicatorTap() }
             indicator.findViewById<View>(R.id.volumeIndicatorTrackLine).setBackgroundColor(textColor)
             indicator.findViewById<View>(R.id.volumeIndicatorFill).apply {
                 setBackgroundColor(textColor)
@@ -1775,7 +1788,7 @@ class ActionService : AccessibilityService() {
                 scaleX = progress.coerceIn(0f, 1f)
             }
 
-            val layoutParams = createVolumeOnlyOverlayLayoutParams(tappable)
+            val layoutParams = createVolumeOnlyOverlayLayoutParams(compactPadding)
             if (!view.isAttachedToWindow) {
                 try {
                     windowManager.addView(view, layoutParams)
@@ -2363,10 +2376,21 @@ class ActionService : AccessibilityService() {
             return
         }
 
+        val phase = unlockGateStateMachine.state.phase
+        val isInteractive = phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing
         val textColor = unlockGateTextColor(view)
         label.apply {
             setText(unlockGateVolumeIndicatorLabelRes)
             setTextColor(textColor)
+            isClickable = isInteractive
+            isFocusable = isInteractive
+            setOnClickListener(
+                if (isInteractive) {
+                    View.OnClickListener { handleVolumeIndicatorTap() }
+                } else {
+                    null
+                },
+            )
         }
         indicator.findViewById<View>(R.id.volumeIndicatorTrackLine).setBackgroundColor(textColor)
         indicator.findViewById<View>(R.id.volumeIndicatorFill).apply {
