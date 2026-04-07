@@ -6,4 +6,5 @@
     <dimen name="app_padding_vertical">8dp</dimen>
     <dimen name="home_app_padding_vertical">8.3dp</dimen>
     <dimen name="lockscreen_gate_home_content_top">50dp</dimen>
+    <dimen name="battery_charging_padding">3dp</dimen>
 </resources>

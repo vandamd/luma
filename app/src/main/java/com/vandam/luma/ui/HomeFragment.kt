@@ -435,11 +435,7 @@ class HomeFragment :
         binding.statusBatteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
         binding.statusBatteryText.text = "$pct%"
         binding.statusBattery.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
-        binding.statusBattery.setImageResource(icon)
-        binding.statusBattery.setColorFilter(binding.statusBatteryText.currentTextColor)
-        val isCharging = icon == R.drawable.battery_charging
-        val density = resources.displayMetrics.density
-        binding.statusBattery.setPadding(0, if (isCharging) (3 * density).toInt() else 0, 0, if (isCharging) (3 * density).toInt() else 0)
+        LumaStatusBarUi.setBatteryIcon(binding.statusBattery, icon, binding.statusBatteryText.currentTextColor)
     }
 
     private fun startConnectivityMonitors() {

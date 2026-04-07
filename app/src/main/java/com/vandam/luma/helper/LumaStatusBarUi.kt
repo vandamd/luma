@@ -100,4 +100,16 @@ object LumaStatusBarUi {
             }
         }
     }
+
+    fun setBatteryIcon(
+        imageView: ImageView,
+        iconRes: Int,
+        tintColor: Int,
+    ) {
+        imageView.setImageResource(iconRes)
+        imageView.setColorFilter(tintColor)
+        val isCharging = iconRes == R.drawable.battery_charging
+        val paddingPx = imageView.resources.getDimensionPixelSize(R.dimen.battery_charging_padding)
+        imageView.setPadding(0, if (isCharging) paddingPx else 0, 0, if (isCharging) paddingPx else 0)
+    }
 }
