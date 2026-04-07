@@ -1809,6 +1809,8 @@ class ActionService : AccessibilityService() {
         }
     }
 
+    fun isVolumeOnlyOverlayVisible(): Boolean = volumeOnlyOverlayView?.isAttachedToWindow == true
+
     private fun currentUnlockGateTopInsetPx(): Int =
         unlockGateStateMachine.state.let { state ->
             if (state.prefersHomeStatusBar) {

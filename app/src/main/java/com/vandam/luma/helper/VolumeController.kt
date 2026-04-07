@@ -74,7 +74,9 @@ class VolumeController(
     private var volumeWorkerHandler: Handler? = null
     private var lastKnownVolumeState: VolumeState? = null
     private var volumeApplyGeneration = 0L
-    private var volumeIndicatorVisible = false
+
+    private val isVolumeIndicatorVisible: Boolean
+        get() = ActionService.instance()?.isVolumeOnlyOverlayVisible() == true
 
     fun init() {
         audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -109,7 +111,7 @@ class VolumeController(
             }
 
         val currentState =
-            if (volumeIndicatorVisible) {
+            if (isVolumeIndicatorVisible) {
                 lastKnownVolumeState ?: readCurrentVolumeState(am)
             } else {
                 readCurrentVolumeState(am)
@@ -253,7 +255,7 @@ class VolumeController(
             applyVolumeState(audioManager, notificationManager, state)
             val actualState = readCurrentVolumeState(audioManager)
             lastKnownVolumeState = actualState
-            if (volumeIndicatorVisible) {
+            if (isVolumeIndicatorVisible) {
                 showVolumeIndicator(actualState.toIndicatorState())
             }
         }
@@ -313,7 +315,6 @@ class VolumeController(
     }
 
     private fun showVolumeIndicator(state: VolumeIndicatorState) {
-        volumeIndicatorVisible = true
         ActionService.instance()?.showVolumeOnlyOverlay(state.labelRes, state.progress, tappable = true)
     }
 }
