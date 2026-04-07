@@ -120,6 +120,8 @@ class ActionService : AccessibilityService() {
     private var cameraLongPressFired = false
     private var cameraKeyPassThroughActive = false
     private var cameraKeyPassThroughInterrupted = false
+    private var scrollwheelButtonPassThroughActive = false
+    private var scrollwheelButtonPassThroughInterrupted = false
     private var scrollwheelLongPressFired = false
     private var homeKeyDownTime = 0L
     private var homeLongPressFired = false
@@ -142,6 +144,8 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cameraKeyPassThroughActive = false
         cameraKeyPassThroughInterrupted = false
+        scrollwheelButtonPassThroughActive = false
+        scrollwheelButtonPassThroughInterrupted = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
@@ -161,6 +165,8 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         cameraKeyPassThroughActive = false
         cameraKeyPassThroughInterrupted = false
+        scrollwheelButtonPassThroughActive = false
+        scrollwheelButtonPassThroughInterrupted = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
@@ -318,7 +324,11 @@ class ActionService : AccessibilityService() {
         if (cameraKeyPassThroughActive) {
             cameraKeyPassThroughInterrupted = true
         }
+        if (scrollwheelButtonPassThroughActive) {
+            scrollwheelButtonPassThroughInterrupted = true
+        }
         cameraKeyPassThroughActive = false
+        scrollwheelButtonPassThroughActive = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
         hideVolumeOnlyOverlay()
@@ -601,6 +611,39 @@ class ActionService : AccessibilityService() {
     private fun handleScrollwheelButtonKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != SCROLLWHEEL_BUTTON_KEY_CODE) return false
 
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            scrollwheelButtonPassThroughInterrupted = false
+        }
+
+        if (scrollwheelButtonPassThroughActive) {
+            return when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    false
+                }
+
+                KeyEvent.ACTION_UP -> {
+                    mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+                    scrollwheelKeyDownTime = 0L
+                    scrollwheelLongPressFired = false
+                    scrollwheelButtonPassThroughActive = false
+                    scrollwheelButtonPassThroughInterrupted = false
+                    false
+                }
+
+                else -> {
+                    false
+                }
+            }
+        }
+
+        if (scrollwheelButtonPassThroughInterrupted && event.action == KeyEvent.ACTION_UP) {
+            mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+            scrollwheelKeyDownTime = 0L
+            scrollwheelLongPressFired = false
+            scrollwheelButtonPassThroughInterrupted = false
+            return true
+        }
+
         val pressAction = prefs.getScrollwheelButtonPressAction()
         val longPressAction = prefs.getScrollwheelButtonLongPressAction()
 
@@ -609,7 +652,15 @@ class ActionService : AccessibilityService() {
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount != 0) return true
-                if (isKeyTargetForeground(pressAction, { prefs.getScrollwheelButtonPressApp() })) return false
+                if (isKeyTargetForeground(pressAction, { prefs.getScrollwheelButtonPressApp() })) {
+                    consumedMappedKeyUps.remove(SCROLLWHEEL_BUTTON_KEY_CODE)
+                    mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+                    scrollwheelKeyDownTime = 0L
+                    scrollwheelLongPressFired = false
+                    scrollwheelButtonPassThroughActive = true
+                    scrollwheelButtonPassThroughInterrupted = false
+                    return false
+                }
                 consumedMappedKeyUps.remove(SCROLLWHEEL_BUTTON_KEY_CODE)
                 mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
                 scrollwheelKeyDownTime = SystemClock.uptimeMillis()
