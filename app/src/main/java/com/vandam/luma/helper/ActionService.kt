@@ -998,7 +998,7 @@ class ActionService : AccessibilityService() {
     private fun shouldPassThroughToActiveCameraOwner(): Boolean {
         if (!isAnyCameraActive()) return false
         val foregroundPackage = currentForegroundCameraOwnerPackage() ?: return false
-        if (activeCameraOwnerPackages.isEmpty()) return true
+        if (activeCameraOwnerPackages.isEmpty()) return false
         return activeCameraOwnerPackages.values.any { it == foregroundPackage }
     }
 
@@ -1161,7 +1161,7 @@ class ActionService : AccessibilityService() {
     private fun isLightOsCameraForeground(): Boolean {
         if (!isLightOsForeground()) return false
         if (!isAnyCameraActive()) return false
-        if (activeCameraOwnerPackages.isEmpty()) return true
+        if (activeCameraOwnerPackages.isEmpty()) return false
         return activeCameraOwnerPackages.values.any { it == LIGHT_OS_PACKAGE }
     }
 
