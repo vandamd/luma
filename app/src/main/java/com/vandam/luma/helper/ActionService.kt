@@ -530,7 +530,7 @@ class ActionService : AccessibilityService() {
         if (
             event.action == KeyEvent.ACTION_DOWN &&
             event.repeatCount == 0 &&
-            shouldPassThroughCameraKey(pressAction, longPressAction)
+            shouldPassThroughCameraKey()
         ) {
             consumedMappedKeyUps.remove(CAMERA_KEY_CODE)
             mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
@@ -987,26 +987,7 @@ class ActionService : AccessibilityService() {
             currentForegroundPackage
         }
 
-    private fun shouldPassThroughCameraKey(
-        pressAction: Action,
-        longPressAction: Action,
-    ): Boolean {
-        if (shouldPassThroughToLightOsCamera(pressAction, longPressAction)) {
-            return true
-        }
-        return shouldPassThroughToActiveCameraOwner()
-    }
-
-    private fun shouldPassThroughToLightOsCamera(
-        pressAction: Action,
-        longPressAction: Action,
-    ): Boolean {
-        if (!isLightOsForeground()) return false
-        val pressTargetsLightOsCamera = pressAction == Action.OpenApp && isLightOsCameraTool(prefs.getCameraKeyPressApp())
-        val longPressTargetsLightOsCamera =
-            longPressAction == Action.OpenApp && isLightOsCameraTool(prefs.getCameraKeyLongPressApp())
-        return pressTargetsLightOsCamera || longPressTargetsLightOsCamera
-    }
+    private fun shouldPassThroughCameraKey(): Boolean = shouldPassThroughToActiveCameraOwner()
 
     private fun shouldPassThroughToActiveCameraOwner(): Boolean {
         if (!isAnyCameraActive()) return false
@@ -1162,11 +1143,21 @@ class ActionService : AccessibilityService() {
         }
 
     private fun isTargetAppForeground(appModel: com.vandam.luma.data.AppModel): Boolean {
+        if (isLightOsCameraTool(appModel)) {
+            return isLightOsCameraForeground()
+        }
         val targetPackage = resolveTargetPackage(appModel)
         return !isLumaForeground() && currentForegroundPackage == targetPackage
     }
 
     private fun isLumaForeground(): Boolean = MainActivity.isLumaForeground()
+
+    private fun isLightOsCameraForeground(): Boolean {
+        if (!isLightOsForeground()) return false
+        if (!isAnyCameraActive()) return false
+        if (activeCameraOwnerPackages.isEmpty()) return true
+        return activeCameraOwnerPackages.values.any { it == LIGHT_OS_PACKAGE }
+    }
 
     private fun showToolLaunchMaskOnMain(isDark: Boolean) {
         cancelPendingCallbacks()
