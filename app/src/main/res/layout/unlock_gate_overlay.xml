@@ -164,19 +164,19 @@
             android:orientation="horizontal">
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
         </LinearLayout>
 
@@ -187,19 +187,19 @@
             android:orientation="horizontal">
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
         </LinearLayout>
 
@@ -210,19 +210,19 @@
             android:orientation="horizontal">
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
             <View
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_margin="40dp" />
+                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
+                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
 
         </LinearLayout>
 

@@ -7,4 +7,6 @@
     <dimen name="home_app_padding_vertical">8.3dp</dimen>
     <dimen name="lockscreen_gate_home_content_top">50dp</dimen>
     <dimen name="battery_charging_padding">3dp</dimen>
+    <dimen name="unlock_gate_pattern_dot_size">14dp</dimen>
+    <dimen name="unlock_gate_pattern_dot_margin">28dp</dimen>
 </resources>
