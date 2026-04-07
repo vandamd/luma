@@ -108,10 +108,20 @@ class ActionService : AccessibilityService() {
     private var lastForegroundPackage: String? = null
     private var torchCameraId: String? = null
     private var torchEnabled = false
+    private var cameraAvailabilityCallback: CameraManager.AvailabilityCallback? = null
     private var torchCallback: CameraManager.TorchCallback? = null
+    private val unavailableCameraIds = mutableSetOf<String>()
+    private var trackedCameraIds = emptySet<String>()
+    private val activeCameraOwnerPackages = mutableMapOf<String, String>()
+    private var pendingCameraOwnerPackage: String? = null
+    private var pendingCameraOwnerExpiryUptimeMs = 0L
     private var cameraKeyDownTime = 0L
     private var scrollwheelKeyDownTime = 0L
     private var cameraLongPressFired = false
+    private var cameraKeyPassThroughActive = false
+    private var cameraKeyPassThroughInterrupted = false
+    private var scrollwheelButtonPassThroughActive = false
+    private var scrollwheelButtonPassThroughInterrupted = false
     private var scrollwheelLongPressFired = false
     private var homeKeyDownTime = 0L
     private var homeLongPressFired = false
@@ -119,6 +129,7 @@ class ActionService : AccessibilityService() {
     override fun onServiceConnected() {
         configureServiceInfo()
         registerUnlockGateReceiver()
+        registerCameraAvailabilityCallback()
         registerTorchCallback()
         MediaSessionHelper.init(this)
         instance = WeakReference(this)
@@ -131,10 +142,15 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        cameraKeyPassThroughActive = false
+        cameraKeyPassThroughInterrupted = false
+        scrollwheelButtonPassThroughActive = false
+        scrollwheelButtonPassThroughInterrupted = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
+        unregisterCameraAvailabilityCallback()
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         stopIncomingCallMonitor()
@@ -147,10 +163,15 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        cameraKeyPassThroughActive = false
+        cameraKeyPassThroughInterrupted = false
+        scrollwheelButtonPassThroughActive = false
+        scrollwheelButtonPassThroughInterrupted = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain()
         hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
+        unregisterCameraAvailabilityCallback()
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         stopIncomingCallMonitor()
@@ -279,6 +300,9 @@ class ActionService : AccessibilityService() {
                         lastForegroundPackage = currentForegroundPackage
                     }
                 }
+                if (packageName != this.packageName) {
+                    clearPendingCameraOwner()
+                }
             }
 
             if (toolLaunchMaskView != null && packageName == LIGHT_OS_PACKAGE) {
@@ -297,6 +321,14 @@ class ActionService : AccessibilityService() {
         consumedMappedKeyUps.clear()
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+        if (cameraKeyPassThroughActive) {
+            cameraKeyPassThroughInterrupted = true
+        }
+        if (scrollwheelButtonPassThroughActive) {
+            scrollwheelButtonPassThroughInterrupted = true
+        }
+        cameraKeyPassThroughActive = false
+        scrollwheelButtonPassThroughActive = false
         cancelToolLaunchMaskOnMain()
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
         hideVolumeOnlyOverlay()
@@ -486,15 +518,61 @@ class ActionService : AccessibilityService() {
     private fun handleCameraKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != CAMERA_KEY_CODE) return false
 
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            cameraKeyPassThroughInterrupted = false
+        }
+
+        if (cameraKeyPassThroughActive) {
+            return when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    false
+                }
+
+                KeyEvent.ACTION_UP -> {
+                    mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+                    cameraKeyDownTime = 0L
+                    cameraLongPressFired = false
+                    cameraKeyPassThroughActive = false
+                    cameraKeyPassThroughInterrupted = false
+                    false
+                }
+
+                else -> {
+                    false
+                }
+            }
+        }
+
+        if (cameraKeyPassThroughInterrupted && event.action == KeyEvent.ACTION_UP) {
+            mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+            cameraKeyDownTime = 0L
+            cameraLongPressFired = false
+            cameraKeyPassThroughInterrupted = false
+            return true
+        }
+
         val pressAction = prefs.getCameraKeyPressAction()
         val longPressAction = prefs.getCameraKeyLongPressAction()
 
         if (pressAction == Action.Disabled && longPressAction == Action.Disabled) return false
 
+        if (
+            event.action == KeyEvent.ACTION_DOWN &&
+            event.repeatCount == 0 &&
+            shouldPassThroughCameraKey(pressAction, longPressAction)
+        ) {
+            consumedMappedKeyUps.remove(CAMERA_KEY_CODE)
+            mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
+            cameraKeyDownTime = 0L
+            cameraLongPressFired = false
+            cameraKeyPassThroughActive = true
+            cameraKeyPassThroughInterrupted = false
+            return false
+        }
+
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount != 0) return true
-                if (isCameraKeyTargetForeground(pressAction, longPressAction)) return false
                 consumedMappedKeyUps.remove(CAMERA_KEY_CODE)
                 mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
                 cameraKeyDownTime = SystemClock.uptimeMillis()
@@ -533,6 +611,39 @@ class ActionService : AccessibilityService() {
     private fun handleScrollwheelButtonKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != SCROLLWHEEL_BUTTON_KEY_CODE) return false
 
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            scrollwheelButtonPassThroughInterrupted = false
+        }
+
+        if (scrollwheelButtonPassThroughActive) {
+            return when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    false
+                }
+
+                KeyEvent.ACTION_UP -> {
+                    mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+                    scrollwheelKeyDownTime = 0L
+                    scrollwheelLongPressFired = false
+                    scrollwheelButtonPassThroughActive = false
+                    scrollwheelButtonPassThroughInterrupted = false
+                    false
+                }
+
+                else -> {
+                    false
+                }
+            }
+        }
+
+        if (scrollwheelButtonPassThroughInterrupted && event.action == KeyEvent.ACTION_UP) {
+            mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+            scrollwheelKeyDownTime = 0L
+            scrollwheelLongPressFired = false
+            scrollwheelButtonPassThroughInterrupted = false
+            return true
+        }
+
         val pressAction = prefs.getScrollwheelButtonPressAction()
         val longPressAction = prefs.getScrollwheelButtonLongPressAction()
 
@@ -541,7 +652,15 @@ class ActionService : AccessibilityService() {
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount != 0) return true
-                if (isKeyTargetForeground(pressAction, { prefs.getScrollwheelButtonPressApp() })) return false
+                if (isKeyTargetForeground(pressAction, { prefs.getScrollwheelButtonPressApp() })) {
+                    consumedMappedKeyUps.remove(SCROLLWHEEL_BUTTON_KEY_CODE)
+                    mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+                    scrollwheelKeyDownTime = 0L
+                    scrollwheelLongPressFired = false
+                    scrollwheelButtonPassThroughActive = true
+                    scrollwheelButtonPassThroughInterrupted = false
+                    return false
+                }
                 consumedMappedKeyUps.remove(SCROLLWHEEL_BUTTON_KEY_CODE)
                 mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
                 scrollwheelKeyDownTime = SystemClock.uptimeMillis()
@@ -823,7 +942,9 @@ class ActionService : AccessibilityService() {
                         if (appModel.appPackage.isBlank() || isTargetAppForeground(appModel)) {
                             false
                         } else {
+                            rememberPendingCameraOwner(appModel, keyCode)
                             val launched = launchAppModel(this, appModel)
+                            if (!launched) clearPendingCameraOwner()
                             if (launched) dismissUnlockGateIfNeeded()
                             launched
                         }
@@ -842,6 +963,126 @@ class ActionService : AccessibilityService() {
         }
         return handled
     }
+
+    private fun registerCameraAvailabilityCallback() {
+        val callback =
+            object : CameraManager.AvailabilityCallback() {
+                override fun onCameraAvailable(cameraId: String) {
+                    updateCameraAvailability(cameraId, available = true)
+                }
+
+                override fun onCameraUnavailable(cameraId: String) {
+                    updateCameraAvailability(cameraId, available = false)
+                }
+            }
+        try {
+            trackedCameraIds = cameraManager.cameraIdList.toSet()
+            unavailableCameraIds.clear()
+            activeCameraOwnerPackages.clear()
+            clearPendingCameraOwner()
+            cameraManager.registerAvailabilityCallback(callback, mainHandler)
+            cameraAvailabilityCallback = callback
+        } catch (exception: Exception) {
+            trackedCameraIds = emptySet()
+            unavailableCameraIds.clear()
+            activeCameraOwnerPackages.clear()
+            clearPendingCameraOwner()
+            Log.e(TAG, "registerCameraAvailabilityCallback: failed", exception)
+        }
+    }
+
+    private fun unregisterCameraAvailabilityCallback() {
+        val callback = cameraAvailabilityCallback ?: run {
+            trackedCameraIds = emptySet()
+            unavailableCameraIds.clear()
+            activeCameraOwnerPackages.clear()
+            clearPendingCameraOwner()
+            return
+        }
+        try {
+            cameraManager.unregisterAvailabilityCallback(callback)
+        } catch (exception: Exception) {
+            Log.e(TAG, "unregisterCameraAvailabilityCallback: failed", exception)
+        } finally {
+            cameraAvailabilityCallback = null
+            trackedCameraIds = emptySet()
+            unavailableCameraIds.clear()
+            activeCameraOwnerPackages.clear()
+            clearPendingCameraOwner()
+        }
+    }
+
+    private fun updateCameraAvailability(
+        cameraId: String,
+        available: Boolean,
+    ) {
+        if (!trackedCameraIds.contains(cameraId)) return
+        if (available) {
+            unavailableCameraIds.remove(cameraId)
+            activeCameraOwnerPackages.remove(cameraId)
+        } else {
+            unavailableCameraIds.add(cameraId)
+            val ownerPackage = consumePendingCameraOwnerPackage() ?: currentForegroundCameraOwnerPackage()
+            ownerPackage?.let { activeCameraOwnerPackages[cameraId] = it }
+        }
+    }
+
+    private fun isAnyCameraActive(): Boolean = unavailableCameraIds.isNotEmpty()
+
+    private fun rememberPendingCameraOwner(
+        appModel: AppModel,
+        keyCode: Int,
+    ) {
+        if (keyCode != CAMERA_KEY_CODE) return
+        pendingCameraOwnerPackage = resolveTargetPackage(appModel)
+        pendingCameraOwnerExpiryUptimeMs = SystemClock.uptimeMillis() + CAMERA_OWNER_PENDING_WINDOW_MS
+    }
+
+    private fun consumePendingCameraOwnerPackage(): String? {
+        val pendingPackage = pendingCameraOwnerPackage
+        val expiryUptimeMs = pendingCameraOwnerExpiryUptimeMs
+        clearPendingCameraOwner()
+        if (pendingPackage.isNullOrBlank()) return null
+        return pendingPackage.takeIf { SystemClock.uptimeMillis() <= expiryUptimeMs }
+    }
+
+    private fun clearPendingCameraOwner() {
+        pendingCameraOwnerPackage = null
+        pendingCameraOwnerExpiryUptimeMs = 0L
+    }
+
+    private fun currentForegroundCameraOwnerPackage(): String? =
+        if (isLumaForeground()) {
+            null
+        } else {
+            currentForegroundPackage
+        }
+
+    private fun shouldPassThroughCameraKey(
+        pressAction: Action,
+        longPressAction: Action,
+    ): Boolean =
+        shouldPassThroughToActiveCameraOwner() ||
+            isKeyTargetForeground(pressAction, { prefs.getCameraKeyPressApp() }) ||
+            isKeyTargetForeground(longPressAction, { prefs.getCameraKeyLongPressApp() })
+
+    private fun shouldPassThroughToActiveCameraOwner(): Boolean {
+        if (!isAnyCameraActive()) return false
+        val foregroundPackage = currentForegroundCameraOwnerPackage() ?: return false
+        if (activeCameraOwnerPackages.isEmpty()) return false
+        return activeCameraOwnerPackages.values.any { it == foregroundPackage }
+    }
+
+    private fun isLightOsCameraTool(appModel: AppModel): Boolean {
+        val tool =
+            Tool.fromPackageName(appModel.appPackage) ?: when {
+                appModel.appPackage == LIGHT_OS_PACKAGE || appModel.entryType == AppEntryType.Tool -> Tool.fromId(appModel.appActivityName)
+                else -> null
+            }
+        return tool == Tool.Camera
+    }
+
+    private fun isLightOsForeground(): Boolean = !isLumaForeground() && currentForegroundPackage == LIGHT_OS_PACKAGE
 
     private fun registerTorchCallback() {
         val callback =
@@ -967,32 +1208,33 @@ class ActionService : AccessibilityService() {
             false
         }
 
-    private fun isCameraKeyTargetForeground(
-        pressAction: Action,
-        longPressAction: Action,
-    ): Boolean {
-        val pressTargetsForeground =
-            pressAction == Action.OpenApp && isTargetAppForeground(prefs.getCameraKeyPressApp())
-        val longPressTargetsForeground =
-            longPressAction == Action.OpenApp && isTargetAppForeground(prefs.getCameraKeyLongPressApp())
-        return pressTargetsForeground || longPressTargetsForeground
-    }
-
     private fun isKeyTargetForeground(
         action: Action,
         getApp: () -> com.vandam.luma.data.AppModel,
     ): Boolean = action == Action.OpenApp && isTargetAppForeground(getApp())
 
+    private fun resolveTargetPackage(appModel: AppModel): String =
+        when {
+            appModel.entryType == AppEntryType.Tool || Tool.fromPackageName(appModel.appPackage) != null -> LIGHT_OS_PACKAGE
+            else -> appModel.appPackage
+        }
+
     private fun isTargetAppForeground(appModel: com.vandam.luma.data.AppModel): Boolean {
-        val targetPackage =
-            when {
-                appModel.entryType == AppEntryType.Tool || Tool.fromPackageName(appModel.appPackage) != null -> LIGHT_OS_PACKAGE
-                else -> appModel.appPackage
-            }
+        if (isLightOsCameraTool(appModel)) {
+            return isLightOsCameraForeground()
+        }
+        val targetPackage = resolveTargetPackage(appModel)
         return !isLumaForeground() && currentForegroundPackage == targetPackage
     }
 
     private fun isLumaForeground(): Boolean = MainActivity.isLumaForeground()
+
+    private fun isLightOsCameraForeground(): Boolean {
+        if (!isLightOsForeground()) return false
+        if (!isAnyCameraActive()) return false
+        if (activeCameraOwnerPackages.isEmpty()) return false
+        return activeCameraOwnerPackages.values.any { it == LIGHT_OS_PACKAGE }
+    }
 
     private fun showToolLaunchMaskOnMain(isDark: Boolean) {
         cancelPendingCallbacks()
@@ -2756,6 +2998,7 @@ class ActionService : AccessibilityService() {
     companion object {
         private const val TAG = "LumaActionService"
         private const val LIGHT_OS_PACKAGE = "com.lightos"
+        private const val CAMERA_OWNER_PENDING_WINDOW_MS = 2000L
         private const val MIN_MASK_VISIBILITY_MS = 200L
         private const val HARD_TIMEOUT_MS = 900L
         private const val TOOL_LAUNCH_MASK_WINDOW_TITLE = "Luma Tool Launch Mask"
