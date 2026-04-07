@@ -431,12 +431,16 @@ class HomeFragment :
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         if (level < 0 || scale <= 0) return
         val pct = level * 100 / scale
-        val icon = LumaStatusBarUi.batteryIconRes(intent)
+        val battery = LumaStatusBarUi.batteryIconRes(intent)
         binding.statusBatteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
         binding.statusBatteryText.text = "$pct%"
         binding.statusBattery.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
-        binding.statusBattery.setImageResource(icon)
-        binding.statusBattery.setColorFilter(binding.statusBatteryText.currentTextColor)
+        LumaStatusBarUi.setBatteryIcon(
+            binding.statusBattery,
+            battery.iconRes,
+            binding.statusBatteryText.currentTextColor,
+            battery.isCharging,
+        )
     }
 
     private fun startConnectivityMonitors() {
