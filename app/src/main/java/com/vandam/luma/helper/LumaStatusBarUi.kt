@@ -78,7 +78,12 @@ object LumaStatusBarUi {
             else -> ""
         }
 
-    fun batteryIconRes(intent: Intent): Int {
+    data class BatteryIconState(
+        val iconRes: Int,
+        val isCharging: Boolean,
+    )
+
+    fun batteryIconRes(intent: Intent): BatteryIconState {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         val pct = if (level < 0 || scale <= 0) 0 else level * 100 / scale
@@ -88,16 +93,18 @@ object LumaStatusBarUi {
                 status == BatteryManager.BATTERY_STATUS_FULL
 
         return if (charging) {
-            R.drawable.battery_charging
+            BatteryIconState(R.drawable.battery_charging, true)
         } else {
-            when {
-                pct >= 95 -> R.drawable.battery_full
-                pct >= 60 -> R.drawable.battery_75
-                pct >= 40 -> R.drawable.battery_50
-                pct >= 20 -> R.drawable.battery_low
-                pct >= 5 -> R.drawable.battery_very_low
-                else -> R.drawable.battery_empty
-            }
+            val icon =
+                when {
+                    pct >= 95 -> R.drawable.battery_full
+                    pct >= 60 -> R.drawable.battery_75
+                    pct >= 40 -> R.drawable.battery_50
+                    pct >= 20 -> R.drawable.battery_low
+                    pct >= 5 -> R.drawable.battery_very_low
+                    else -> R.drawable.battery_empty
+                }
+            BatteryIconState(icon, false)
         }
     }
 
@@ -105,10 +112,10 @@ object LumaStatusBarUi {
         imageView: ImageView,
         iconRes: Int,
         tintColor: Int,
+        isCharging: Boolean,
     ) {
         imageView.setImageResource(iconRes)
         imageView.setColorFilter(tintColor)
-        val isCharging = iconRes == R.drawable.battery_charging
         val paddingPx = imageView.resources.getDimensionPixelSize(R.dimen.battery_charging_padding)
         imageView.setPadding(0, if (isCharging) paddingPx else 0, 0, if (isCharging) paddingPx else 0)
     }

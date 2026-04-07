@@ -2248,13 +2248,13 @@ class ActionService : AccessibilityService() {
         }
 
         val pct = level * 100 / scale
-        val iconRes = LumaStatusBarUi.batteryIconRes(sticky)
+        val battery = LumaStatusBarUi.batteryIconRes(sticky)
 
         batteryLayout.visibility = View.VISIBLE
         batteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
         batteryText.text = "$pct%"
         batteryIcon.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
-        LumaStatusBarUi.setBatteryIcon(batteryIcon, iconRes, textColor)
+        LumaStatusBarUi.setBatteryIcon(batteryIcon, battery.iconRes, textColor, battery.isCharging)
     }
 
     private fun updateSecureLockMaskConnectivityStatus(
