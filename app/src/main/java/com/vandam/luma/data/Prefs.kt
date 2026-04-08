@@ -20,6 +20,7 @@ private const val ENABLED_MANAGED_APP_IDS = "ENABLED_MANAGED_APP_IDS"
 private const val ENABLED_ANDROID_APPS = "ENABLED_ANDROID_APPS"
 private const val HOME_ITEM_ORDER = "HOME_ITEM_ORDER"
 private const val HIDDEN_HOME_ITEM_KEYS = "HIDDEN_HOME_ITEM_KEYS"
+private const val HOME_ITEM_LABEL_OVERRIDE_PREFIX = "HOME_ITEM_LABEL_OVERRIDE_"
 private const val HOME_PAGES = "HOME_PAGES"
 private const val HOME_APPS_PER_PAGE = "HOME_APPS_PER_PAGE_"
 
@@ -578,7 +579,7 @@ class Prefs(
             } else {
                 myHandle
             }
-        val resolvedName = tool?.defaultLabel(context) ?: name
+        val resolvedName = resolveHomeItemLabel(pack, activity, name)
 
         return AppModel(
             appLabel = resolvedName,
@@ -731,7 +732,61 @@ class Prefs(
         return enabledManagedAppIds.contains(appId)
     }
 
-    fun homeItemKey(appModel: AppModel): String = "${appModel.appPackage}|${appModel.appActivityName}"
+    fun homeItemKey(
+        appPackage: String,
+        appActivityName: String,
+    ): String = "$appPackage|$appActivityName"
+
+    fun homeItemKey(appModel: AppModel): String = homeItemKey(appModel.appPackage, appModel.appActivityName)
+
+    fun getHomeItemLabelOverride(
+        appPackage: String,
+        appActivityName: String,
+    ): String? {
+        if (appPackage.isBlank() || appActivityName.isBlank()) return null
+        return prefs.getString(homeItemLabelOverrideKey(homeItemKey(appPackage, appActivityName)), null)
+    }
+
+    fun resolveBaseHomeItemLabel(
+        appPackage: String,
+        appActivityName: String,
+        fallbackLabel: String = "",
+    ): String {
+        Tool.fromPackageName(appPackage)?.let { return it.defaultLabel(context) }
+        ManagedAppCatalog.fromPackageName(appPackage)?.let { return it.label }
+        enabledAndroidApps.firstOrNull { it.packageName == appPackage && it.activityName == appActivityName }?.let { return it.label }
+        return fallbackLabel
+    }
+
+    fun resolveHomeItemLabel(
+        appPackage: String,
+        appActivityName: String,
+        fallbackLabel: String = "",
+    ): String = getHomeItemLabelOverride(appPackage, appActivityName) ?: resolveBaseHomeItemLabel(appPackage, appActivityName, fallbackLabel)
+
+    fun setHomeItemLabelOverride(
+        appPackage: String,
+        appActivityName: String,
+        label: String,
+    ) {
+        if (appPackage.isBlank() || appActivityName.isBlank()) return
+
+        val normalizedLabel = label.trim()
+        val key = homeItemLabelOverrideKey(homeItemKey(appPackage, appActivityName))
+        if (normalizedLabel.isBlank()) {
+            prefs.edit().remove(key).apply()
+        } else {
+            prefs.edit().putString(key, normalizedLabel).apply()
+        }
+    }
+
+    fun clearHomeItemLabelOverride(
+        appPackage: String,
+        appActivityName: String,
+    ) {
+        if (appPackage.isBlank() || appActivityName.isBlank()) return
+        prefs.edit().remove(homeItemLabelOverrideKey(homeItemKey(appPackage, appActivityName))).apply()
+    }
 
     fun isHomeItemHidden(appModel: AppModel): Boolean = hiddenHomeItemKeys.contains(homeItemKey(appModel))
 
@@ -756,6 +811,8 @@ class Prefs(
         }
         return first
     }
+
+    private fun homeItemLabelOverrideKey(itemKey: String): String = "$HOME_ITEM_LABEL_OVERRIDE_PREFIX$itemKey"
 
     private fun clearLegacySensitivePrefs() {
         if (!prefs.contains(LEGACY_ACCOUNT_NUMBER)) {

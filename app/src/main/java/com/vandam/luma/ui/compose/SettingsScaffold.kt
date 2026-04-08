@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vandam.luma.R
@@ -73,7 +74,13 @@ fun SettingsHeader(
         }
         Spacer(modifier = Modifier.width(16.dp))
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            Text(text = title, style = SettingsTheme.typography.title, modifier = Modifier.padding(top = 9.dp, bottom = 24.dp))
+            Text(
+                text = title,
+                style = SettingsTheme.typography.title,
+                modifier = Modifier.padding(top = 9.dp, bottom = 24.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Spacer(modifier = Modifier.width(16.dp))
         Box(

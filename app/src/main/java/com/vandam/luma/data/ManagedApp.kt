@@ -13,11 +13,13 @@ data class ManagedApp(
     val assetNamePattern: Regex = DEFAULT_ASSET_PATTERN,
 ) {
     fun toAppModel(
+        context: Context,
         collator: Collator,
     ): AppModel {
+        val resolvedLabel = Prefs.getInstance(context).resolveHomeItemLabel(packageName, id, label)
         return AppModel(
-            appLabel = label,
-            key = collator.getCollationKey(label),
+            appLabel = resolvedLabel,
+            key = collator.getCollationKey(resolvedLabel),
             appPackage = packageName,
             appActivityName = id,
             user = android.os.Process.myUserHandle(),

@@ -898,12 +898,19 @@ class HomeFragment :
                 PhoneSignalHelper.hasUnreadPhoneSignal(requireContext())
 
         updateAppCountForPage(appsPerPage)
+        val availableLabelWidth =
+            (
+                binding.homeAppsLayout.width
+                    .takeIf { it > 0 }
+                    ?: resources.displayMetrics.widthPixels
+            ) - binding.homeAppsLayout.paddingLeft - binding.homeAppsLayout.paddingRight
 
         for (i in 0 until appsPerPage) {
             val appIndex = startIndex + i
             val view = binding.homeAppsLayout.getChildAt(i)
             if (view is TextView) {
                 val appModel = pageApps[i]
+                view.maxWidth = availableLabelWidth
                 view.text = getAppDisplayName(appModel, packagesWithNotifications, hasPhoneSignal)
                 view.id = appIndex
             }

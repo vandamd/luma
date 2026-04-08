@@ -5,7 +5,9 @@
     style="@style/TextLarge"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:ellipsize="end"
     android:hint="@string/app_placeholder"
+    android:maxLines="1"
     android:paddingVertical="@dimen/home_app_padding_vertical">
 
 </TextView>

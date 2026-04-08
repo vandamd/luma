@@ -135,7 +135,10 @@ class GestureActionFragment : Fragment() {
                         }
 
                         managedApp != null -> {
-                            managedApp.toAppModel(collator = collator)
+                            managedApp.toAppModel(
+                                context = requireContext(),
+                                collator = collator,
+                            )
                         }
 
                         else -> {

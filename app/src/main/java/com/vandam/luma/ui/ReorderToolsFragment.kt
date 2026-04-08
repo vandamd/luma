@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.Divider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -27,9 +26,12 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.HomeItemsManager
@@ -41,6 +43,11 @@ import com.vandam.luma.style.SettingsTheme
 import com.vandam.luma.ui.compose.SettingsScreen
 
 class ReorderToolsFragment : Fragment() {
+    private companion object {
+        val ReorderIconSize = 30.dp
+        val ReorderIconSpacing = 6.dp
+    }
+
     private lateinit var prefs: Prefs
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,6 +117,16 @@ class ReorderToolsFragment : Fragment() {
                         prefs.setHomeItemHidden(appModel, hidden = visible)
                         HomeItemsManager.applyCurrentHomeLayout(context, prefs)
                     },
+                    onRename = {
+                        findNavController().navigate(
+                            R.id.renameHomeItemFragment,
+                            bundleOf(
+                                RenameHomeItemFragment.APP_PACKAGE to appModel.appPackage,
+                                RenameHomeItemFragment.APP_ACTIVITY to appModel.appActivityName,
+                                RenameHomeItemFragment.CURRENT_LABEL to appModel.displayName,
+                            ),
+                        )
+                    },
                     onMoveUp = {
                         swapItems(items, index, index - 1)
                     },
@@ -172,6 +189,7 @@ class ReorderToolsFragment : Fragment() {
         canMoveDown: Boolean,
         onOpen: () -> Unit,
         onToggleVisibility: () -> Unit,
+        onRename: () -> Unit,
         onMoveUp: () -> Unit,
         onMoveDown: () -> Unit,
     ) {
@@ -197,18 +215,20 @@ class ReorderToolsFragment : Fragment() {
                             onClick = onOpen,
                         ),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 color = textColor,
             )
 
             Row(
+                modifier = Modifier.padding(start = ReorderIconSpacing),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                horizontalArrangement = Arrangement.spacedBy(ReorderIconSpacing, Alignment.End),
             ) {
                 ReorderIconButton(
                     iconRes = if (visibleOnHome) R.drawable.visibility else R.drawable.visibility_off,
                     enabled = true,
                     tint = if (visibleOnHome) textColor else disabledColor,
-                    size = 30.dp,
+                    size = ReorderIconSize,
                     contentDescription =
                         stringResource(
                             if (visibleOnHome) {
@@ -222,11 +242,23 @@ class ReorderToolsFragment : Fragment() {
                         onToggleVisibility()
                     },
                 )
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(3.dp))
+                ReorderIconButton(
+                    iconRes = R.drawable.edit_32px,
+                    enabled = true,
+                    tint = textColor,
+                    size = ReorderIconSize,
+                    iconSize = 28.dp,
+                    contentDescription = stringResource(R.string.content_desc_edit_name),
+                    onClick = {
+                        performHapticFeedback(context)
+                        onRename()
+                    },
+                )
                 ReorderIconButton(
                     iconRes = R.drawable.keyboard_arrow_down_32px,
                     enabled = canMoveDown,
                     tint = if (canMoveDown) textColor else disabledColor,
+                    size = ReorderIconSize,
                     contentDescription = null,
                     onClick = {
                         performHapticFeedback(context)
@@ -237,6 +269,7 @@ class ReorderToolsFragment : Fragment() {
                     iconRes = R.drawable.expand_less_32px,
                     enabled = canMoveUp,
                     tint = if (canMoveUp) textColor else disabledColor,
+                    size = ReorderIconSize,
                     contentDescription = null,
                     onClick = {
                         performHapticFeedback(context)
@@ -252,18 +285,24 @@ class ReorderToolsFragment : Fragment() {
         iconRes: Int,
         enabled: Boolean,
         tint: Color,
-        size: Dp = 36.dp,
+        size: Dp = ReorderIconSize,
+        iconSize: Dp = size,
         contentDescription: String?,
         onClick: () -> Unit,
     ) {
-        Image(
-            painter = painterResource(id = iconRes),
-            contentDescription = contentDescription,
+        Box(
             modifier =
                 Modifier
                     .size(size)
                     .noRippleClickable(enabled = enabled, onClick = onClick),
-            colorFilter = ColorFilter.tint(tint),
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(id = iconRes),
+                contentDescription = contentDescription,
+                modifier = Modifier.size(iconSize),
+                colorFilter = ColorFilter.tint(tint),
+            )
+        }
     }
 }
