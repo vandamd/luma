@@ -55,8 +55,8 @@ object MediaSessionHelper {
 
     fun togglePlayPause() {
         val controller = activeController() ?: return
-        val state = controller.playbackState?.state
-        if (state == PlaybackState.STATE_PLAYING) {
+        val playbackState = controller.playbackState?.state ?: PlaybackState.STATE_NONE
+        if (showsPauseButton(playbackState)) {
             controller.transportControls.pause()
         } else {
             controller.transportControls.play()
@@ -132,6 +132,16 @@ object MediaSessionHelper {
         return isPaused && LumaNotificationListener.hasActiveMediaNotification(packageName)
     }
 
+    private fun showsPauseButton(playbackState: Int): Boolean =
+        playbackState == PlaybackState.STATE_PLAYING ||
+            playbackState == PlaybackState.STATE_FAST_FORWARDING ||
+            playbackState == PlaybackState.STATE_REWINDING ||
+            playbackState == PlaybackState.STATE_BUFFERING ||
+            playbackState == PlaybackState.STATE_CONNECTING ||
+            playbackState == PlaybackState.STATE_SKIPPING_TO_PREVIOUS ||
+            playbackState == PlaybackState.STATE_SKIPPING_TO_NEXT ||
+            playbackState == PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM
+
     private fun refreshSessions() {
         val msm = mediaSessionManager ?: return
         val component = listenerComponent ?: return
@@ -193,15 +203,7 @@ object MediaSessionHelper {
                 ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
                 ?: ""
         val playbackState = active.playbackState?.state ?: PlaybackState.STATE_NONE
-        val showsPauseButton =
-            playbackState == PlaybackState.STATE_PLAYING ||
-                playbackState == PlaybackState.STATE_FAST_FORWARDING ||
-                playbackState == PlaybackState.STATE_REWINDING ||
-                playbackState == PlaybackState.STATE_BUFFERING ||
-                playbackState == PlaybackState.STATE_CONNECTING ||
-                playbackState == PlaybackState.STATE_SKIPPING_TO_PREVIOUS ||
-                playbackState == PlaybackState.STATE_SKIPPING_TO_NEXT ||
-                playbackState == PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM
+        val showsPauseButton = showsPauseButton(playbackState)
         val showsStopButton = playbackState == PlaybackState.STATE_PAUSED
 
         val description = active.metadata?.description
