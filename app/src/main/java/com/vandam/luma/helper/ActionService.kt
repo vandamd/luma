@@ -1551,11 +1551,17 @@ class ActionService : AccessibilityService() {
         hideVolumeOnlyOverlay()
 
         val isDark = prefs.isDarkTheme()
+        val isNewUnlockGateView = unlockGateView == null
         val view =
             unlockGateView ?: overlayInflater.inflate(R.layout.unlock_gate_overlay, null).also {
                 unlockGateView = it
             }
 
+        if (isNewUnlockGateView) {
+            PhoneSignalHelper.refreshUnreadPhoneSignal(this)
+        } else {
+            PhoneSignalHelper.refreshUnreadPhoneSignalAsync(this)
+        }
         resetUnlockGateViewState(view)
         MediaSessionHelper.refresh()
         updateUnlockGateTextAppearance(view, isDark)

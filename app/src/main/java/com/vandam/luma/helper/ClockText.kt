@@ -39,7 +39,7 @@ fun formatClockText(
 
 fun hasClockNotificationIndicator(context: Context): Boolean =
     LumaNotificationListener.getActiveNotificationPackages().isNotEmpty() ||
-        PhoneSignalHelper.hasUnreadPhoneSignal(context)
+        PhoneSignalHelper.getCachedUnreadPhoneSignal(context)
 
 fun formatLockscreenDateText(
     format: Prefs.LockscreenDateFormat,
