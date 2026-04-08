@@ -11,6 +11,14 @@ import java.lang.ref.WeakReference
 
 class LumaNotificationListener : NotificationListenerService() {
     companion object {
+        private const val LIGHT_OS_PACKAGE = "com.lightos"
+
+        private val PHONE_NOTIFICATION_PACKAGES =
+            setOf(
+                "com.android.server.telecom",
+                LIGHT_OS_PACKAGE,
+            )
+
         private var instance: WeakReference<LumaNotificationListener> = WeakReference(null)
 
         private val _changeVersion = MutableStateFlow(0L)
@@ -23,6 +31,14 @@ class LumaNotificationListener : NotificationListenerService() {
         }
 
         private fun StatusBarNotification.isLightOsKeepAlive(svc: LumaNotificationListener): Boolean {
+            if (packageName == LIGHT_OS_PACKAGE) {
+                val title = notification.extras.getString(Notification.EXTRA_TITLE)
+                val text = notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+                if (title.isNullOrBlank() && text.isNullOrBlank() && notification.contentIntent == null && notification.deleteIntent == null) {
+                    return true
+                }
+            }
+
             val text = notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
             if (!text.isNullOrBlank()) return false
             val title = notification.extras.getString(Notification.EXTRA_TITLE)
@@ -45,6 +61,7 @@ class LumaNotificationListener : NotificationListenerService() {
             return svc.activeNotifications
                 .filterNot { it.shouldFilter(svc) || it.isOngoing }
                 .map { it.packageName }
+                .filterNot(PHONE_NOTIFICATION_PACKAGES::contains)
                 .toSet()
         }
 

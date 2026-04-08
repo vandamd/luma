@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -43,11 +44,14 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
+import com.vandam.luma.data.Tool
 import com.vandam.luma.helper.ActionService
 import com.vandam.luma.helper.LumaNotificationListener
+import com.vandam.luma.helper.PhoneNotificationSummary
+import com.vandam.luma.helper.PhoneSignalHelper
+import com.vandam.luma.helper.launchLightOsRoute
 import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.style.SettingsTheme
-import com.vandam.luma.ui.compose.MessageText
 import com.vandam.luma.ui.compose.SettingsBodyState
 import com.vandam.luma.ui.compose.SettingsCompactListSpacing
 import com.vandam.luma.ui.compose.SettingsStateScreen
@@ -59,10 +63,15 @@ private data class NotificationItem(
     val title: String,
     val text: String?,
     val contentIntent: PendingIntent?,
+    val canDismiss: Boolean = true,
+    val launchRoute: String? = null,
 )
+
+private const val TELECOM_PACKAGE = "com.android.server.telecom"
 
 class NotificationListFragment : Fragment() {
     private val hasPermission = mutableStateOf(false)
+    private val contentVersion = mutableStateOf(0L)
     private var restoreUnlockGateOnBack = false
 
     private fun checkPermission() {
@@ -76,6 +85,7 @@ class NotificationListFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         checkPermission()
+        contentVersion.value += 1
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,6 +109,7 @@ class NotificationListFragment : Fragment() {
 
     @Suppress("DEPRECATION")
     private fun loadNotifications(): List<NotificationItem> {
+        val phoneNotifications = loadPhoneNotifications()
         val pm = requireContext().packageManager
         val nonOngoing =
             LumaNotificationListener
@@ -109,11 +120,41 @@ class NotificationListFragment : Fragment() {
                 .filterNot { it.isGroupSummary() }
                 .map { it.groupKey }
                 .toSet()
-        return nonOngoing
-            .filterNot { it.isGroupSummary() && it.groupKey in groupKeysWithChildren }
-            .map { sbn -> sbn.toNotificationItem(pm) }
-            .sortedBy { it.title.lowercase() }
+        val appNotifications =
+            nonOngoing
+                .filterNot { it.packageName == TELECOM_PACKAGE }
+                .filterNot { it.isGroupSummary() && it.groupKey in groupKeysWithChildren }
+                .map { sbn -> sbn.toNotificationItem(pm) }
+                .sortedBy { it.title.lowercase() }
+        return phoneNotifications + appNotifications
     }
+
+    private fun loadPhoneNotifications(): List<NotificationItem> =
+        PhoneSignalHelper
+            .getNotificationSummaries(requireContext())
+            .map { summary -> summary.toNotificationItem() }
+
+    private fun PhoneNotificationSummary.toNotificationItem(): NotificationItem =
+        NotificationItem(
+            key =
+                when (kind) {
+                    PhoneNotificationSummary.Kind.UnreadMessages -> "__phone_unread_messages__"
+                    PhoneNotificationSummary.Kind.MissedCalls -> "__phone_missed_calls__"
+                },
+            packageName = Tool.Phone.packageName,
+            title =
+                when (kind) {
+                    PhoneNotificationSummary.Kind.UnreadMessages ->
+                        if (count == 1) getString(R.string.notification_list_unread_message) else getString(R.string.notification_list_unread_messages)
+
+                    PhoneNotificationSummary.Kind.MissedCalls ->
+                        if (count == 1) getString(R.string.notification_list_missed_call) else getString(R.string.notification_list_missed_calls)
+                },
+            text = detail,
+            contentIntent = null,
+            canDismiss = false,
+            launchRoute = Tool.Phone.lightOsRoute,
+        )
 
     private fun StatusBarNotification.isGroupSummary(): Boolean = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
 
@@ -138,9 +179,10 @@ class NotificationListFragment : Fragment() {
     private fun NotificationListScreen() {
         val context = LocalContext.current
         val version by LumaNotificationListener.changeVersion.collectAsState()
+        val refreshVersion = contentVersion.value
         val dismissedKeys = remember { mutableSetOf<String>() }
         val notifications = remember { mutableStateListOf<NotificationItem>() }
-        LaunchedEffect(version) {
+        LaunchedEffect(version, refreshVersion) {
             val fresh = loadNotifications().filter { it.key !in dismissedKeys }
             notifications.clear()
             notifications.addAll(fresh)
@@ -172,6 +214,10 @@ class NotificationListFragment : Fragment() {
                 NotificationRow(
                     item = item,
                     onTap = {
+                        item.launchRoute?.let { route ->
+                            launchLightOsRoute(context, route)
+                            return@NotificationRow
+                        }
                         val opened =
                             try {
                                 if (item.contentIntent != null) {
@@ -235,6 +281,12 @@ class NotificationListFragment : Fragment() {
         onDismiss: () -> Unit,
     ) {
         val context = LocalContext.current
+        val dismissTint =
+            if (item.canDismiss) {
+                SettingsTheme.typography.title.color
+            } else {
+                Color.Gray
+            }
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(end = 32.dp),
@@ -246,11 +298,11 @@ class NotificationListFragment : Fragment() {
                 modifier =
                     Modifier
                         .size(24.dp)
-                        .noRippleClickable {
+                        .noRippleClickable(enabled = item.canDismiss) {
                             performAppTapHapticFeedback(context)
                             onDismiss()
                         },
-                colorFilter = ColorFilter.tint(SettingsTheme.typography.title.color),
+                colorFilter = ColorFilter.tint(dismissTint),
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(

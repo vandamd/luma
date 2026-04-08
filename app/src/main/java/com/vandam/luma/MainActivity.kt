@@ -16,7 +16,6 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
@@ -40,6 +39,7 @@ import com.vandam.luma.databinding.ActivityMainBinding
 import com.vandam.luma.helper.ActionExecutionCallbacks
 import com.vandam.luma.helper.ActionService
 import com.vandam.luma.helper.ApkInstaller
+import com.vandam.luma.helper.PhoneSignalHelper
 import com.vandam.luma.helper.ManagedAppManager
 import com.vandam.luma.helper.UnlockGatePhase
 import com.vandam.luma.helper.VolumeController
@@ -260,11 +260,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hasCompletedRequiredOnboardingPermissions(): Boolean {
-        val hasPhonePermission =
-            ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.READ_PHONE_STATE,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         val hasNotificationPermission =
             NotificationManagerCompat
                 .getEnabledListenerPackages(this)
@@ -273,7 +268,7 @@ class MainActivity : AppCompatActivity() {
         val hasInstallAppsPermission = ApkInstaller.canRequestPackageInstalls(this)
 
         return isAccessibilityEnabled(this) &&
-            hasPhonePermission &&
+            PhoneSignalHelper.hasPhoneToolPermissions(this) &&
             hasNotificationPermission &&
             hasWriteSettingsPermission &&
             hasInstallAppsPermission

@@ -2329,6 +2329,7 @@ class ActionService : AccessibilityService() {
             formatClockText(
                 prefs = prefs,
                 appendNotificationIndicator = prefs.lockscreenClockNotificationIndicator,
+                hasNotificationIndicator = hasClockNotificationIndicator(this),
             )
         if (phase == UnlockGatePhase.AwaitingCredential) {
             clockView.visibility = View.GONE
