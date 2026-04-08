@@ -171,6 +171,7 @@
     <string name="onboarding_permissions_message">Please grant the permissions below. This enables Luma to show the lockscreen, present notifications, bind keymaps, and install updates.</string>
     <string name="onboarding_permissions_restricted_settings_note">If a permission is blocked, you may need to open Settings &gt; Apps &gt; Luma &gt; Allow restricted settings first.\n\nAfter enabling each permission, press the Home button to return to Luma.</string>
     <string name="onboarding_accessibility_grant">Accessibility</string>
+    <string name="onboarding_bluetooth_grant">Nearby Devices</string>
     <string name="onboarding_phone_grant">Phone &amp; Messages</string>
     <string name="onboarding_notifications_grant">Notifications</string>
     <string name="onboarding_write_settings_grant">Write Settings</string>

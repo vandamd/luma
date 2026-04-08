@@ -17,6 +17,7 @@ import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.helper.ApkInstaller
+import com.vandam.luma.helper.BluetoothStatusHelper
 import com.vandam.luma.helper.PhoneSignalHelper
 import com.vandam.luma.helper.isAccessibilityEnabled
 import com.vandam.luma.helper.openAccessibilitySettings
@@ -30,6 +31,7 @@ import com.vandam.luma.ui.compose.SimpleTextButton
 
 class OnboardingPermissionsFragment : Fragment() {
     private val hasAccessibilityPermission = mutableStateOf(false)
+    private val hasBluetoothPermission = mutableStateOf(false)
     private val hasNotificationPermission = mutableStateOf(false)
     private val hasPhoneToolPermission = mutableStateOf(false)
     private val hasModifySystemSettingsPermission = mutableStateOf(false)
@@ -63,9 +65,15 @@ class OnboardingPermissionsFragment : Fragment() {
             hasPhoneToolPermission.value = PhoneSignalHelper.hasPhoneToolPermissions(requireContext())
         }
 
+    private val bluetoothPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            hasBluetoothPermission.value = BluetoothStatusHelper.hasBluetoothConnectPermission(requireContext())
+        }
+
     override fun onResume() {
         super.onResume()
         hasAccessibilityPermission.value = isAccessibilityEnabled(requireContext())
+        hasBluetoothPermission.value = BluetoothStatusHelper.hasBluetoothConnectPermission(requireContext())
         hasNotificationPermission.value = hasNotificationListenerPermission()
         hasModifySystemSettingsPermission.value = hasWriteSettingsPermission()
         hasInstallAppsPermission.value = ApkInstaller.canRequestPackageInstalls(requireContext())
@@ -82,6 +90,7 @@ class OnboardingPermissionsFragment : Fragment() {
     private fun Screen() {
         val canContinue =
             hasAccessibilityPermission.value &&
+                hasBluetoothPermission.value &&
                 hasPhoneToolPermission.value &&
                 hasNotificationPermission.value &&
                 hasModifySystemSettingsPermission.value &&
@@ -130,6 +139,12 @@ class OnboardingPermissionsFragment : Fragment() {
                 enabled = !hasPhoneToolPermission.value,
             ) {
                 phonePermissionLauncher.launch(PhoneSignalHelper.phoneToolPermissions())
+            }
+            SimpleTextButton(
+                title = stringResource(R.string.onboarding_bluetooth_grant),
+                enabled = !hasBluetoothPermission.value,
+            ) {
+                bluetoothPermissionLauncher.launch(BluetoothStatusHelper.bluetoothConnectPermissions().single())
             }
             SimpleTextButton(
                 title = stringResource(R.string.onboarding_notifications_grant),

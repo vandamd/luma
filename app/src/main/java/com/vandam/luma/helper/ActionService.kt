@@ -5,7 +5,6 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.app.KeyguardManager
 import android.app.NotificationManager
-import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -2614,11 +2613,15 @@ class ActionService : AccessibilityService() {
         }
 
         if (prefs.bluetoothEnabled) {
-            val btOn = Settings.Global.getInt(contentResolver, Settings.Global.BLUETOOTH_ON, 0) != 0
-            if (btOn) {
-                LumaStatusBarUi.showTinted(bluetoothIcon, R.drawable.bluetooth, textColor)
-            } else {
-                bluetoothIcon.visibility = View.GONE
+            when (val state = BluetoothStatusHelper.indicatorState(this)) {
+                BluetoothStatusHelper.IndicatorState.On,
+                BluetoothStatusHelper.IndicatorState.Connected -> LumaStatusBarUi.showTinted(
+                    bluetoothIcon,
+                    LumaStatusBarUi.bluetoothDrawableForState(state),
+                    textColor,
+                )
+
+                BluetoothStatusHelper.IndicatorState.Off, null -> bluetoothIcon.visibility = View.GONE
             }
         } else {
             bluetoothIcon.visibility = View.GONE
@@ -2937,6 +2940,10 @@ class ActionService : AccessibilityService() {
 
     private fun startUnlockGateBluetoothMonitor() {
         if (unlockGateBluetoothReceiver != null) return
+        if (!BluetoothStatusHelper.hasBluetoothConnectPermission(this)) {
+            refreshUnlockGateConnectivityStatus()
+            return
+        }
 
         val receiver =
             object : BroadcastReceiver() {
@@ -2951,7 +2958,7 @@ class ActionService : AccessibilityService() {
             }
 
         try {
-            registerReceiver(receiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+            registerReceiver(receiver, BluetoothStatusHelper.bluetoothIntentFilter())
             unlockGateBluetoothReceiver = receiver
             refreshUnlockGateConnectivityStatus()
         } catch (exception: Exception) {

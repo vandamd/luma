@@ -45,6 +45,12 @@ object LumaStatusBarUi {
             else -> R.drawable.wifi_full
         }
 
+    fun bluetoothDrawableForState(state: BluetoothStatusHelper.IndicatorState): Int =
+        when (state) {
+            BluetoothStatusHelper.IndicatorState.Connected -> R.drawable.bluetooth_connected
+            else -> R.drawable.bluetooth
+        }
+
     fun networkLabelForType(type: Int?): String =
         when (type) {
             TelephonyManager.NETWORK_TYPE_NR -> "5G"
