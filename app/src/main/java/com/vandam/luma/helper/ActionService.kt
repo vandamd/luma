@@ -1779,6 +1779,14 @@ class ActionService : AccessibilityService() {
                 MediaSessionHelper.togglePlayPause()
             }
         }
+        view.findViewById<ImageView>(R.id.unlockGateMediaStop).apply {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                performAppTapHapticFeedback(this@ActionService)
+                MediaSessionHelper.stopAndDismiss()
+            }
+        }
         view.findViewById<ImageView>(R.id.unlockGateMediaPrev).apply {
             isClickable = true
             isFocusable = true
@@ -2351,7 +2359,7 @@ class ActionService : AccessibilityService() {
         view.findViewById<TextView>(R.id.unlockGateClock).setTextColor(textColor)
         view.findViewById<TextView>(R.id.unlockGateDate).setTextColor(textColor)
         val iconTint = if (isDark) Color.WHITE else Color.BLACK
-        for (id in listOf(R.id.unlockGateMediaPrev, R.id.unlockGateMediaPlayPause, R.id.unlockGateMediaNext)) {
+        for (id in listOf(R.id.unlockGateMediaPrev, R.id.unlockGateMediaPlayPause, R.id.unlockGateMediaStop, R.id.unlockGateMediaNext)) {
             val iv = view.findViewById<ImageView>(id)
             @Suppress("DEPRECATION")
             iv.setColorFilter(iconTint, PorterDuff.Mode.SRC_IN)
@@ -2406,6 +2414,8 @@ class ActionService : AccessibilityService() {
             playPauseView.setImageResource(
                 if (mediaInfo.isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play,
             )
+            view.findViewById<ImageView>(R.id.unlockGateMediaStop).visibility =
+                if (mediaInfo.isPlaying) View.GONE else View.VISIBLE
 
             val prevView = view.findViewById<ImageView>(R.id.unlockGateMediaPrev)
             val nextView = view.findViewById<ImageView>(R.id.unlockGateMediaNext)
@@ -2438,6 +2448,7 @@ class ActionService : AccessibilityService() {
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaControls))
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaPrev))
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaPlayPause))
+        clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaStop))
         clearUnlockGateGestureTarget(view.findViewById(R.id.unlockGateMediaNext))
         clearUnlockGateGestureTarget(view.findViewById(R.id.statusConnectivityLayout))
         clearUnlockGateGestureTarget(view.findViewById(R.id.statusBatteryLayout))
