@@ -20,6 +20,7 @@
     <string name="homescreen_tools_source_dashboard">Synced from dashboard</string>
     <string name="homescreen_layout">Layout</string>
     <string name="homescreen_layout_six_per_page">6 tools per page</string>
+    <string name="rename_home_item_title">Edit %1$s\'s Name</string>
     <string name="settings_lockscreen">Lockscreen</string>
     <string name="settings_gestures">Gestures</string>
     <string name="settings_shortcuts">Shortcuts</string>
@@ -211,4 +212,5 @@
     <string name="content_desc_clear">Clear</string>
     <string name="content_desc_show_on_home">Show on home</string>
     <string name="content_desc_hide_from_home">Hide from home</string>
+    <string name="content_desc_edit_name">Edit name</string>
 </resources>

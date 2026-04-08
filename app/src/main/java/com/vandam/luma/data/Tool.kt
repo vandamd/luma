@@ -38,7 +38,7 @@ enum class Tool(
         context: Context,
         collator: Collator,
     ): AppModel {
-        val label = defaultLabel(context)
+        val label = Prefs.getInstance(context).resolveHomeItemLabel(packageName, id, defaultLabel(context))
         return AppModel(
             appLabel = label,
             key = collator.getCollationKey(label),

@@ -116,11 +116,21 @@ object HomeItemsManager {
             prefs.enabledManagedAppIds
                 .mapNotNull(ManagedAppCatalog::fromId)
                 .forEach { app ->
-                    middleItems.add(app.toAppModel(collator = collator))
+                    middleItems.add(
+                        app.toAppModel(
+                            context = context,
+                            collator = collator,
+                        ),
+                    )
                 }
 
             prefs.enabledAndroidApps.forEach { app ->
-                middleItems.add(app.toAppModel(collator = collator))
+                middleItems.add(
+                    app.toAppModel(
+                        context = context,
+                        collator = collator,
+                    ),
+                )
             }
 
             middleItems.sortWith { left, right ->

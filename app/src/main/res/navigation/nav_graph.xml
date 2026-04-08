@@ -139,6 +139,23 @@
         android:name="com.vandam.luma.ui.ReorderToolsFragment"
         android:label="ReorderToolsFragment" />
     <fragment
+        android:id="@+id/renameHomeItemFragment"
+        android:name="com.vandam.luma.ui.RenameHomeItemFragment"
+        android:label="RenameHomeItemFragment">
+        <argument
+            android:name="app_package"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="app_activity"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="current_label"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+    <fragment
         android:id="@+id/lockscreenFragment"
         android:name="com.vandam.luma.ui.LockscreenFragment"
         android:label="LockscreenFragment">
