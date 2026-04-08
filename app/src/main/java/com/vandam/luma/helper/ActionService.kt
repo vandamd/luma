@@ -62,9 +62,14 @@ import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
 import com.vandam.luma.data.Tool
 import com.vandam.luma.listener.SwipeTouchListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 
 class ActionService : AccessibilityService() {
@@ -124,6 +129,7 @@ class ActionService : AccessibilityService() {
     private var scrollwheelLongPressFired = false
     private var homeKeyDownTime = 0L
     private var homeLongPressFired = false
+    private var mediaInfoObserverJob: Job? = null
 
     override fun onServiceConnected() {
         configureServiceInfo()
@@ -131,6 +137,7 @@ class ActionService : AccessibilityService() {
         registerCameraAvailabilityCallback()
         registerTorchCallback()
         MediaSessionHelper.init(this)
+        startMediaInfoObserver()
         instance = WeakReference(this)
         publishUnlockGateState()
         startIncomingCallMonitor()
@@ -152,6 +159,7 @@ class ActionService : AccessibilityService() {
         unregisterCameraAvailabilityCallback()
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
+        stopMediaInfoObserver()
         stopIncomingCallMonitor()
         instance = WeakReference(null)
         return super.onUnbind(intent)
@@ -173,9 +181,27 @@ class ActionService : AccessibilityService() {
         unregisterCameraAvailabilityCallback()
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
+        stopMediaInfoObserver()
         stopIncomingCallMonitor()
         instance = WeakReference(null)
         super.onDestroy()
+    }
+
+    private fun startMediaInfoObserver() {
+        mediaInfoObserverJob?.cancel()
+        mediaInfoObserverJob =
+            CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
+                MediaSessionHelper.mediaInfo.collect {
+                    val view = unlockGateView ?: return@collect
+                    if (!view.isAttachedToWindow) return@collect
+                    updateUnlockGateText(view)
+                }
+            }
+    }
+
+    private fun stopMediaInfoObserver() {
+        mediaInfoObserverJob?.cancel()
+        mediaInfoObserverJob = null
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -2412,10 +2438,10 @@ class ActionService : AccessibilityService() {
         if (mediaInfo != null) {
             val playPauseView = view.findViewById<ImageView>(R.id.unlockGateMediaPlayPause)
             playPauseView.setImageResource(
-                if (mediaInfo.isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play,
+                if (mediaInfo.showsPauseButton) R.drawable.ic_media_pause else R.drawable.ic_media_play,
             )
             view.findViewById<ImageView>(R.id.unlockGateMediaStop).visibility =
-                if (mediaInfo.isPlaying) View.GONE else View.VISIBLE
+                if (mediaInfo.showsStopButton) View.VISIBLE else View.GONE
 
             val prevView = view.findViewById<ImageView>(R.id.unlockGateMediaPrev)
             val nextView = view.findViewById<ImageView>(R.id.unlockGateMediaNext)

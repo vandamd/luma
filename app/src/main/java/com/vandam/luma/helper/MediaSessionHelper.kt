@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
 data class MediaInfo(
     val title: String,
     val artist: String,
-    val isPlaying: Boolean,
+    val showsPauseButton: Boolean,
+    val showsStopButton: Boolean,
     val isPodcast: Boolean,
 )
 
@@ -191,7 +192,17 @@ object MediaSessionHelper {
             metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
                 ?: ""
-        val isPlaying = active.playbackState?.state == PlaybackState.STATE_PLAYING
+        val playbackState = active.playbackState?.state ?: PlaybackState.STATE_NONE
+        val showsPauseButton =
+            playbackState == PlaybackState.STATE_PLAYING ||
+                playbackState == PlaybackState.STATE_FAST_FORWARDING ||
+                playbackState == PlaybackState.STATE_REWINDING ||
+                playbackState == PlaybackState.STATE_BUFFERING ||
+                playbackState == PlaybackState.STATE_CONNECTING ||
+                playbackState == PlaybackState.STATE_SKIPPING_TO_PREVIOUS ||
+                playbackState == PlaybackState.STATE_SKIPPING_TO_NEXT ||
+                playbackState == PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM
+        val showsStopButton = playbackState == PlaybackState.STATE_PAUSED
 
         val description = active.metadata?.description
         val mediaUri = description?.mediaUri?.toString().orEmpty()
@@ -206,7 +217,8 @@ object MediaSessionHelper {
             MediaInfo(
                 title = title.toString(),
                 artist = artist.toString(),
-                isPlaying = isPlaying,
+                showsPauseButton = showsPauseButton,
+                showsStopButton = showsStopButton,
                 isPodcast = isPodcast,
             )
     }
