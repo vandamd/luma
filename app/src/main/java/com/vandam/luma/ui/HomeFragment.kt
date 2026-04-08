@@ -1,7 +1,6 @@
 package com.vandam.luma.ui
 
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,7 +14,6 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.UserManager
-import android.provider.Settings
 import android.telephony.ServiceState
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
@@ -700,11 +698,18 @@ class HomeFragment :
     }
 
     private fun updateBluetoothState() {
-        val btOn = Settings.Global.getInt(requireContext().contentResolver, Settings.Global.BLUETOOTH_ON, 0) != 0
-        if (btOn) showBluetooth() else hideBluetooth()
+        when (val state = BluetoothStatusHelper.indicatorState(requireContext())) {
+            BluetoothStatusHelper.IndicatorState.On -> showBluetooth(state)
+            BluetoothStatusHelper.IndicatorState.Connected -> showBluetooth(state)
+            BluetoothStatusHelper.IndicatorState.Off, null -> hideBluetooth()
+        }
     }
 
     private fun startBluetoothMonitor() {
+        if (!BluetoothStatusHelper.hasBluetoothConnectPermission(requireContext())) {
+            hideBluetooth()
+            return
+        }
         updateBluetoothState()
         val receiver =
             object : BroadcastReceiver() {
@@ -713,12 +718,16 @@ class HomeFragment :
                     intent: Intent,
                 ) {
                     if (_binding == null) return
-                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF)
-                    if (state == BluetoothAdapter.STATE_ON) showBluetooth() else hideBluetooth()
+                    updateBluetoothState()
                 }
             }
-        bluetoothReceiver = receiver
-        requireContext().registerReceiver(receiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+        try {
+            requireContext().registerReceiver(receiver, BluetoothStatusHelper.bluetoothIntentFilter())
+            bluetoothReceiver = receiver
+        } catch (_: SecurityException) {
+            bluetoothReceiver = null
+            hideBluetooth()
+        }
     }
 
     private fun stopBluetoothMonitor() {
@@ -728,8 +737,8 @@ class HomeFragment :
         }
     }
 
-    private fun showBluetooth() {
-        binding.statusBluetooth.showTinted(R.drawable.bluetooth)
+    private fun showBluetooth(state: BluetoothStatusHelper.IndicatorState) {
+        binding.statusBluetooth.showTinted(LumaStatusBarUi.bluetoothDrawableForState(state))
     }
 
     private fun hideBluetooth() {

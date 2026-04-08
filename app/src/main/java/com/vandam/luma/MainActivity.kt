@@ -39,8 +39,9 @@ import com.vandam.luma.databinding.ActivityMainBinding
 import com.vandam.luma.helper.ActionExecutionCallbacks
 import com.vandam.luma.helper.ActionService
 import com.vandam.luma.helper.ApkInstaller
-import com.vandam.luma.helper.PhoneSignalHelper
+import com.vandam.luma.helper.BluetoothStatusHelper
 import com.vandam.luma.helper.ManagedAppManager
+import com.vandam.luma.helper.PhoneSignalHelper
 import com.vandam.luma.helper.UnlockGatePhase
 import com.vandam.luma.helper.VolumeController
 import com.vandam.luma.helper.executeSecondaryAction
@@ -270,6 +271,7 @@ class MainActivity : AppCompatActivity() {
         val hasInstallAppsPermission = ApkInstaller.canRequestPackageInstalls(this)
 
         return isAccessibilityEnabled(this) &&
+            BluetoothStatusHelper.hasBluetoothConnectPermission(this) &&
             PhoneSignalHelper.hasPhoneToolPermissions(this) &&
             hasNotificationPermission &&
             hasWriteSettingsPermission &&
