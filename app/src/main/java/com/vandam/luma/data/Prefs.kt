@@ -88,6 +88,8 @@ private const val SCROLLWHEEL_BUTTON_PRESS_APP = "scrollwheel_button_press_app"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION = "scrollwheel_button_long_press_action"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_APP = "scrollwheel_button_long_press_app"
 private const val LOCKSCREEN_DATE_FORMAT = "lockscreen_date_format"
+private const val LOCKSCREEN_CLOCK_TAP_ACTION = "lockscreen_clock_tap_action"
+private const val LOCKSCREEN_CLOCK_TAP_APP = "lockscreen_clock_tap_app"
 private const val LOCKSCREEN_DATE_TAP_ACTION = "lockscreen_date_tap_action"
 private const val LOCKSCREEN_DATE_TAP_APP = "lockscreen_date_tap_app"
 private const val LOCKSCREEN_CLOCK_NOTIFICATION_INDICATOR = "lockscreen_clock_notification_indicator"
@@ -441,6 +443,25 @@ class Prefs(
     var lockscreenShortcutIcon: LockscreenShortcutIcon
         get() = enumPref(LOCKSCREEN_SHORTCUT_ICON, LockscreenShortcutIcon.Ring)
         set(value) = prefs.edit().putString(LOCKSCREEN_SHORTCUT_ICON, value.name).apply()
+
+    fun getLockscreenClockTapAction(): Constants.Action = loadAction(LOCKSCREEN_CLOCK_TAP_ACTION, Constants.Action.Disabled)
+
+    fun setLockscreenClockTapAction(action: Constants.Action) {
+        val resolvedAction =
+            when (action) {
+                Constants.Action.LockScreen,
+                -> Constants.Action.Disabled
+
+                else -> action
+            }
+        storeAction(LOCKSCREEN_CLOCK_TAP_ACTION, resolvedAction)
+    }
+
+    fun getLockscreenClockTapApp(): AppModel = loadApp(LOCKSCREEN_CLOCK_TAP_APP)
+
+    fun setLockscreenClockTapApp(appModel: AppModel) {
+        storeApp(LOCKSCREEN_CLOCK_TAP_APP, appModel)
+    }
 
     fun getLockscreenDateTapAction(): Constants.Action = loadAction(LOCKSCREEN_DATE_TAP_ACTION, Constants.Action.Disabled)
 

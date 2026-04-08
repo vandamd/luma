@@ -131,6 +131,7 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(FLAG_LAYOUT_NO_LIMITS)
 
         notifyUnlockGateLauncherIntent(intent)
+        handleLockscreenClockTapIntent(intent)
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
         handleLockscreenGestureIntent(intent)
@@ -189,6 +190,7 @@ class MainActivity : AppCompatActivity() {
             resetHomePageImmediately()
         }
         notifyUnlockGateLauncherIntent(intent)
+        handleLockscreenClockTapIntent(intent)
         handleLockscreenShortcutIntent(intent)
         handleLockscreenDateTapIntent(intent)
         handleLockscreenGestureIntent(intent)
@@ -533,6 +535,7 @@ class MainActivity : AppCompatActivity() {
         if (intent == null) return
         if (
             !intent.getBooleanExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH, false) &&
+            !intent.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_CLOCK_TAP, false) &&
             !intent.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT, false) &&
             !intent.getBooleanExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP, false) &&
             intent.getStringExtra(EXTRA_RUN_LOCKSCREEN_GESTURE) == null &&
@@ -544,6 +547,7 @@ class MainActivity : AppCompatActivity() {
         setIntent(
             Intent(intent).apply {
                 removeExtra(EXTRA_UNLOCK_GATE_HOME_LAUNCH)
+                removeExtra(EXTRA_RUN_LOCKSCREEN_CLOCK_TAP)
                 removeExtra(EXTRA_RUN_LOCKSCREEN_SHORTCUT)
                 removeExtra(EXTRA_RUN_LOCKSCREEN_DATE_TAP)
                 removeExtra(EXTRA_RUN_LOCKSCREEN_GESTURE)
@@ -587,6 +591,15 @@ class MainActivity : AppCompatActivity() {
             extraName = EXTRA_RUN_LOCKSCREEN_SHORTCUT,
             action = prefs.getLockscreenShortcutAction(),
             appModel = prefs.getLockscreenShortcutApp(),
+        )
+    }
+
+    private fun handleLockscreenClockTapIntent(intent: Intent?) {
+        handleLockscreenActionIntent(
+            intent = intent,
+            extraName = EXTRA_RUN_LOCKSCREEN_CLOCK_TAP,
+            action = prefs.getLockscreenClockTapAction(),
+            appModel = prefs.getLockscreenClockTapApp(),
         )
     }
 
@@ -692,6 +705,7 @@ class MainActivity : AppCompatActivity() {
         private const val LOG_TAG = "ToolSync"
         private const val WEBSOCKET_RECONNECT_GRACE_MS = 5000L
         const val EXTRA_UNLOCK_GATE_HOME_LAUNCH = "com.vandam.luma.extra.UNLOCK_GATE_HOME_LAUNCH"
+        const val EXTRA_RUN_LOCKSCREEN_CLOCK_TAP = "com.vandam.luma.extra.RUN_LOCKSCREEN_CLOCK_TAP"
         const val EXTRA_RUN_LOCKSCREEN_SHORTCUT = "com.vandam.luma.extra.RUN_LOCKSCREEN_SHORTCUT"
         const val EXTRA_RUN_LOCKSCREEN_DATE_TAP = "com.vandam.luma.extra.RUN_LOCKSCREEN_DATE_TAP"
         const val EXTRA_RUN_LOCKSCREEN_GESTURE = "com.vandam.luma.extra.RUN_LOCKSCREEN_GESTURE"
@@ -740,6 +754,11 @@ class MainActivity : AppCompatActivity() {
             }
 
         fun createUnlockGateHomeIntent(context: Context): Intent = createLumaHomeIntent(context, suppressLauncherIntentHandling = true)
+
+        fun createLockscreenClockTapIntent(context: Context): Intent =
+            createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {
+                putExtra(EXTRA_RUN_LOCKSCREEN_CLOCK_TAP, true)
+            }
 
         fun createLockscreenShortcutIntent(context: Context): Intent =
             createLumaHomeIntent(context, suppressLauncherIntentHandling = true).apply {

@@ -173,6 +173,29 @@ data object LockscreenDateTapSelectionTarget : AppSelectionTarget {
     }
 }
 
+data object LockscreenClockTapSelectionTarget : AppSelectionTarget {
+    override val titleRes: Int = R.string.lockscreen_clock_tap
+    override val disallowedActions: Set<Action> = setOf(Action.LockScreen)
+
+    override fun getAction(prefs: Prefs): Action = prefs.getLockscreenClockTapAction()
+
+    override fun setAction(
+        prefs: Prefs,
+        action: Action,
+    ) {
+        prefs.setLockscreenClockTapAction(action)
+    }
+
+    override fun getApp(prefs: Prefs): AppModel = prefs.getLockscreenClockTapApp()
+
+    override fun setApp(
+        prefs: Prefs,
+        appModel: AppModel,
+    ) {
+        prefs.setLockscreenClockTapApp(appModel)
+    }
+}
+
 enum class KeymapType(
     val argumentValue: String,
     @param:StringRes val titleRes: Int,

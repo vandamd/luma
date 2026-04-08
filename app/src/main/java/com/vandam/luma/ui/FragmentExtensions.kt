@@ -171,6 +171,12 @@ fun lockscreenActionDisplayValue(
 ): String = actionDisplayValue(action, prefs.getLockscreenShortcutApp().displayName)
 
 @Composable
+fun lockscreenClockTapActionDisplayValue(
+    action: Constants.Action,
+    prefs: Prefs,
+): String = actionDisplayValue(action, prefs.getLockscreenClockTapApp().displayName)
+
+@Composable
 fun lockscreenDateTapActionDisplayValue(
     action: Constants.Action,
     prefs: Prefs,
