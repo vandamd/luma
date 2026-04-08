@@ -19,6 +19,7 @@ import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.HomeItemsManager
 import com.vandam.luma.data.KeymapSelectionTarget
 import com.vandam.luma.data.KeymapType
+import com.vandam.luma.data.LockscreenClockTapSelectionTarget
 import com.vandam.luma.data.LockscreenDateTapSelectionTarget
 import com.vandam.luma.data.LockscreenShortcutSelectionTarget
 import com.vandam.luma.data.ManagedAppCatalog
@@ -35,6 +36,7 @@ class GestureActionFragment : Fragment() {
         const val GESTURE_TYPE = "gesture_type"
         const val GESTURE_SCOPE = "gesture_scope"
         const val SECTION_TYPE = "section_type"
+        const val LOCKSCREEN_CLOCK_TAP = "lockscreen_clock_tap"
         const val LOCKSCREEN_SHORTCUT = "lockscreen_shortcut"
         const val LOCKSCREEN_DATE_TAP = "lockscreen_date_tap"
         const val KEYMAP_TYPE = "keymap_type"
@@ -229,6 +231,10 @@ class GestureActionFragment : Fragment() {
             if (sectionType != null) {
                 return StatusBarSelectionTarget(sectionType)
             }
+        }
+
+        if (arguments?.getBoolean(LOCKSCREEN_CLOCK_TAP, false) == true) {
+            return LockscreenClockTapSelectionTarget
         }
 
         if (arguments?.getBoolean(LOCKSCREEN_SHORTCUT, false) == true) {

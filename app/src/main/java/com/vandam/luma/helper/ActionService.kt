@@ -1665,6 +1665,22 @@ class ActionService : AccessibilityService() {
         view.isClickable = true
         view.isFocusable = true
         view.setOnClickListener(null)
+        view.findViewById<TextView>(R.id.unlockGateClock).apply {
+            if (prefs.getLockscreenClockTapAction() == Action.Disabled) {
+                setOnClickListener(null)
+            } else {
+                setOnClickListener {
+                    if (dispatchLockscreenClockTap()) {
+                        dispatchUnlockGateEventOnMain(
+                            UnlockGateEvent.DismissRequested(
+                                nowUptimeMs = SystemClock.uptimeMillis(),
+                                minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
         view.findViewById<TextView>(R.id.unlockGateDate).setOnClickListener {
             if (dispatchLockscreenDateTap()) {
                 dispatchUnlockGateEventOnMain(
@@ -1730,6 +1746,11 @@ class ActionService : AccessibilityService() {
                 }
             },
         )
+        view.findViewById<TextView>(R.id.unlockGateClock).apply {
+            setOnClickListener(null)
+            isClickable = false
+            isFocusable = false
+        }
         view.findViewById<TextView>(R.id.unlockGateDate).apply {
             setOnClickListener(null)
             isClickable = false
@@ -2122,6 +2143,17 @@ class ActionService : AccessibilityService() {
             false
         }
 
+    private fun dispatchLockscreenClockTap(): Boolean {
+        if (prefs.getLockscreenClockTapAction() == Action.Disabled) return false
+        return try {
+            startActivity(MainActivity.createLockscreenClockTapIntent(this))
+            true
+        } catch (exception: Exception) {
+            Log.e(TAG, "dispatchLockscreenClockTap: startActivity failed", exception)
+            false
+        }
+    }
+
     private fun dispatchLockscreenDateTap(): Boolean {
         if (prefs.getLockscreenDateTapAction() == Action.Disabled) return false
         return try {
@@ -2225,7 +2257,11 @@ class ActionService : AccessibilityService() {
 
     private fun bindUnlockGateGestureListeners(view: View) {
         view.setOnTouchListener(createUnlockGateGestureTouchListener())
-        bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateClock))
+        bindUnlockGateGestureTarget(
+            view.findViewById(R.id.unlockGateClock),
+            preserveSingleTap = true,
+            onPress = { if (prefs.getLockscreenClockTapAction() != Action.Disabled) performAppTapHapticFeedback(this) },
+        )
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.unlockGateDate),
             preserveSingleTap = true,
@@ -2346,6 +2382,11 @@ class ActionService : AccessibilityService() {
 
         if (clockView.visibility == View.GONE) {
             clockView.visibility = View.VISIBLE
+        }
+        clockView.apply {
+            val enabled = isInteractive && prefs.getLockscreenClockTapAction() != Action.Disabled
+            isClickable = enabled
+            isFocusable = enabled
         }
 
         dateView.apply {

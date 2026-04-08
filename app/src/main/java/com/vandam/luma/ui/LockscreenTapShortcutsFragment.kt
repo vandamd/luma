@@ -26,6 +26,7 @@ class LockscreenTapShortcutsFragment : Fragment() {
     private val swipeDownActionState = mutableStateOf(Constants.Action.Disabled)
     private val swipeUpActionState = mutableStateOf(Constants.Action.Disabled)
     private val doubleTapActionState = mutableStateOf(Constants.Action.Disabled)
+    private val clockTapActionState = mutableStateOf(Constants.Action.Disabled)
     private val actionState = mutableStateOf(Constants.Action.OpenApp)
     private val dateTapActionState = mutableStateOf(Constants.Action.Disabled)
     private val connectivityActionState = mutableStateOf(Constants.Action.Disabled)
@@ -44,6 +45,7 @@ class LockscreenTapShortcutsFragment : Fragment() {
         swipeDownActionState.value = prefs.getGestureAction(GestureType.SWIPE_DOWN, GestureScope.Lockscreen)
         swipeUpActionState.value = prefs.getGestureAction(GestureType.SWIPE_UP, GestureScope.Lockscreen)
         doubleTapActionState.value = prefs.getGestureAction(GestureType.DOUBLE_TAP, GestureScope.Lockscreen)
+        clockTapActionState.value = prefs.getLockscreenClockTapAction()
         actionState.value = prefs.getLockscreenShortcutAction()
         dateTapActionState.value = prefs.getLockscreenDateTapAction()
         connectivityActionState.value = prefs.getSectionAction(StatusBarSectionType.CELLULAR)
@@ -105,6 +107,16 @@ class LockscreenTapShortcutsFragment : Fragment() {
                     findNavController().navigate(
                         R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
                         bundleOf(GestureActionFragment.SECTION_TYPE to StatusBarSectionType.BATTERY.name),
+                    )
+                },
+            )
+            SelectorButton(
+                label = stringResource(R.string.lockscreen_clock_tap),
+                value = lockscreenClockTapActionDisplayValue(clockTapActionState.value, prefs),
+                onClick = {
+                    findNavController().navigate(
+                        R.id.action_lockscreenTapShortcutsFragment_to_gestureActionFragment,
+                        bundleOf(GestureActionFragment.LOCKSCREEN_CLOCK_TAP to true),
                     )
                 },
             )

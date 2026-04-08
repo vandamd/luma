@@ -71,6 +71,10 @@
             app:argType="string"
             android:defaultValue="" />
         <argument
+            android:name="lockscreen_clock_tap"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <argument
             android:name="lockscreen_shortcut"
             app:argType="boolean"
             android:defaultValue="false" />
