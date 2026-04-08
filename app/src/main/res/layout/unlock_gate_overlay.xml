@@ -134,6 +134,18 @@
             android:src="@drawable/ic_media_play" />
 
         <ImageView
+            android:id="@+id/unlockGateMediaStop"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:contentDescription="@null"
+            android:focusable="true"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_media_stop"
+            android:visibility="gone" />
+
+        <ImageView
             android:id="@+id/unlockGateMediaNext"
             android:layout_width="50dp"
             android:layout_height="50dp"

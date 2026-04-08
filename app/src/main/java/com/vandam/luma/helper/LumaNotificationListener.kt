@@ -30,6 +30,12 @@ class LumaNotificationListener : NotificationListenerService() {
             return isLightOsKeepAlive(svc)
         }
 
+        private fun StatusBarNotification.isMediaNotification(): Boolean {
+            val template = notification.extras.getString(Notification.EXTRA_TEMPLATE) ?: ""
+            return notification.category == Notification.CATEGORY_TRANSPORT ||
+                template.contains("MediaStyle")
+        }
+
         private fun StatusBarNotification.isLightOsKeepAlive(svc: LumaNotificationListener): Boolean {
             if (packageName == LIGHT_OS_PACKAGE) {
                 val title = notification.extras.getString(Notification.EXTRA_TITLE)
@@ -76,15 +82,17 @@ class LumaNotificationListener : NotificationListenerService() {
             instance.get()?.cancelNotification(key)
         }
 
+        fun dismissMediaNotifications(packageName: String) {
+            val svc = instance.get() ?: return
+            svc.activeNotifications
+                .filter { it.packageName == packageName && it.isMediaNotification() }
+                .forEach { svc.cancelNotification(it.key) }
+        }
+
         fun hasActiveMediaNotification(packageName: String): Boolean {
             val svc = instance.get() ?: return false
             return svc.activeNotifications.any {
-                val template = it.notification.extras.getString(Notification.EXTRA_TEMPLATE) ?: ""
-                it.packageName == packageName &&
-                    (
-                        it.notification.category == Notification.CATEGORY_TRANSPORT ||
-                            template.contains("MediaStyle")
-                    )
+                it.packageName == packageName && it.isMediaNotification()
             }
         }
     }

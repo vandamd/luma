@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
 data class MediaInfo(
     val title: String,
     val artist: String,
-    val isPlaying: Boolean,
+    val showsPauseButton: Boolean,
+    val showsStopButton: Boolean,
     val isPodcast: Boolean,
 )
 
@@ -32,6 +33,7 @@ object MediaSessionHelper {
     private var mediaSessionManager: MediaSessionManager? = null
     private var listenerComponent: ComponentName? = null
     private val activeCallbacks = mutableMapOf<MediaController, MediaController.Callback>()
+    private var dismissedPackageName: String? = null
     private var initialized = false
 
     fun init(context: Context) {
@@ -53,8 +55,8 @@ object MediaSessionHelper {
 
     fun togglePlayPause() {
         val controller = activeController() ?: return
-        val state = controller.playbackState?.state
-        if (state == PlaybackState.STATE_PLAYING) {
+        val playbackState = controller.playbackState?.state ?: PlaybackState.STATE_NONE
+        if (showsPauseButton(playbackState)) {
             controller.transportControls.pause()
         } else {
             controller.transportControls.play()
@@ -81,18 +83,64 @@ object MediaSessionHelper {
         controller.transportControls.seekTo(pos + 10_000)
     }
 
+    fun stopAndDismiss() {
+        val controller = activeController() ?: return
+        controller.transportControls.stop()
+        LumaNotificationListener.dismissMediaNotifications(controller.packageName)
+        if (controller.playbackState?.state != PlaybackState.STATE_PLAYING) {
+            dismissedPackageName = controller.packageName
+        }
+        updateMediaInfo()
+    }
+
     private fun activeController(): MediaController? {
         val controllers = activeCallbacks.keys.toList()
-        return controllers.firstOrNull { c ->
-            c.playbackState?.state == PlaybackState.STATE_PLAYING
-        } ?: controllers.firstOrNull { c ->
-            val s = c.playbackState?.state
-            val isPaused = s == PlaybackState.STATE_PAUSED || s == PlaybackState.STATE_BUFFERING
-            isPaused && LumaNotificationListener.hasActiveMediaNotification(c.packageName)
+        clearDismissedPackageIfInactive(controllers)
+
+        val playingController =
+            controllers.firstOrNull { controller ->
+                controller.playbackState?.state == PlaybackState.STATE_PLAYING
+            }
+        if (playingController != null) {
+            if (playingController.packageName == dismissedPackageName) {
+                dismissedPackageName = null
+            }
+            return playingController
+        }
+
+        return controllers.firstOrNull { controller ->
+            controller.isPausedSession() && controller.packageName != dismissedPackageName
         }
     }
 
     fun getActiveMediaPackageName(): String? = activeController()?.packageName
+
+    private fun clearDismissedPackageIfInactive(controllers: List<MediaController>) {
+        val dismissedPackage = dismissedPackageName ?: return
+        val stillDismissed =
+            controllers.any { controller ->
+                controller.packageName == dismissedPackage && controller.isPausedSession()
+            }
+        if (!stillDismissed) {
+            dismissedPackageName = null
+        }
+    }
+
+    private fun MediaController.isPausedSession(): Boolean {
+        val state = playbackState?.state
+        val isPaused = state == PlaybackState.STATE_PAUSED || state == PlaybackState.STATE_BUFFERING
+        return isPaused && LumaNotificationListener.hasActiveMediaNotification(packageName)
+    }
+
+    private fun showsPauseButton(playbackState: Int): Boolean =
+        playbackState == PlaybackState.STATE_PLAYING ||
+            playbackState == PlaybackState.STATE_FAST_FORWARDING ||
+            playbackState == PlaybackState.STATE_REWINDING ||
+            playbackState == PlaybackState.STATE_BUFFERING ||
+            playbackState == PlaybackState.STATE_CONNECTING ||
+            playbackState == PlaybackState.STATE_SKIPPING_TO_PREVIOUS ||
+            playbackState == PlaybackState.STATE_SKIPPING_TO_NEXT ||
+            playbackState == PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM
 
     private fun refreshSessions() {
         val msm = mediaSessionManager ?: return
@@ -137,16 +185,7 @@ object MediaSessionHelper {
         }
 
     private fun updateMediaInfo() {
-        val controllers = activeCallbacks.keys.toList()
-        val active =
-            controllers.firstOrNull { controller ->
-                controller.playbackState?.state == PlaybackState.STATE_PLAYING
-            } ?: controllers.firstOrNull { controller ->
-                val state = controller.playbackState?.state
-                val isPaused = state == PlaybackState.STATE_PAUSED || state == PlaybackState.STATE_BUFFERING
-                isPaused && LumaNotificationListener.hasActiveMediaNotification(controller.packageName)
-            }
-
+        val active = activeController()
         if (active == null) {
             _mediaInfo.value = null
             return
@@ -163,7 +202,9 @@ object MediaSessionHelper {
             metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
                 ?: ""
-        val isPlaying = active.playbackState?.state == PlaybackState.STATE_PLAYING
+        val playbackState = active.playbackState?.state ?: PlaybackState.STATE_NONE
+        val showsPauseButton = showsPauseButton(playbackState)
+        val showsStopButton = playbackState == PlaybackState.STATE_PAUSED
 
         val description = active.metadata?.description
         val mediaUri = description?.mediaUri?.toString().orEmpty()
@@ -178,7 +219,8 @@ object MediaSessionHelper {
             MediaInfo(
                 title = title.toString(),
                 artist = artist.toString(),
-                isPlaying = isPlaying,
+                showsPauseButton = showsPauseButton,
+                showsStopButton = showsStopButton,
                 isPodcast = isPodcast,
             )
     }
