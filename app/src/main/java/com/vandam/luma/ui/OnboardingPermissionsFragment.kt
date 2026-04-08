@@ -1,7 +1,5 @@
 package com.vandam.luma.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -13,13 +11,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.helper.ApkInstaller
+import com.vandam.luma.helper.PhoneSignalHelper
 import com.vandam.luma.helper.isAccessibilityEnabled
 import com.vandam.luma.helper.openAccessibilitySettings
 import com.vandam.luma.ui.hasNotificationListenerPermission
@@ -33,7 +31,7 @@ import com.vandam.luma.ui.compose.SimpleTextButton
 class OnboardingPermissionsFragment : Fragment() {
     private val hasAccessibilityPermission = mutableStateOf(false)
     private val hasNotificationPermission = mutableStateOf(false)
-    private val hasPhonePermission = mutableStateOf(false)
+    private val hasPhoneToolPermission = mutableStateOf(false)
     private val hasModifySystemSettingsPermission = mutableStateOf(false)
     private val hasInstallAppsPermission = mutableStateOf(false)
     private val isPermissionRecovery: Boolean
@@ -61,8 +59,8 @@ class OnboardingPermissionsFragment : Fragment() {
     }
 
     private val phonePermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            hasPhonePermission.value = granted
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            hasPhoneToolPermission.value = PhoneSignalHelper.hasPhoneToolPermissions(requireContext())
         }
 
     override fun onResume() {
@@ -71,11 +69,7 @@ class OnboardingPermissionsFragment : Fragment() {
         hasNotificationPermission.value = hasNotificationListenerPermission()
         hasModifySystemSettingsPermission.value = hasWriteSettingsPermission()
         hasInstallAppsPermission.value = ApkInstaller.canRequestPackageInstalls(requireContext())
-        hasPhonePermission.value =
-            ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.READ_PHONE_STATE,
-            ) == PackageManager.PERMISSION_GRANTED
+        hasPhoneToolPermission.value = PhoneSignalHelper.hasPhoneToolPermissions(requireContext())
     }
 
     override fun onCreateView(
@@ -88,7 +82,7 @@ class OnboardingPermissionsFragment : Fragment() {
     private fun Screen() {
         val canContinue =
             hasAccessibilityPermission.value &&
-                hasPhonePermission.value &&
+                hasPhoneToolPermission.value &&
                 hasNotificationPermission.value &&
                 hasModifySystemSettingsPermission.value &&
                 hasInstallAppsPermission.value
@@ -133,9 +127,9 @@ class OnboardingPermissionsFragment : Fragment() {
             }
             SimpleTextButton(
                 title = stringResource(R.string.onboarding_phone_grant),
-                enabled = !hasPhonePermission.value,
+                enabled = !hasPhoneToolPermission.value,
             ) {
-                phonePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
+                phonePermissionLauncher.launch(PhoneSignalHelper.phoneToolPermissions())
             }
             SimpleTextButton(
                 title = stringResource(R.string.onboarding_notifications_grant),

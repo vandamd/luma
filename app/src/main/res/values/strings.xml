@@ -144,6 +144,10 @@
     <string name="notification_list_title">Notifications</string>
     <string name="notification_list_empty">No notifications</string>
     <string name="notification_list_no_permission">Tap here to grant notification access</string>
+    <string name="notification_list_unread_message">Unread message</string>
+    <string name="notification_list_unread_messages">Unread messages</string>
+    <string name="notification_list_missed_call">Missed call</string>
+    <string name="notification_list_missed_calls">Missed calls</string>
     <string name="content_desc_dismiss">Dismiss</string>
 
     <!-- Login -->
@@ -166,7 +170,7 @@
     <string name="onboarding_permissions_message">Please grant the permissions below. This enables Luma to show the lockscreen, present notifications, bind keymaps, and install updates.</string>
     <string name="onboarding_permissions_restricted_settings_note">If a permission is blocked, you may need to open Settings &gt; Apps &gt; Luma &gt; Allow restricted settings first.\n\nAfter enabling each permission, press the Home button to return to Luma.</string>
     <string name="onboarding_accessibility_grant">Accessibility</string>
-    <string name="onboarding_phone_grant">Phone Permission</string>
+    <string name="onboarding_phone_grant">Phone &amp; Messages</string>
     <string name="onboarding_notifications_grant">Notifications</string>
     <string name="onboarding_write_settings_grant">Write Settings</string>
     <string name="onboarding_install_apps_grant">Install Apps</string>

@@ -1,5 +1,6 @@
 package com.vandam.luma.helper
 
+import android.content.Context
 import android.text.format.DateFormat
 import com.vandam.luma.data.Prefs
 import java.text.SimpleDateFormat
@@ -10,6 +11,7 @@ fun formatClockText(
     prefs: Prefs,
     calendar: Calendar = Calendar.getInstance(),
     appendNotificationIndicator: Boolean = false,
+    hasNotificationIndicator: Boolean = false,
 ): String {
     val is24Hour = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour
     val hour =
@@ -29,11 +31,15 @@ fun formatClockText(
     return buildString {
         append("$hourText:${"%02d".format(minute)}")
         if (!is24Hour) append(if (calendar.get(Calendar.AM_PM) == Calendar.AM) " AM" else " PM")
-        if (appendNotificationIndicator && LumaNotificationListener.getActiveNotificationPackages().isNotEmpty()) {
+        if (appendNotificationIndicator && hasNotificationIndicator) {
             append("*")
         }
     }
 }
+
+fun hasClockNotificationIndicator(context: Context): Boolean =
+    LumaNotificationListener.getActiveNotificationPackages().isNotEmpty() ||
+        PhoneSignalHelper.getCachedUnreadPhoneSignal(context)
 
 fun formatLockscreenDateText(
     format: Prefs.LockscreenDateFormat,

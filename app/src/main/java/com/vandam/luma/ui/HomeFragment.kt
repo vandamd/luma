@@ -40,12 +40,14 @@ import androidx.navigation.fragment.findNavController
 import com.vandam.luma.MainActivity
 import com.vandam.luma.MainViewModel
 import com.vandam.luma.R
+import com.vandam.luma.data.AppEntryType
 import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants.Action
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.HomeLayout
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
+import com.vandam.luma.data.Tool
 import com.vandam.luma.databinding.FragmentHomeBinding
 import com.vandam.luma.helper.*
 import com.vandam.luma.helper.LumaNotificationListener
@@ -849,18 +851,42 @@ class HomeFragment :
         }
     }
 
-    private fun getAppDisplayName(appModel: AppModel): String {
+    private fun resolveTool(appModel: AppModel): Tool? =
+        Tool.fromPackageName(appModel.appPackage) ?: if (appModel.entryType == AppEntryType.Tool) Tool.fromId(appModel.appActivityName) else null
+
+    private fun getAppDisplayName(
+        appModel: AppModel,
+        packagesWithNotifications: Set<String>,
+        hasPhoneSignal: Boolean,
+    ): String {
         val appName = appModel.appLabel
         if (!prefs.showNotificationIndicator) return appName
 
-        val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()
-        val hasNotification = packagesWithNotifications.contains(appModel.appPackage)
+        val hasNotification =
+            when (resolveTool(appModel)) {
+                Tool.Phone -> hasPhoneSignal
+                else -> packagesWithNotifications.contains(appModel.appPackage)
+            }
         return if (hasNotification) "$appName*" else appName
     }
 
     private fun refreshAppNames() {
         val appsPerPage = prefs.getAppsPerPage(currentPage + 1)
         val startIndex = currentPage * HomeLayout.APPS_PER_PAGE
+        val pageApps =
+            List(appsPerPage) { index ->
+                prefs.getHomeAppModel(startIndex + index)
+            }
+        val packagesWithNotifications =
+            if (prefs.showNotificationIndicator) {
+                LumaNotificationListener.getActiveNotificationPackages()
+            } else {
+                emptySet()
+            }
+        val hasPhoneSignal =
+            prefs.showNotificationIndicator &&
+                pageApps.any { resolveTool(it) == Tool.Phone } &&
+                PhoneSignalHelper.hasUnreadPhoneSignal(requireContext())
 
         updateAppCountForPage(appsPerPage)
 
@@ -868,8 +894,8 @@ class HomeFragment :
             val appIndex = startIndex + i
             val view = binding.homeAppsLayout.getChildAt(i)
             if (view is TextView) {
-                val appModel = prefs.getHomeAppModel(appIndex)
-                view.text = getAppDisplayName(appModel)
+                val appModel = pageApps[i]
+                view.text = getAppDisplayName(appModel, packagesWithNotifications, hasPhoneSignal)
                 view.id = appIndex
             }
         }
