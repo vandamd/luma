@@ -64,7 +64,11 @@ object MediaSessionHelper {
     }
 
     fun refresh() {
-        mainHandler.post { refreshSessions(registerCallbacks = trackingEnabled) }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            refreshSessions(registerCallbacks = trackingEnabled)
+        } else {
+            mainHandler.post { refreshSessions(registerCallbacks = trackingEnabled) }
+        }
     }
 
     fun togglePlayPause() {
