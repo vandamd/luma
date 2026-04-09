@@ -764,6 +764,7 @@ class ActionService : AccessibilityService() {
         if (event.action != KeyEvent.ACTION_DOWN) return false
 
         val phase = unlockGateStateMachine.state.phase
+        if (phase == UnlockGatePhase.Idle && currentForegroundPackage == ZERO_PACKAGE) return false
 
         if (phase == UnlockGatePhase.Idle && !isLumaForeground() && currentForegroundPackage != LIGHT_OS_PACKAGE &&
             currentForegroundPackage != packageName
@@ -3114,6 +3115,7 @@ class ActionService : AccessibilityService() {
     companion object {
         private const val TAG = "LumaActionService"
         private const val LIGHT_OS_PACKAGE = "com.lightos"
+        private const val ZERO_PACKAGE = "com.vandam.zero"
         private const val CAMERA_OWNER_PENDING_WINDOW_MS = 2000L
         private const val MIN_MASK_VISIBILITY_MS = 200L
         private const val HARD_TIMEOUT_MS = 900L
