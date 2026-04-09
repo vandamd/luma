@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,7 +49,7 @@ class ReorderToolsFragment : Fragment() {
     private companion object {
         val ReorderIconSize = 30.dp
         val ReorderIconSpacing = 6.dp
-        val VisibilityEditIconSpacing = 2.dp
+        val VisibilityEditIconSpacing = 8.dp
     }
 
     private lateinit var prefs: Prefs
@@ -283,37 +282,41 @@ class ReorderToolsFragment : Fragment() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(ReorderIconSpacing, Alignment.End),
             ) {
-                ReorderIconButton(
-                    iconRes = if (visibleOnHome) R.drawable.visibility else R.drawable.visibility_off,
-                    enabled = true,
-                    tint = if (visibleOnHome) textColor else disabledColor,
-                    size = ReorderIconSize,
-                    contentDescription =
-                        stringResource(
-                            if (visibleOnHome) {
-                                R.string.content_desc_hide_from_home
-                            } else {
-                                R.string.content_desc_show_on_home
-                            },
-                        ),
-                    onClick = {
-                        performHapticFeedback(context)
-                        onToggleVisibility()
-                    },
-                )
-                Spacer(modifier = Modifier.size(VisibilityEditIconSpacing - ReorderIconSpacing))
-                ReorderIconButton(
-                    iconRes = R.drawable.edit_32px,
-                    enabled = true,
-                    tint = textColor,
-                    size = ReorderIconSize,
-                    iconSize = 28.dp,
-                    contentDescription = stringResource(R.string.content_desc_edit_name),
-                    onClick = {
-                        performHapticFeedback(context)
-                        onRename()
-                    },
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(VisibilityEditIconSpacing),
+                ) {
+                    ReorderIconButton(
+                        iconRes = if (visibleOnHome) R.drawable.visibility else R.drawable.visibility_off,
+                        enabled = true,
+                        tint = if (visibleOnHome) textColor else disabledColor,
+                        size = ReorderIconSize,
+                        contentDescription =
+                            stringResource(
+                                if (visibleOnHome) {
+                                    R.string.content_desc_hide_from_home
+                                } else {
+                                    R.string.content_desc_show_on_home
+                                },
+                            ),
+                        onClick = {
+                            performHapticFeedback(context)
+                            onToggleVisibility()
+                        },
+                    )
+                    ReorderIconButton(
+                        iconRes = R.drawable.edit_32px,
+                        enabled = true,
+                        tint = textColor,
+                        size = ReorderIconSize,
+                        iconSize = 28.dp,
+                        contentDescription = stringResource(R.string.content_desc_edit_name),
+                        onClick = {
+                            performHapticFeedback(context)
+                            onRename()
+                        },
+                    )
+                }
                 ReorderIconButton(
                     iconRes = R.drawable.keyboard_arrow_down_32px,
                     enabled = canMoveDown,
