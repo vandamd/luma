@@ -54,6 +54,7 @@ import com.vandam.luma.style.SettingsTheme
 import com.vandam.luma.ui.compose.SettingsBodyState
 import com.vandam.luma.ui.compose.SettingsCompactListSpacing
 import com.vandam.luma.ui.compose.LazySettingsList
+import com.vandam.luma.ui.compose.NotificationListContentPadding
 import com.vandam.luma.ui.compose.SettingsStateScreen
 import com.vandam.luma.ui.noRippleClickable
 
@@ -214,6 +215,7 @@ class NotificationListFragment : Fragment() {
             title = stringResource(R.string.notification_list_title),
             bodyState = bodyState,
             onBack = ::goBack,
+            contentPadding = NotificationListContentPadding,
             scrollable = false,
         ) {
             LazySettingsList(
@@ -303,7 +305,10 @@ class NotificationListFragment : Fragment() {
             }
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(end = 32.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(end = 32.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
