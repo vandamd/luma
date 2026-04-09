@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,11 +44,13 @@ import com.vandam.luma.helper.performHapticFeedback
 import com.vandam.luma.style.SettingsTheme
 import com.vandam.luma.ui.compose.LazySettingsList
 import com.vandam.luma.ui.compose.SettingsScreen
+import com.vandam.luma.ui.compose.NotificationListContentPadding
 
 class ReorderToolsFragment : Fragment() {
     private companion object {
         val ReorderIconSize = 30.dp
         val ReorderIconSpacing = 6.dp
+        val VisibilityEditIconSpacing = 2.dp
     }
 
     private lateinit var prefs: Prefs
@@ -113,6 +116,7 @@ class ReorderToolsFragment : Fragment() {
         SettingsScreen(
             title = stringResource(R.string.homescreen_reorder_tools),
             onBack = ::goBack,
+            contentPadding = NotificationListContentPadding,
             scrollable = false,
         ) {
             LazySettingsList(
@@ -297,6 +301,7 @@ class ReorderToolsFragment : Fragment() {
                         onToggleVisibility()
                     },
                 )
+                Spacer(modifier = Modifier.size(VisibilityEditIconSpacing - ReorderIconSpacing))
                 ReorderIconButton(
                     iconRes = R.drawable.edit_32px,
                     enabled = true,
