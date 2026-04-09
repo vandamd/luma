@@ -4,7 +4,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.content.SharedPreferences
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import com.vandam.luma.R
@@ -62,7 +66,21 @@ class GestureActionFragment : Fragment() {
         val currentAction = selectionTarget.getAction(prefs)
         val currentLaunchTarget = if (currentAction == Action.OpenApp) selectionTarget.getApp(prefs) else null
         val actions = availableActions()
-        val launchTargets = availableLaunchTargets()
+        val prefsVersion = remember { mutableStateOf(0) }
+        DisposableEffect(Unit) {
+            val listener =
+                SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+                    prefsVersion.value += 1
+                }
+            prefs.registerListener(listener)
+            onDispose {
+                prefs.unregisterListener(listener)
+            }
+        }
+        val launchTargets =
+            remember(prefsVersion.value, selectionTarget.includesCameraTarget) {
+                availableLaunchTargets()
+            }
         val showActionsFirst = selectionTarget is KeymapSelectionTarget
 
         SettingsScreen(

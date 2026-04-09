@@ -17,6 +17,7 @@ import com.vandam.luma.data.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,6 +33,7 @@ object ManagedAppManager {
     private const val LOG_TAG = "ManagedAppManager"
     private const val LIGHT_OS_PACKAGE_PREFIX = "com.lightos"
     private const val SYNC_INSTALLED_APPS_MUTATION = "accounts:syncInstalledApps"
+    private const val INSTALLED_APPS_SYNC_DEBOUNCE_MS = 1500L
     private val androidAppLabelOverrides =
         mapOf(
             "com.android.settings|com.android.settings.Settings" to "System",
@@ -70,6 +72,8 @@ object ManagedAppManager {
 
     @Volatile
     private var dashboardSyncJob: Job? = null
+    @Volatile
+    private var dashboardSyncDebounceJob: Job? = null
 
     @Volatile
     private var lastReportedDashboardAccountNumber: String? = null
@@ -172,6 +176,25 @@ object ManagedAppManager {
             }
     }
 
+    fun scheduleInstalledAppsToDashboard(
+        context: Context,
+        accountNumber: String,
+        immediate: Boolean = false,
+    ) {
+        if (!accountNumber.matches(Regex("^\\d{16}$"))) {
+            return
+        }
+
+        dashboardSyncDebounceJob?.cancel()
+        dashboardSyncDebounceJob =
+            scope.launch {
+                if (!immediate) {
+                    delay(INSTALLED_APPS_SYNC_DEBOUNCE_MS)
+                }
+                syncInstalledAppsToDashboard(context, accountNumber)
+            }
+    }
+
     fun syncInstalledAppsToDashboardForStoredAccount(context: Context) {
         val accountNumber = Prefs.getInstance(context).accountNumber
         if (accountNumber.isBlank()) {
@@ -181,7 +204,21 @@ object ManagedAppManager {
         syncInstalledAppsToDashboard(context, accountNumber)
     }
 
+    fun scheduleInstalledAppsToDashboardForStoredAccount(
+        context: Context,
+        immediate: Boolean = false,
+    ) {
+        val accountNumber = Prefs.getInstance(context).accountNumber
+        if (accountNumber.isBlank()) {
+            return
+        }
+
+        scheduleInstalledAppsToDashboard(context, accountNumber, immediate)
+    }
+
     fun clearSessionWork() {
+        dashboardSyncDebounceJob?.cancel()
+        dashboardSyncDebounceJob = null
         dashboardSyncJob?.cancel()
         dashboardSyncJob = null
         processingJob?.cancel()

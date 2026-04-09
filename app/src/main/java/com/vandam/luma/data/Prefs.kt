@@ -129,8 +129,16 @@ class Prefs(
     enum class LockscreenShortcutIcon { Ring, Star, Camera, Phone, Heart, Flashlight, Music, Message }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_FILENAME, 0)
-    private val secureSessionStore = SecureSessionStore.getInstance(context)
+    private val secureSessionStore by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        SecureSessionStore.getInstance(context)
+    }
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
+    @Volatile
+    private var cachedEnabledAndroidAppsRaw: String? = null
+    @Volatile
+    private var cachedEnabledAndroidApps: List<AndroidLauncherApp> = emptyList()
+    @Volatile
+    private var cachedEnabledAndroidAppLabels: Map<String, String> = emptyMap()
 
     private inline fun <reified T : Enum<T>> enumPref(
         key: String,
@@ -168,30 +176,7 @@ class Prefs(
         set(value) = prefs.edit().putStringSet(ENABLED_MANAGED_APP_IDS, value).apply()
 
     var enabledAndroidApps: List<AndroidLauncherApp>
-        get() {
-            val raw = prefs.getString(ENABLED_ANDROID_APPS, null) ?: return emptyList()
-            return try {
-                val array = JSONArray(raw)
-                buildList {
-                    for (i in 0 until array.length()) {
-                        val obj = array.optJSONObject(i) ?: continue
-                        val label = obj.optString("l", "").trim()
-                        val packageName = obj.optString("p", "").trim()
-                        val activityName = obj.optString("a", "").trim()
-                        if (packageName.isEmpty() || activityName.isEmpty()) continue
-                        add(
-                            AndroidLauncherApp(
-                                label = label.ifEmpty { packageName },
-                                packageName = packageName,
-                                activityName = activityName,
-                            ),
-                        )
-                    }
-                }
-            } catch (_: Exception) {
-                emptyList()
-            }
-        }
+        get() = readEnabledAndroidApps()
         set(value) {
             val normalized = linkedMapOf<String, AndroidLauncherApp>()
             value.forEach { app ->
@@ -214,7 +199,9 @@ class Prefs(
                 array.put(obj)
             }
 
-            prefs.edit().putString(ENABLED_ANDROID_APPS, array.toString()).apply()
+            val raw = array.toString()
+            prefs.edit().putString(ENABLED_ANDROID_APPS, raw).apply()
+            updateEnabledAndroidAppsCache(raw, normalized.values.toList())
         }
 
     var homeItemOrderKeys: List<String>
@@ -754,7 +741,7 @@ class Prefs(
     ): String {
         Tool.fromPackageName(appPackage)?.let { return it.defaultLabel(context) }
         ManagedAppCatalog.fromPackageName(appPackage)?.let { return it.label }
-        enabledAndroidApps.firstOrNull { it.packageName == appPackage && it.activityName == appActivityName }?.let { return it.label }
+        enabledAndroidAppLabel(appPackage, appActivityName)?.let { return it }
         return fallbackLabel
     }
 
@@ -838,4 +825,57 @@ class Prefs(
     fun unregisterListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         prefs.unregisterOnSharedPreferenceChangeListener(listener)
     }
+
+    private fun readEnabledAndroidApps(): List<AndroidLauncherApp> {
+        val raw = prefs.getString(ENABLED_ANDROID_APPS, null)
+        if (raw == cachedEnabledAndroidAppsRaw) {
+            return cachedEnabledAndroidApps
+        }
+
+        val parsedApps = parseEnabledAndroidApps(raw)
+        updateEnabledAndroidAppsCache(raw, parsedApps)
+        return parsedApps
+    }
+
+    private fun parseEnabledAndroidApps(raw: String?): List<AndroidLauncherApp> {
+        if (raw == null) {
+            return emptyList()
+        }
+
+        return try {
+            val array = JSONArray(raw)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val label = obj.optString("l", "").trim()
+                    val packageName = obj.optString("p", "").trim()
+                    val activityName = obj.optString("a", "").trim()
+                    if (packageName.isEmpty() || activityName.isEmpty()) continue
+                    add(
+                        AndroidLauncherApp(
+                            label = label.ifEmpty { packageName },
+                            packageName = packageName,
+                            activityName = activityName,
+                        ),
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun updateEnabledAndroidAppsCache(
+        raw: String?,
+        apps: List<AndroidLauncherApp>,
+    ) {
+        cachedEnabledAndroidAppsRaw = raw
+        cachedEnabledAndroidApps = apps
+        cachedEnabledAndroidAppLabels = apps.associate { it.key to it.label }
+    }
+
+    private fun enabledAndroidAppLabel(
+        appPackage: String,
+        appActivityName: String,
+    ): String? = readEnabledAndroidApps().let { cachedEnabledAndroidAppLabels[homeItemKey(appPackage, appActivityName)] }
 }

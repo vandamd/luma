@@ -69,8 +69,16 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
+
+private data class UnlockGateCellularSnapshot(
+    val serviceState: Int = ServiceState.STATE_OUT_OF_SERVICE,
+    val signalLevel: Int? = null,
+    val networkType: Int? = null,
+)
 
 class ActionService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -99,6 +107,7 @@ class ActionService : AccessibilityService() {
     private var unlockGateWifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var unlockGateTelephonyCallback: TelephonyCallback? = null
     private var incomingCallCallback: IncomingCallCallback? = null
+    private var unlockGateCellularSnapshot = UnlockGateCellularSnapshot()
     private var unlockGateVolumeIndicatorVisible = false
     private var unlockGateVolumeIndicatorLabelRes = R.string.volume_indicator_ringer
     private var unlockGateVolumeIndicatorProgress = 0f
@@ -191,7 +200,11 @@ class ActionService : AccessibilityService() {
         mediaInfoObserverJob?.cancel()
         mediaInfoObserverJob =
             CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
-                MediaSessionHelper.mediaInfo.collect {
+                merge(
+                    MediaSessionHelper.mediaInfo.map { Unit },
+                    LumaNotificationListener.changeVersion.map { Unit },
+                    PhoneSignalHelper.changeVersion.map { Unit },
+                ).collect {
                     val view = unlockGateView ?: return@collect
                     if (!view.isAttachedToWindow) return@collect
                     updateUnlockGateText(view)
@@ -407,7 +420,7 @@ class ActionService : AccessibilityService() {
                             if (isInCall()) {
                                 launchLightOsRoute(this@ActionService, "call")
                             } else {
-                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName()
+                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
                                 if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
@@ -485,7 +498,7 @@ class ActionService : AccessibilityService() {
                             if (isInCall()) {
                                 launchLightOsRoute(this@ActionService, "call")
                             } else {
-                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName()
+                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
                                 if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
@@ -1567,6 +1580,7 @@ class ActionService : AccessibilityService() {
     private fun renderUnlockGateStateOnMain(): Boolean {
         val state = unlockGateStateMachine.state
         if (state.phase == UnlockGatePhase.Idle) {
+            MediaSessionHelper.setTrackingEnabled(false)
             cancelUnlockGateCallbacks()
             stopUnlockGateStatusBarMonitors()
             removeUnlockGateViewOnMain()
@@ -1576,19 +1590,19 @@ class ActionService : AccessibilityService() {
         hideVolumeOnlyOverlay()
 
         val isDark = prefs.isDarkTheme()
-        val isNewUnlockGateView = unlockGateView == null
+        val shouldTrackMediaSessions =
+            state.phase == UnlockGatePhase.UnlockGateVisible || state.phase == UnlockGatePhase.Dismissing
+        MediaSessionHelper.setTrackingEnabled(shouldTrackMediaSessions)
         val view =
             unlockGateView ?: overlayInflater.inflate(R.layout.unlock_gate_overlay, null).also {
                 unlockGateView = it
             }
 
-        if (isNewUnlockGateView) {
-            PhoneSignalHelper.refreshUnreadPhoneSignal(this)
-        } else {
-            PhoneSignalHelper.refreshUnreadPhoneSignalAsync(this)
-        }
+        PhoneSignalHelper.getCachedUnreadPhoneSignal(this)
         resetUnlockGateViewState(view)
-        MediaSessionHelper.refresh()
+        if (shouldTrackMediaSessions) {
+            MediaSessionHelper.refresh()
+        }
         updateUnlockGateTextAppearance(view, isDark)
         updateSecureLockMaskStatusBar(view)
         applyUnlockGateVolumeIndicator(view)
@@ -2605,9 +2619,9 @@ class ActionService : AccessibilityService() {
             airplaneIcon.visibility = View.GONE
 
             if (prefs.cellularEnabled) {
-                val state = prefs.cellularServiceState
+                val state = unlockGateCellularSnapshot.serviceState
                 if (state == ServiceState.STATE_EMERGENCY_ONLY) {
-                    val level = prefs.lastCellularSignalLevel
+                    val level = unlockGateCellularSnapshot.signalLevel
                     if (level != null) {
                         LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
                     } else {
@@ -2616,13 +2630,13 @@ class ActionService : AccessibilityService() {
                     networkType.visibility = View.VISIBLE
                     networkType.text = "SOS"
                 } else if (state == ServiceState.STATE_IN_SERVICE) {
-                    val level = prefs.lastCellularSignalLevel
+                    val level = unlockGateCellularSnapshot.signalLevel
                     if (level != null) {
                         LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
                     } else {
                         signalIcon.visibility = View.GONE
                     }
-                    val label = LumaStatusBarUi.networkLabelForType(prefs.lastCellularNetworkType)
+                    val label = LumaStatusBarUi.networkLabelForType(unlockGateCellularSnapshot.networkType)
                     networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
                     networkType.text = label
                 } else {
@@ -2826,7 +2840,7 @@ class ActionService : AccessibilityService() {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     val level = signalStrength.level.coerceIn(0, 4)
                     runOnMainThread {
-                        prefs.lastCellularSignalLevel = level
+                        unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(signalLevel = level)
                         refreshUnlockGateConnectivityStatus()
                     }
                 }
@@ -2837,7 +2851,7 @@ class ActionService : AccessibilityService() {
                 ) {
                     runOnMainThread {
                         if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
-                            prefs.lastCellularNetworkType = networkType
+                            unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(networkType = networkType)
                         }
                         refreshUnlockGateConnectivityStatus()
                     }
@@ -2845,7 +2859,7 @@ class ActionService : AccessibilityService() {
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
                     runOnMainThread {
-                        prefs.cellularServiceState = serviceState.state
+                        unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(serviceState = serviceState.state)
                         refreshUnlockGateConnectivityStatus()
                     }
                 }
@@ -2872,17 +2886,24 @@ class ActionService : AccessibilityService() {
     }
 
     private fun updateUnlockGateCellularSnapshot(telephonyManager: TelephonyManager) {
+        var updatedSnapshot = unlockGateCellularSnapshot
         try {
             val state = telephonyManager.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
-            prefs.cellularServiceState = state
+            updatedSnapshot = updatedSnapshot.copy(serviceState = state)
         } catch (_: SecurityException) {
         }
         try {
             telephonyManager.signalStrength?.let {
-                prefs.lastCellularSignalLevel = it.level.coerceIn(0, 4)
+                updatedSnapshot = updatedSnapshot.copy(signalLevel = it.level.coerceIn(0, 4))
             }
         } catch (_: SecurityException) {
         }
+        runCatching {
+            telephonyManager.dataNetworkType.takeIf { it != TelephonyManager.NETWORK_TYPE_UNKNOWN }
+        }.getOrNull()?.let { networkType ->
+            updatedSnapshot = updatedSnapshot.copy(networkType = networkType)
+        }
+        unlockGateCellularSnapshot = updatedSnapshot
     }
 
     private fun startIncomingCallMonitor() {
@@ -3026,7 +3047,8 @@ class ActionService : AccessibilityService() {
                 scheduleNextUnlockGateClockTick(view)
             }.also { runnable ->
                 val now = System.currentTimeMillis()
-                mainHandler.postDelayed(runnable, 1000 - (now % 1000))
+                val delayMs = 60_000L - (now % 60_000L)
+                mainHandler.postDelayed(runnable, delayMs)
             }
     }
 

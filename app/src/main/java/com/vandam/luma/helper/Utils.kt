@@ -141,8 +141,14 @@ fun launchAppModel(
     }
 
     val launcher = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-    val activityInfo = launcher.getActivityList(packageName, userHandle)
+    if (appActivityName.isNotEmpty()) {
+        val storedComponent = ComponentName(packageName, appActivityName)
+        if (startMainActivity(launcher, storedComponent, userHandle)) {
+            return true
+        }
+    }
 
+    val activityInfo = launcher.getActivityList(packageName, userHandle)
     val component =
         when (activityInfo.size) {
             0 -> {
@@ -155,27 +161,34 @@ fun launchAppModel(
             }
 
             else -> {
-                if (appActivityName.isNotEmpty()) {
-                    ComponentName(packageName, appActivityName)
-                } else {
-                    ComponentName(packageName, activityInfo.last().name)
-                }
+                ComponentName(packageName, activityInfo.last().name)
             }
         }
 
-    try {
-        launcher.startMainActivity(component, userHandle, null, null)
-    } catch (_: SecurityException) {
-        try {
-            launcher.startMainActivity(component, android.os.Process.myUserHandle(), null, null)
-        } catch (_: Exception) {
-            showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
-        }
-    } catch (_: Exception) {
+    if (!startMainActivity(launcher, component, userHandle)) {
         showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
     }
     return true
 }
+
+private fun startMainActivity(
+    launcher: LauncherApps,
+    component: ComponentName,
+    userHandle: UserHandle,
+): Boolean =
+    try {
+        launcher.startMainActivity(component, userHandle, null, null)
+        true
+    } catch (_: SecurityException) {
+        try {
+            launcher.startMainActivity(component, android.os.Process.myUserHandle(), null, null)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    } catch (_: Exception) {
+        false
+    }
 
 fun getDefaultLauncherPackage(context: Context): String {
     val intent = Intent()

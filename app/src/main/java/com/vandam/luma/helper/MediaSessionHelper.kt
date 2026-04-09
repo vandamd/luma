@@ -10,10 +10,12 @@ import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 data class MediaInfo(
@@ -35,6 +37,9 @@ object MediaSessionHelper {
     private val activeCallbacks = mutableMapOf<MediaController, MediaController.Callback>()
     private var dismissedPackageName: String? = null
     private var initialized = false
+    private var notificationObserverJob: Job? = null
+    @Volatile
+    private var trackingEnabled = false
 
     fun init(context: Context) {
         if (initialized) return
@@ -42,15 +47,24 @@ object MediaSessionHelper {
         listenerComponent = ComponentName(context, LumaNotificationListener::class.java)
         mediaSessionManager =
             context.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
-        scope.launch {
-            LumaNotificationListener.changeVersion.collect {
-                mainHandler.post { refreshSessions() }
-            }
+    }
+
+    fun setTrackingEnabled(enabled: Boolean) {
+        if (trackingEnabled == enabled) return
+        trackingEnabled = enabled
+        if (enabled) {
+            startNotificationObserver()
+            refresh()
+        } else {
+            notificationObserverJob?.cancel()
+            notificationObserverJob = null
+            clearCallbacks()
+            _mediaInfo.value = null
         }
     }
 
     fun refresh() {
-        mainHandler.post { refreshSessions() }
+        mainHandler.post { refreshSessions(registerCallbacks = trackingEnabled) }
     }
 
     fun togglePlayPause() {
@@ -93,8 +107,9 @@ object MediaSessionHelper {
         updateMediaInfo()
     }
 
-    private fun activeController(): MediaController? {
-        val controllers = activeCallbacks.keys.toList()
+    private fun activeController(
+        controllers: List<MediaController> = activeCallbacks.keys.toList(),
+    ): MediaController? {
         clearDismissedPackageIfInactive(controllers)
 
         val playingController =
@@ -113,7 +128,12 @@ object MediaSessionHelper {
         }
     }
 
-    fun getActiveMediaPackageName(): String? = activeController()?.packageName
+    fun getActiveMediaPackageName(forceRefresh: Boolean = false): String? =
+        if (forceRefresh || !trackingEnabled || activeCallbacks.isEmpty()) {
+            activeController(currentControllers())?.packageName
+        } else {
+            activeController()?.packageName
+        }
 
     private fun clearDismissedPackageIfInactive(controllers: List<MediaController>) {
         val dismissedPackage = dismissedPackageName ?: return
@@ -142,15 +162,23 @@ object MediaSessionHelper {
             playbackState == PlaybackState.STATE_SKIPPING_TO_NEXT ||
             playbackState == PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM
 
-    private fun refreshSessions() {
-        val msm = mediaSessionManager ?: return
-        val component = listenerComponent ?: return
-        val controllers =
-            try {
-                msm.getActiveSessions(component)
-            } catch (_: SecurityException) {
-                emptyList()
-            }
+    private fun currentControllers(): List<MediaController> {
+        val msm = mediaSessionManager ?: return emptyList()
+        val component = listenerComponent ?: return emptyList()
+        return try {
+            msm.getActiveSessions(component)
+        } catch (_: SecurityException) {
+            emptyList()
+        }
+    }
+
+    private fun refreshSessions(registerCallbacks: Boolean) {
+        val controllers = currentControllers()
+        if (!registerCallbacks) {
+            clearCallbacks()
+            updateMediaInfo(controllers)
+            return
+        }
 
         val stale = activeCallbacks.keys.toSet()
         for (controller in controllers) {
@@ -165,7 +193,27 @@ object MediaSessionHelper {
                 activeCallbacks.remove(controller)?.let { controller.unregisterCallback(it) }
             }
         }
-        updateMediaInfo()
+        updateMediaInfo(controllers)
+    }
+
+    private fun clearCallbacks() {
+        activeCallbacks.toMap().forEach { (controller, callback) ->
+            runCatching {
+                controller.unregisterCallback(callback)
+            }
+        }
+        activeCallbacks.clear()
+    }
+
+    private fun startNotificationObserver() {
+        if (notificationObserverJob?.isActive == true) return
+        if (!trackingEnabled) return
+        notificationObserverJob =
+            scope.launch {
+                LumaNotificationListener.changeVersion.collectLatest {
+                    mainHandler.post { refreshSessions(registerCallbacks = trackingEnabled) }
+                }
+            }
     }
 
     private fun createCallback(controller: MediaController): MediaController.Callback =
@@ -184,8 +232,10 @@ object MediaSessionHelper {
             }
         }
 
-    private fun updateMediaInfo() {
-        val active = activeController()
+    private fun updateMediaInfo(
+        controllers: List<MediaController> = activeCallbacks.keys.toList(),
+    ) {
+        val active = activeController(controllers)
         if (active == null) {
             _mediaInfo.value = null
             return

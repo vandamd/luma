@@ -1,6 +1,5 @@
 package com.vandam.luma.ui
 
-import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,15 +10,12 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
-import android.os.Build
 import android.os.Bundle
-import android.os.UserManager
 import android.telephony.ServiceState
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -50,15 +46,23 @@ import com.vandam.luma.databinding.FragmentHomeBinding
 import com.vandam.luma.helper.*
 import com.vandam.luma.helper.LumaNotificationListener
 import com.vandam.luma.listener.SwipeTouchListener
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 private const val TAG = "HomeFragment"
-private const val NETWORK_SHORTCUT_LIGHT_ROUTE = "networksettings"
-private const val NOTIFICATION_SETTINGS_LIGHT_ROUTE = "notificationsettings"
 private const val STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS = 120L
+
+private data class HomeCellularSnapshot(
+    val serviceState: Int = ServiceState.STATE_OUT_OF_SERVICE,
+    val signalLevel: Int? = null,
+    val networkType: Int? = null,
+)
+
+private data class PageIndicatorConfig(
+    val totalPages: Int,
+    val position: Prefs.PageIndicatorPosition,
+)
 
 private val FragmentHomeBinding.statusBattery: ImageView
     get() = statusBar.findViewById(R.id.statusBattery)
@@ -92,11 +96,14 @@ class HomeFragment :
     private var currentPage = 0
     private var totalPages = 1
     private var pageIndicatorLayout: LinearLayout? = null
+    private var pageIndicatorConfig: PageIndicatorConfig? = null
     private var batteryReceiver: BroadcastReceiver? = null
     private var bluetoothReceiver: BroadcastReceiver? = null
     private var telephonyCallback: TelephonyCallback? = null
     private var wifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var isUnlockGateVisible = false
+    private var visiblePageApps: List<AppModel> = emptyList()
+    private var cellularSnapshot = HomeCellularSnapshot()
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
@@ -145,17 +152,20 @@ class HomeFragment :
 
     override fun onResume() {
         super.onResume()
-        HomeCleanupHelper.setOnHomeCleanupCallback { refreshAppNames() }
+        HomeCleanupHelper.setOnHomeCleanupCallback {
+            refreshHomeStructure()
+            refreshHomeBadges()
+        }
         totalPages = prefs.homePages
         currentPage = viewModel.getCurrentHomePage()
         if (currentPage >= totalPages) currentPage = totalPages - 1
         viewModel.setCurrentHomePage(currentPage)
         pageIndicatorLayout = null
-        updatePageIndicator()
-        refreshAppNames()
+        pageIndicatorConfig = null
+        refreshHomeStructure()
+        refreshHomeBadges()
         applyStatusBarVisibility()
-        startBatteryMonitor()
-        startConnectivityMonitors()
+        syncStatusBarMonitoring()
         syncRepeatedHomeGateEligibility()
         syncUnlockGateHomeContentTop()
     }
@@ -217,26 +227,31 @@ class HomeFragment :
     private fun initPageNavigation() {
         totalPages = prefs.homePages
         if (currentPage >= totalPages) currentPage = totalPages - 1
-        updatePageIndicator()
-        refreshAppNames()
+        refreshHomeStructure()
+        refreshHomeBadges()
     }
 
     private fun updatePageIndicator() {
-        binding.mainLayout.findViewWithTag<View>("pageIndicator")?.let {
-            binding.mainLayout.removeView(it)
-            if (it === pageIndicatorLayout) pageIndicatorLayout = null
-        }
-
         if (totalPages < 2) {
             currentPage = 0
+            removePageIndicator()
             pageIndicatorLayout = null
             return
         }
 
-        if (prefs.pageIndicatorPosition == Prefs.PageIndicatorPosition.Hidden) {
-            pageIndicatorLayout = null
+        val position = prefs.pageIndicatorPosition
+        if (position == Prefs.PageIndicatorPosition.Hidden) {
+            removePageIndicator()
             return
         }
+
+        val config = PageIndicatorConfig(totalPages = totalPages, position = position)
+        if (pageIndicatorLayout != null && pageIndicatorConfig == config) {
+            syncPageIndicatorSelection()
+            return
+        }
+
+        removePageIndicator()
 
         val newLayout =
             LinearLayout(requireContext()).apply {
@@ -270,7 +285,7 @@ class HomeFragment :
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                 ).apply {
-                    when (prefs.pageIndicatorPosition) {
+                    when (position) {
                         Prefs.PageIndicatorPosition.Left -> {
                             gravity = Gravity.START or Gravity.CENTER_VERTICAL
                             marginStart = (15.5 * density).toInt()
@@ -289,14 +304,36 @@ class HomeFragment :
 
         binding.mainLayout.addView(newLayout, layoutParams)
         pageIndicatorLayout = newLayout
+        pageIndicatorConfig = config
+    }
+
+    private fun removePageIndicator() {
+        binding.mainLayout.findViewWithTag<View>("pageIndicator")?.let {
+            binding.mainLayout.removeView(it)
+        }
+        pageIndicatorLayout = null
+        pageIndicatorConfig = null
+    }
+
+    private fun syncPageIndicatorSelection() {
+        val indicatorLayout = pageIndicatorLayout ?: return
+        for (index in 0 until indicatorLayout.childCount) {
+            indicatorLayout.getChildAt(index).setBackgroundResource(
+                if (index == currentPage) {
+                    R.drawable.filled_circle
+                } else {
+                    R.drawable.hollow_circle
+                },
+            )
+        }
     }
 
     private fun switchToPage(page: Int) {
         if (page >= 0 && page < totalPages) {
             currentPage = page
             viewModel.setCurrentHomePage(currentPage)
-            refreshAppNames()
-            updatePageIndicator()
+            refreshHomeStructure()
+            refreshHomeBadges()
             syncRepeatedHomeGateEligibility()
         }
     }
@@ -318,8 +355,9 @@ class HomeFragment :
             }
         viewModel.setCurrentHomePage(currentPage)
         pageIndicatorLayout = null
-        updatePageIndicator()
-        refreshAppNames()
+        pageIndicatorConfig = null
+        refreshHomeStructure()
+        refreshHomeBadges()
         syncRepeatedHomeGateEligibility()
     }
 
@@ -327,7 +365,10 @@ class HomeFragment :
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility()
     }
 
-    private fun shouldShowLumaStatusBarNow(): Boolean = false
+    private fun shouldShowLumaStatusBarNow(): Boolean =
+        prefs.showsLumaStatusBarOnHomescreen() && !isUnlockGateVisible
+
+    private fun shouldMonitorStatusBarState(): Boolean = shouldShowLumaStatusBarNow()
 
     private fun lockscreenStatusBarInsetPx(): Int = resources.getDimensionPixelSize(R.dimen.lockscreen_gate_home_content_top)
 
@@ -353,8 +394,11 @@ class HomeFragment :
         binding.homeAppsLayout.gravity = android.view.Gravity.CENTER
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                LumaNotificationListener.changeVersion.collect {
-                    refreshAppNames()
+                merge(
+                    LumaNotificationListener.changeVersion.map { Unit },
+                    PhoneSignalHelper.changeVersion.map { Unit },
+                ).collect {
+                    refreshHomeBadges()
                 }
             }
         }
@@ -366,6 +410,7 @@ class HomeFragment :
                 if (_binding == null) return@collect
                 isUnlockGateVisible = snapshot.visible
                 applyStatusBarVisibility()
+                syncStatusBarMonitoring()
             }
         }
     }
@@ -377,11 +422,43 @@ class HomeFragment :
 
     private fun primeStatusBar() {
         applyStatusBarVisibility()
+        if (!shouldMonitorStatusBarState()) {
+            clearStatusBarViews()
+            return
+        }
         primeBatteryState()
         primeConnectivityState()
     }
 
+    private fun syncStatusBarMonitoring() {
+        if (!shouldMonitorStatusBarState()) {
+            stopBatteryMonitor()
+            stopConnectivityMonitors()
+            clearStatusBarViews()
+            return
+        }
+
+        startBatteryMonitor()
+        startConnectivityMonitors()
+    }
+
+    private fun clearStatusBarViews() {
+        binding.statusBatteryText.visibility = View.GONE
+        binding.statusBattery.visibility = View.GONE
+        binding.statusBatteryLayout.visibility = View.INVISIBLE
+        binding.statusConnectivityLayout.visibility = View.INVISIBLE
+        hideCellular()
+        hideWifi()
+        hideBluetooth()
+    }
+
     private fun primeBatteryState() {
+        if (!shouldMonitorStatusBarState()) {
+            binding.statusBatteryText.visibility = View.GONE
+            binding.statusBattery.visibility = View.GONE
+            binding.statusBatteryLayout.visibility = View.INVISIBLE
+            return
+        }
         if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
@@ -396,10 +473,19 @@ class HomeFragment :
     }
 
     private fun startBatteryMonitor() {
+        if (!shouldMonitorStatusBarState()) {
+            binding.statusBatteryText.visibility = View.GONE
+            binding.statusBattery.visibility = View.GONE
+            binding.statusBatteryLayout.visibility = View.INVISIBLE
+            return
+        }
         if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
             binding.statusBatteryText.visibility = View.GONE
             binding.statusBattery.visibility = View.GONE
             binding.statusBatteryLayout.visibility = View.INVISIBLE
+            return
+        }
+        if (batteryReceiver != null) {
             return
         }
         binding.statusBatteryLayout.visibility = View.VISIBLE
@@ -444,6 +530,10 @@ class HomeFragment :
     }
 
     private fun startConnectivityMonitors() {
+        if (!shouldMonitorStatusBarState()) {
+            clearStatusBarViews()
+            return
+        }
         primeConnectivityState()
         if (!prefs.showsLumaStatusBarAnywhere()) {
             return
@@ -460,6 +550,10 @@ class HomeFragment :
     }
 
     private fun primeConnectivityState() {
+        if (!shouldMonitorStatusBarState()) {
+            binding.statusConnectivityLayout.visibility = View.INVISIBLE
+            return
+        }
         if (!prefs.showsLumaStatusBarAnywhere()) {
             binding.statusConnectivityLayout.visibility = View.INVISIBLE
             return
@@ -491,7 +585,7 @@ class HomeFragment :
         if (tm != null) {
             updateCellularSnapshot(tm)
         }
-        applyCachedCellularState(fillMissingOnly = true)
+        applyCellularState(fillMissingOnly = true)
     }
 
     private fun startCellularMonitor() {
@@ -510,7 +604,7 @@ class HomeFragment :
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     if (_binding == null) return
                     val level = signalStrength.level.coerceIn(0, 4)
-                    prefs.lastCellularSignalLevel = level
+                    cellularSnapshot = cellularSnapshot.copy(signalLevel = level)
                     updateSignalIcon(level)
                 }
 
@@ -520,17 +614,17 @@ class HomeFragment :
                 ) {
                     if (_binding == null) return
                     if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
-                        prefs.lastCellularNetworkType = networkType
+                        cellularSnapshot = cellularSnapshot.copy(networkType = networkType)
                         updateNetworkTypeFromInt(networkType)
                     } else {
-                        prefs.lastCellularNetworkType?.let { updateNetworkTypeFromInt(it) }
+                        cellularSnapshot.networkType?.let { updateNetworkTypeFromInt(it) }
                     }
                 }
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
                     if (_binding == null) return
-                    prefs.cellularServiceState = serviceState.state
-                    applyCachedCellularState()
+                    cellularSnapshot = cellularSnapshot.copy(serviceState = serviceState.state)
+                    applyCellularState()
                 }
             }
         telephonyCallback = callback
@@ -543,26 +637,31 @@ class HomeFragment :
     }
 
     private fun updateCellularSnapshot(tm: TelephonyManager) {
+        var updatedSnapshot = cellularSnapshot
         try {
             val state = tm.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
-            prefs.cellularServiceState = state
+            updatedSnapshot = updatedSnapshot.copy(serviceState = state)
         } catch (_: SecurityException) {
         }
         try {
             tm.signalStrength?.let {
                 val level = it.level.coerceIn(0, 4)
-                prefs.lastCellularSignalLevel = level
-                updateSignalIcon(level)
+                updatedSnapshot = updatedSnapshot.copy(signalLevel = level)
             }
         } catch (_: SecurityException) {
         }
-        prefs.lastCellularNetworkType?.let { updateNetworkTypeFromInt(it) }
+        runCatching {
+            tm.dataNetworkType.takeIf { it != TelephonyManager.NETWORK_TYPE_UNKNOWN }
+        }.getOrNull()?.let { networkType ->
+            updatedSnapshot = updatedSnapshot.copy(networkType = networkType)
+        }
+        cellularSnapshot = updatedSnapshot
     }
 
-    private fun applyCachedCellularState(fillMissingOnly: Boolean = false) {
-        val state = prefs.cellularServiceState
-        val cachedSignalLevel = prefs.lastCellularSignalLevel
-        val cachedNetworkType = prefs.lastCellularNetworkType
+    private fun applyCellularState(fillMissingOnly: Boolean = false) {
+        val state = cellularSnapshot.serviceState
+        val cachedSignalLevel = cellularSnapshot.signalLevel
+        val cachedNetworkType = cellularSnapshot.networkType
 
         when (state) {
             ServiceState.STATE_OUT_OF_SERVICE -> {
@@ -608,7 +707,7 @@ class HomeFragment :
     }
 
     private fun updateSignalIcon(level: Int) {
-        val state = prefs.cellularServiceState
+        val state = cellularSnapshot.serviceState
         when (state) {
             ServiceState.STATE_EMERGENCY_ONLY -> binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(level))
             ServiceState.STATE_IN_SERVICE -> binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(level))
@@ -617,7 +716,7 @@ class HomeFragment :
     }
 
     private fun updateNetworkTypeFromInt(type: Int) {
-        val state = prefs.cellularServiceState
+        val state = cellularSnapshot.serviceState
         when (state) {
             ServiceState.STATE_EMERGENCY_ONLY -> {
                 binding.statusNetworkType.visibility = View.VISIBLE
@@ -879,24 +978,20 @@ class HomeFragment :
         return if (hasNotification) "$appName*" else appName
     }
 
-    private fun refreshAppNames() {
+    private fun refreshHomeStructure() {
+        totalPages = prefs.homePages
+        if (currentPage >= totalPages) {
+            currentPage = totalPages - 1
+            viewModel.setCurrentHomePage(currentPage)
+        }
         val appsPerPage = prefs.getAppsPerPage(currentPage + 1)
         val startIndex = currentPage * HomeLayout.APPS_PER_PAGE
-        val pageApps =
+        visiblePageApps =
             List(appsPerPage) { index ->
                 prefs.getHomeAppModel(startIndex + index)
             }
-        val packagesWithNotifications =
-            if (prefs.showNotificationIndicator) {
-                LumaNotificationListener.getActiveNotificationPackages()
-            } else {
-                emptySet()
-            }
-        val hasPhoneSignal =
-            prefs.showNotificationIndicator &&
-                pageApps.any { resolveTool(it) == Tool.Phone } &&
-                PhoneSignalHelper.hasUnreadPhoneSignal(requireContext())
 
+        updatePageIndicator()
         updateAppCountForPage(appsPerPage)
         val availableLabelWidth =
             (
@@ -909,14 +1004,36 @@ class HomeFragment :
             val appIndex = startIndex + i
             val view = binding.homeAppsLayout.getChildAt(i)
             if (view is TextView) {
-                val appModel = pageApps[i]
+                val appModel = visiblePageApps[i]
                 view.maxWidth = availableLabelWidth
-                view.text = getAppDisplayName(appModel, packagesWithNotifications, hasPhoneSignal)
+                view.text = appModel.displayName
                 view.id = appIndex
             }
         }
+    }
 
-        updatePageIndicator()
+    private fun refreshHomeBadges() {
+        if (_binding == null) return
+        val pageApps = visiblePageApps
+        if (pageApps.isEmpty()) return
+
+        val packagesWithNotifications =
+            if (prefs.showNotificationIndicator) {
+                LumaNotificationListener.getActiveNotificationPackages()
+            } else {
+                emptySet()
+            }
+        val hasPhoneSignal =
+            prefs.showNotificationIndicator &&
+                pageApps.any { resolveTool(it) == Tool.Phone } &&
+                PhoneSignalHelper.getCachedUnreadPhoneSignal(requireContext())
+
+        for (i in pageApps.indices) {
+            val view = binding.homeAppsLayout.getChildAt(i)
+            if (view is TextView) {
+                view.text = getAppDisplayName(pageApps[i], packagesWithNotifications, hasPhoneSignal)
+            }
+        }
     }
 
     private fun performAppTapHaptic() {
