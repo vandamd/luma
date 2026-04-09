@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Divider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -40,15 +41,35 @@ import com.vandam.luma.helper.launchAppModel
 import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.helper.performHapticFeedback
 import com.vandam.luma.style.SettingsTheme
+import com.vandam.luma.ui.compose.LazySettingsList
 import com.vandam.luma.ui.compose.SettingsScreen
+import com.vandam.luma.ui.compose.NotificationListContentPadding
 
 class ReorderToolsFragment : Fragment() {
     private companion object {
         val ReorderIconSize = 30.dp
         val ReorderIconSpacing = 6.dp
+        val VisibilityEditIconSpacing = 8.dp
     }
 
     private lateinit var prefs: Prefs
+
+    private sealed interface ReorderListEntry {
+        val key: String
+
+        data class Row(
+            val index: Int,
+            val appModel: AppModel,
+        ) : ReorderListEntry {
+            override val key: String = "row:${appModel.appPackage}|${appModel.appActivityName}"
+        }
+
+        data class Divider(
+            val index: Int,
+        ) : ReorderListEntry {
+            override val key: String = "divider:$index"
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,6 +99,7 @@ class ReorderToolsFragment : Fragment() {
                     }
                 }
             }
+        val entries = buildEntries(items, hiddenStates)
 
         DisposableEffect(Unit) {
             val listener =
@@ -93,59 +115,95 @@ class ReorderToolsFragment : Fragment() {
         SettingsScreen(
             title = stringResource(R.string.homescreen_reorder_tools),
             onBack = ::goBack,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = NotificationListContentPadding,
+            scrollable = false,
         ) {
-            var visibleCount = 0
-            items.forEachIndexed { index, appModel ->
-                val itemKey = prefs.homeItemKey(appModel)
-                val isVisible = hiddenStates[itemKey] != true
-                if (isVisible) visibleCount++
-                
-                ReorderRow(
-                    appModel = appModel,
-                    label = appModel.displayName,
-                    visibleOnHome = isVisible,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < items.lastIndex,
-                    onOpen = {
-                        performAppTapHapticFeedback(context)
-                        launchAppModel(context, appModel)
-                    },
-                    onToggleVisibility = {
-                        val visible = hiddenStates[itemKey] != true
-                        hiddenStates[itemKey] = visible
-                        prefs.setHomeItemHidden(appModel, hidden = visible)
-                        HomeItemsManager.applyCurrentHomeLayout(context, prefs)
-                    },
-                    onRename = {
-                        findNavController().navigate(
-                            R.id.renameHomeItemFragment,
-                            bundleOf(
-                                RenameHomeItemFragment.APP_PACKAGE to appModel.appPackage,
-                                RenameHomeItemFragment.APP_ACTIVITY to appModel.appActivityName,
-                                RenameHomeItemFragment.CURRENT_LABEL to appModel.displayName,
-                            ),
-                        )
-                    },
-                    onMoveUp = {
-                        swapItems(items, index, index - 1)
-                    },
-                    onMoveDown = {
-                        swapItems(items, index, index + 1)
-                    },
-                )
-                
-                if (isVisible && visibleCount % 6 == 0 && index < items.lastIndex) {
-                    Divider(
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .padding(end = 37.dp),
-                        color = Color.White,
-                        thickness = 0.8.dp,
-                    )
+            LazySettingsList(
+                modifier = Modifier.weight(1f, fill = true),
+                itemSpacing = 24.dp,
+            ) {
+                items(
+                    items = entries,
+                    key = { it.key },
+                ) { entry ->
+                    when (entry) {
+                        is ReorderListEntry.Row -> {
+                            val appModel = entry.appModel
+                            val index = entry.index
+                            val itemKey = prefs.homeItemKey(appModel)
+                            val isVisible = hiddenStates[itemKey] != true
+
+                            ReorderRow(
+                                appModel = appModel,
+                                label = appModel.displayName,
+                                visibleOnHome = isVisible,
+                                canMoveUp = index > 0,
+                                canMoveDown = index < items.lastIndex,
+                                onOpen = {
+                                    performAppTapHapticFeedback(context)
+                                    launchAppModel(context, appModel)
+                                },
+                                onToggleVisibility = {
+                                    val visible = hiddenStates[itemKey] != true
+                                    hiddenStates[itemKey] = visible
+                                    prefs.setHomeItemHidden(appModel, hidden = visible)
+                                    HomeItemsManager.applyCurrentHomeLayout(context, prefs)
+                                },
+                                onRename = {
+                                    findNavController().navigate(
+                                        R.id.renameHomeItemFragment,
+                                        bundleOf(
+                                            RenameHomeItemFragment.APP_PACKAGE to appModel.appPackage,
+                                            RenameHomeItemFragment.APP_ACTIVITY to appModel.appActivityName,
+                                            RenameHomeItemFragment.CURRENT_LABEL to appModel.displayName,
+                                        ),
+                                    )
+                                },
+                                onMoveUp = {
+                                    swapItems(items, index, index - 1)
+                                },
+                                onMoveDown = {
+                                    swapItems(items, index, index + 1)
+                                },
+                            )
+                        }
+
+                        is ReorderListEntry.Divider -> {
+                            Divider(
+                                modifier =
+                                    Modifier
+                                        .padding(vertical = 8.dp)
+                                        .padding(end = 37.dp),
+                                color = Color.White,
+                                thickness = 0.8.dp,
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private fun buildEntries(
+        items: List<AppModel>,
+        hiddenStates: Map<String, Boolean>,
+    ): List<ReorderListEntry> {
+        val entries = mutableListOf<ReorderListEntry>()
+        var visibleCount = 0
+
+        items.forEachIndexed { index, appModel ->
+            val itemKey = prefs.homeItemKey(appModel)
+            val isVisible = hiddenStates[itemKey] != true
+            entries.add(ReorderListEntry.Row(index, appModel))
+            if (isVisible) {
+                visibleCount++
+            }
+            if (isVisible && visibleCount % 6 == 0 && index < items.lastIndex) {
+                entries.add(ReorderListEntry.Divider(index))
+            }
+        }
+
+        return entries
     }
 
     private fun syncFromPrefs(
@@ -224,36 +282,41 @@ class ReorderToolsFragment : Fragment() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(ReorderIconSpacing, Alignment.End),
             ) {
-                ReorderIconButton(
-                    iconRes = if (visibleOnHome) R.drawable.visibility else R.drawable.visibility_off,
-                    enabled = true,
-                    tint = if (visibleOnHome) textColor else disabledColor,
-                    size = ReorderIconSize,
-                    contentDescription =
-                        stringResource(
-                            if (visibleOnHome) {
-                                R.string.content_desc_hide_from_home
-                            } else {
-                                R.string.content_desc_show_on_home
-                            },
-                        ),
-                    onClick = {
-                        performHapticFeedback(context)
-                        onToggleVisibility()
-                    },
-                )
-                ReorderIconButton(
-                    iconRes = R.drawable.edit_32px,
-                    enabled = true,
-                    tint = textColor,
-                    size = ReorderIconSize,
-                    iconSize = 28.dp,
-                    contentDescription = stringResource(R.string.content_desc_edit_name),
-                    onClick = {
-                        performHapticFeedback(context)
-                        onRename()
-                    },
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(VisibilityEditIconSpacing),
+                ) {
+                    ReorderIconButton(
+                        iconRes = if (visibleOnHome) R.drawable.visibility else R.drawable.visibility_off,
+                        enabled = true,
+                        tint = if (visibleOnHome) textColor else disabledColor,
+                        size = ReorderIconSize,
+                        contentDescription =
+                            stringResource(
+                                if (visibleOnHome) {
+                                    R.string.content_desc_hide_from_home
+                                } else {
+                                    R.string.content_desc_show_on_home
+                                },
+                            ),
+                        onClick = {
+                            performHapticFeedback(context)
+                            onToggleVisibility()
+                        },
+                    )
+                    ReorderIconButton(
+                        iconRes = R.drawable.edit_32px,
+                        enabled = true,
+                        tint = textColor,
+                        size = ReorderIconSize,
+                        iconSize = 28.dp,
+                        contentDescription = stringResource(R.string.content_desc_edit_name),
+                        onClick = {
+                            performHapticFeedback(context)
+                            onRename()
+                        },
+                    )
+                }
                 ReorderIconButton(
                     iconRes = R.drawable.keyboard_arrow_down_32px,
                     enabled = canMoveDown,

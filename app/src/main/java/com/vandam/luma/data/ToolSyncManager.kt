@@ -66,7 +66,7 @@ object ToolSyncManager {
                 if (payload == null) {
                     ToolSyncResult.InvalidAccount
                 } else {
-                    applyPayload(context, payload)
+                    applyNormalizedResult(context, normalizePayload(payload))
                 }
             },
             onFailure = { error ->
@@ -99,7 +99,7 @@ object ToolSyncManager {
                             if (payload == null) {
                                 ToolSyncResult.InvalidAccount
                             } else {
-                                applyPayload(context, payload)
+                                normalizePayload(payload)
                             }
                         },
                         onFailure = { error ->
@@ -114,22 +114,34 @@ object ToolSyncManager {
         }
     }
 
-    private fun applyPayload(
+    fun applySyncResult(
         context: Context,
+        result: ToolSyncResult.Success,
+    ): ToolSyncResult = applyNormalizedResult(context, result)
+
+    private fun normalizePayload(
         payload: DeviceSyncPayload,
+    ): ToolSyncResult.Success =
+        ToolSyncResult.Success(
+            enabledToolIds = normalizeToolIds(payload.enabledToolIds),
+            enabledAppIds = ManagedAppCatalog.normalizeIds(payload.enabledAppIds),
+            enabledAndroidApps = normalizeAndroidApps(payload.enabledAndroidApps),
+            requestedAppUpdateVersions = payload.requestedAppUpdateVersions,
+        )
+
+    private fun applyNormalizedResult(
+        context: Context,
+        result: ToolSyncResult.Success,
     ): ToolSyncResult =
         runCatching {
-            val toolIds = normalizeToolIds(payload.enabledToolIds)
-            val appIds = ManagedAppCatalog.normalizeIds(payload.enabledAppIds)
-            val androidApps = normalizeAndroidApps(payload.enabledAndroidApps)
-            applyHomeLayout(context, toolIds, appIds, androidApps)
-            debugLog("Applied tool sync payload")
-            ToolSyncResult.Success(
-                enabledToolIds = toolIds,
-                enabledAppIds = appIds,
-                enabledAndroidApps = androidApps,
-                requestedAppUpdateVersions = payload.requestedAppUpdateVersions,
+            applyHomeLayout(
+                context = context,
+                enabledToolIds = result.enabledToolIds,
+                enabledAppIds = result.enabledAppIds,
+                enabledAndroidApps = result.enabledAndroidApps,
             )
+            debugLog("Applied tool sync payload")
+            result
         }.getOrElse { error ->
             Log.w(LOG_TAG, "Failed to apply tool layout", error)
             ToolSyncResult.Failure(error.message ?: "Unable to apply tools")

@@ -158,7 +158,6 @@ class MainActivity : AppCompatActivity() {
         updateSystemStatusBarVisibility(navController.currentDestination?.id)
         syncRepeatedHomeGateEligibility(navController.currentDestination?.id)
         ManagedAppManager.onResume(this)
-        startToolSyncSubscription()
     }
 
     override fun onPause() {
@@ -373,8 +372,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        ManagedAppManager.syncInstalledAppsToDashboard(this, accountNumber)
-
         if (toolSyncJob?.isActive == true && subscribedAccountNumber == accountNumber) {
             return
         }
@@ -383,19 +380,22 @@ class MainActivity : AppCompatActivity() {
         toolSyncWebSocketJob?.cancel()
         toolSyncReconnectWatchdogJob?.cancel()
         subscribedAccountNumber = accountNumber
+        ManagedAppManager.syncInstalledAppsToDashboard(this, accountNumber)
         if (BuildConfig.DEBUG) {
             Log.d(LOG_TAG, "Starting tool sync subscription")
         }
         toolSyncJob =
             lifecycleScope.launch {
-                runCatching {
-                    ToolSyncManager
-                        .observeSyncResults(this@MainActivity, accountNumber)
-                        .collectLatest { result ->
-                            handleToolSyncResult(result, "subscription")
-                        }
-                }.onFailure { error ->
-                    Log.w(LOG_TAG, "Tool sync subscription failed", error)
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    runCatching {
+                        ToolSyncManager
+                            .observeSyncResults(this@MainActivity, accountNumber)
+                            .collectLatest { result ->
+                                handleToolSyncResult(result, "subscription")
+                            }
+                    }.onFailure { error ->
+                        Log.w(LOG_TAG, "Tool sync subscription failed", error)
+                    }
                 }
             }
 
@@ -484,6 +484,11 @@ class MainActivity : AppCompatActivity() {
 
                 if (toolsChanged || appsChanged || androidAppsChanged || requestedAppUpdatesChanged) {
                     val previousManagedAppIds = lastSyncedManagedAppIds
+                    when (ToolSyncManager.applySyncResult(this, result)) {
+                        is ToolSyncResult.Success -> Unit
+                        ToolSyncResult.InvalidAccount -> return
+                        is ToolSyncResult.Failure -> return
+                    }
                     lastSyncedToolIds = result.enabledToolIds
                     lastSyncedManagedAppIds = result.enabledAppIds
                     lastSyncedAndroidApps = result.enabledAndroidApps

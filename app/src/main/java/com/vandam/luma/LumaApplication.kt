@@ -44,21 +44,21 @@ class LumaApplication : Application() {
                 user: UserHandle,
             ) {
                 HomeCleanupHelper.cleanupRemovedPackage(this@LumaApplication, packageName, user)
-                ManagedAppManager.syncInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
             }
 
             override fun onPackageAdded(
                 packageName: String,
                 user: UserHandle,
             ) {
-                ManagedAppManager.syncInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
             }
 
             override fun onPackageChanged(
                 packageName: String,
                 user: UserHandle,
             ) {
-                ManagedAppManager.syncInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
             }
 
             override fun onPackagesAvailable(
@@ -66,7 +66,7 @@ class LumaApplication : Application() {
                 user: UserHandle,
                 replacing: Boolean,
             ) {
-                ManagedAppManager.syncInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
             }
 
             override fun onPackagesUnavailable(
@@ -74,7 +74,7 @@ class LumaApplication : Application() {
                 user: UserHandle,
                 replacing: Boolean,
             ) {
-                ManagedAppManager.syncInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
             }
         }
 

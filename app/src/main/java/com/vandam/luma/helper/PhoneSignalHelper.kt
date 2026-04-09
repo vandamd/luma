@@ -9,6 +9,10 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class PhoneNotificationSummary(
@@ -37,6 +41,8 @@ object PhoneSignalHelper {
     @Volatile private var cachedUnreadPhoneSignal = false
     @Volatile private var cachedUnreadPhoneSignalAtMs = 0L
     @Volatile private var refreshInFlight = false
+    private val _changeVersion = MutableStateFlow(0L)
+    val changeVersion: StateFlow<Long> = _changeVersion.asStateFlow()
 
     fun phoneToolPermissions(): Array<String> = phoneToolPermissions.copyOf()
 
@@ -186,7 +192,11 @@ object PhoneSignalHelper {
     ): Boolean = ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     private fun updateCachedUnreadPhoneSignal(value: Boolean) {
+        val didChange = cachedUnreadPhoneSignal != value
         cachedUnreadPhoneSignal = value
         cachedUnreadPhoneSignalAtMs = SystemClock.elapsedRealtime()
+        if (didChange) {
+            _changeVersion.update { it + 1 }
+        }
     }
 }

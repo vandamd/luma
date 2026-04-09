@@ -13,8 +13,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +53,8 @@ import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.style.SettingsTheme
 import com.vandam.luma.ui.compose.SettingsBodyState
 import com.vandam.luma.ui.compose.SettingsCompactListSpacing
+import com.vandam.luma.ui.compose.LazySettingsList
+import com.vandam.luma.ui.compose.NotificationListContentPadding
 import com.vandam.luma.ui.compose.SettingsStateScreen
 import com.vandam.luma.ui.noRippleClickable
 
@@ -108,7 +109,7 @@ class NotificationListFragment : Fragment() {
     }
 
     @Suppress("DEPRECATION")
-    private fun loadNotifications(): List<NotificationItem> {
+    private fun loadNotifications(packageLabelCache: MutableMap<String, String>): List<NotificationItem> {
         val phoneNotifications = loadPhoneNotifications()
         val pm = requireContext().packageManager
         val nonOngoing =
@@ -124,7 +125,7 @@ class NotificationListFragment : Fragment() {
             nonOngoing
                 .filterNot { it.packageName == TELECOM_PACKAGE }
                 .filterNot { it.isGroupSummary() && it.groupKey in groupKeysWithChildren }
-                .map { sbn -> sbn.toNotificationItem(pm) }
+                .map { sbn -> sbn.toNotificationItem(pm, packageLabelCache) }
                 .sortedBy { it.title.lowercase() }
         return phoneNotifications + appNotifications
     }
@@ -159,12 +160,17 @@ class NotificationListFragment : Fragment() {
     private fun StatusBarNotification.isGroupSummary(): Boolean = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
 
     @Suppress("DEPRECATION")
-    private fun StatusBarNotification.toNotificationItem(pm: android.content.pm.PackageManager): NotificationItem {
+    private fun StatusBarNotification.toNotificationItem(
+        pm: android.content.pm.PackageManager,
+        packageLabelCache: MutableMap<String, String>,
+    ): NotificationItem {
         val appLabel =
-            try {
-                pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
-            } catch (_: Exception) {
-                packageName
+            packageLabelCache.getOrPut(packageName) {
+                try {
+                    pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+                } catch (_: Exception) {
+                    packageName
+                }
             }
         return NotificationItem(
             key = key,
@@ -182,8 +188,9 @@ class NotificationListFragment : Fragment() {
         val refreshVersion = contentVersion.value
         val dismissedKeys = remember { mutableSetOf<String>() }
         val notifications = remember { mutableStateListOf<NotificationItem>() }
+        val packageLabelCache = remember { mutableMapOf<String, String>() }
         LaunchedEffect(version, refreshVersion) {
-            val fresh = loadNotifications().filter { it.key !in dismissedKeys }
+            val fresh = loadNotifications(packageLabelCache).filter { it.key !in dismissedKeys }
             notifications.clear()
             notifications.addAll(fresh)
         }
@@ -208,55 +215,64 @@ class NotificationListFragment : Fragment() {
             title = stringResource(R.string.notification_list_title),
             bodyState = bodyState,
             onBack = ::goBack,
-            verticalArrangement = Arrangement.spacedBy(SettingsCompactListSpacing),
+            contentPadding = NotificationListContentPadding,
+            scrollable = false,
         ) {
-            notifications.forEach { item ->
-                NotificationRow(
-                    item = item,
-                    onTap = {
-                        item.launchRoute?.let { route ->
-                            launchLightOsRoute(context, route)
-                            return@NotificationRow
-                        }
-                        val opened =
-                            try {
-                                if (item.contentIntent != null) {
-                                    val opts = ActivityOptions.makeBasic()
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                        opts.setPendingIntentBackgroundActivityStartMode(
-                                            ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
+            LazySettingsList(
+                modifier = Modifier.weight(1f, fill = true),
+                itemSpacing = SettingsCompactListSpacing,
+            ) {
+                items(
+                    items = notifications,
+                    key = { it.key },
+                ) { item ->
+                    NotificationRow(
+                        item = item,
+                        onTap = {
+                            item.launchRoute?.let { route ->
+                                launchLightOsRoute(context, route)
+                                return@NotificationRow
+                            }
+                            val opened =
+                                try {
+                                    if (item.contentIntent != null) {
+                                        val opts = ActivityOptions.makeBasic()
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                            opts.setPendingIntentBackgroundActivityStartMode(
+                                                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
+                                            )
+                                        }
+                                        item.contentIntent.send(
+                                            context,
+                                            0,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            opts.toBundle(),
                                         )
+                                        true
+                                    } else {
+                                        false
                                     }
-                                    item.contentIntent.send(
-                                        context,
-                                        0,
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        opts.toBundle(),
-                                    )
-                                    true
-                                } else {
+                                } catch (_: PendingIntent.CanceledException) {
                                     false
                                 }
-                            } catch (_: PendingIntent.CanceledException) {
-                                false
+                            if (!opened) {
+                                val launchIntent = context.packageManager.getLaunchIntentForPackage(item.packageName)
+                                launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                launchIntent?.let { context.startActivity(it) }
                             }
-                        if (!opened) {
-                            val launchIntent = context.packageManager.getLaunchIntentForPackage(item.packageName)
-                            launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            launchIntent?.let { context.startActivity(it) }
-                        }
-                    },
-                    onDismiss = {
-                        if (item.key.isNotEmpty()) {
-                            LumaNotificationListener.dismissNotification(item.key)
-                        }
-                        dismissedKeys.add(item.key)
-                        notifications.remove(item)
-                    },
-                )
+                        },
+                        onDismiss = {
+                            if (item.key.isNotEmpty()) {
+                                LumaNotificationListener.dismissNotification(item.key)
+                            }
+                            dismissedKeys.add(item.key)
+                            notifications.remove(item)
+                        },
+                    )
+                }
             }
         }
     }
@@ -289,7 +305,10 @@ class NotificationListFragment : Fragment() {
             }
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(end = 32.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(end = 32.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
