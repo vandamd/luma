@@ -42,8 +42,9 @@ import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.helper.performHapticFeedback
 import com.vandam.luma.style.SettingsTheme
 import com.vandam.luma.ui.compose.LazySettingsList
-import com.vandam.luma.ui.compose.SettingsScreen
 import com.vandam.luma.ui.compose.NotificationListContentPadding
+import com.vandam.luma.ui.compose.SettingsListContentPaddingNoBottom
+import com.vandam.luma.ui.compose.SettingsScreen
 
 class ReorderToolsFragment : Fragment() {
     private companion object {
@@ -121,6 +122,7 @@ class ReorderToolsFragment : Fragment() {
             LazySettingsList(
                 modifier = Modifier.weight(1f, fill = true),
                 itemSpacing = 24.dp,
+                contentPadding = SettingsListContentPaddingNoBottom,
             ) {
                 items(
                     items = entries,
