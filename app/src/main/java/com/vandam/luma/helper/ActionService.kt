@@ -1591,7 +1591,9 @@ class ActionService : AccessibilityService() {
 
         val isDark = prefs.isDarkTheme()
         val shouldTrackMediaSessions =
-            state.phase == UnlockGatePhase.UnlockGateVisible || state.phase == UnlockGatePhase.Dismissing
+            state.phase == UnlockGatePhase.SecureMask ||
+                state.phase == UnlockGatePhase.UnlockGateVisible ||
+                state.phase == UnlockGatePhase.Dismissing
         MediaSessionHelper.setTrackingEnabled(shouldTrackMediaSessions)
         val view =
             unlockGateView ?: overlayInflater.inflate(R.layout.unlock_gate_overlay, null).also {
