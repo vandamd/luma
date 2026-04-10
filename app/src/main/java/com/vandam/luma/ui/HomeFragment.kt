@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -18,8 +19,10 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -52,6 +55,7 @@ import kotlinx.coroutines.launch
 
 private const val TAG = "HomeFragment"
 private const val STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS = 120L
+private const val PAGE_INDICATOR_TOUCH_TARGET_DP = 48
 
 private data class HomeCellularSnapshot(
     val serviceState: Int = ServiceState.STATE_OUT_OF_SERVICE,
@@ -63,6 +67,81 @@ private data class PageIndicatorConfig(
     val totalPages: Int,
     val position: Prefs.PageIndicatorPosition,
 )
+
+private data class PageIndicatorTouchTarget(
+    val view: View,
+    val localBounds: Rect,
+    val hitBounds: Rect,
+    val slopBounds: Rect,
+    val centerX: Int,
+    val centerY: Int,
+)
+
+private class PageIndicatorTouchHandler(
+    private val targets: List<PageIndicatorTouchTarget>,
+) {
+    private var activeTarget: PageIndicatorTouchTarget? = null
+    private val missLocation = -10000f
+
+    fun onTouchEvent(event: MotionEvent): Boolean {
+        val x = event.rawX.toInt()
+        val y = event.rawY.toInt()
+
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                activeTarget =
+                    targets
+                        .filter { it.hitBounds.contains(x, y) }
+                        .minByOrNull { target ->
+                            val dx = x - target.centerX
+                            val dy = y - target.centerY
+                            (dx * dx) + (dy * dy)
+                        }
+                val target = activeTarget ?: return false
+                dispatchToTarget(target, event, true)
+                return true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val target = activeTarget ?: return false
+                dispatchToTarget(target, event, target.slopBounds.contains(x, y))
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                val target = activeTarget ?: return false
+                val sendHit = target.slopBounds.contains(x, y)
+                activeTarget = null
+                dispatchToTarget(target, event, sendHit)
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                val target = activeTarget ?: return false
+                activeTarget = null
+                dispatchToTarget(target, event, false)
+                return true
+            }
+
+            else -> return false
+        }
+    }
+
+    private fun dispatchToTarget(
+        target: PageIndicatorTouchTarget,
+        event: MotionEvent,
+        sendHit: Boolean,
+    ) {
+        val targetEvent = MotionEvent.obtain(event)
+        if (sendHit) {
+            targetEvent.setLocation(target.view.width / 2f, target.view.height / 2f)
+        } else {
+            targetEvent.setLocation(missLocation, missLocation)
+        }
+        target.view.dispatchTouchEvent(targetEvent)
+        targetEvent.recycle()
+    }
+}
 
 private val FragmentHomeBinding.statusBattery: ImageView
     get() = statusBar.findViewById(R.id.statusBattery)
@@ -97,6 +176,7 @@ class HomeFragment :
     private var totalPages = 1
     private var pageIndicatorLayout: LinearLayout? = null
     private var pageIndicatorConfig: PageIndicatorConfig? = null
+    private var pageIndicatorTouchHandler: PageIndicatorTouchHandler? = null
     private var batteryReceiver: BroadcastReceiver? = null
     private var bluetoothReceiver: BroadcastReceiver? = null
     private var telephonyCallback: TelephonyCallback? = null
@@ -128,6 +208,7 @@ class HomeFragment :
     }
 
     override fun onDestroyView() {
+        pageIndicatorTouchHandler = null
         super.onDestroyView()
         isUnlockGateVisible = false
         _binding = null
@@ -190,7 +271,7 @@ class HomeFragment :
     }
 
     private fun initSwipeTouchListener() {
-        binding.touchArea.setOnTouchListener(
+        val gestureListener =
             createGestureListener(
                 onLongClick = {
                     try {
@@ -199,7 +280,15 @@ class HomeFragment :
                     } catch (_: Exception) {
                     }
                 },
-            ),
+            )
+        binding.touchArea.setOnTouchListener(
+            View.OnTouchListener { view, motionEvent ->
+                if (pageIndicatorTouchHandler?.onTouchEvent(motionEvent) == true) {
+                    true
+                } else {
+                    gestureListener.onTouch(view, motionEvent)
+                }
+            },
         )
     }
 
@@ -305,9 +394,11 @@ class HomeFragment :
         binding.mainLayout.addView(newLayout, layoutParams)
         pageIndicatorLayout = newLayout
         pageIndicatorConfig = config
+        installPageIndicatorTouchHandler(newLayout)
     }
 
     private fun removePageIndicator() {
+        pageIndicatorTouchHandler = null
         binding.mainLayout.findViewWithTag<View>("pageIndicator")?.let {
             binding.mainLayout.removeView(it)
         }
@@ -318,13 +409,56 @@ class HomeFragment :
     private fun syncPageIndicatorSelection() {
         val indicatorLayout = pageIndicatorLayout ?: return
         for (index in 0 until indicatorLayout.childCount) {
-            indicatorLayout.getChildAt(index).setBackgroundResource(
+            val circle = indicatorLayout.getChildAt(index)
+            circle.setBackgroundResource(
                 if (index == currentPage) {
                     R.drawable.filled_circle
                 } else {
                     R.drawable.hollow_circle
                 },
             )
+        }
+    }
+
+    private fun installPageIndicatorTouchHandler(indicatorLayout: LinearLayout) {
+        val targetSizePx = (PAGE_INDICATOR_TOUCH_TARGET_DP * resources.displayMetrics.density).toInt()
+        val touchSlop = ViewConfiguration.get(requireContext()).scaledTouchSlop
+
+        binding.mainLayout.post {
+            if (_binding == null || pageIndicatorLayout !== indicatorLayout) return@post
+
+            val targets = mutableListOf<PageIndicatorTouchTarget>()
+            for (index in 0 until indicatorLayout.childCount) {
+                val circle = indicatorLayout.getChildAt(index)
+                val localBounds = Rect().apply {
+                    circle.getDrawingRect(this)
+                    binding.mainLayout.offsetDescendantRectToMyCoords(circle, this)
+                }
+                val hitBounds =
+                    Rect().apply {
+                        val location = IntArray(2)
+                        circle.getLocationOnScreen(location)
+                        set(location[0], location[1], location[0] + circle.width, location[1] + circle.height)
+                    }
+                val horizontalInset = ((targetSizePx - hitBounds.width()).coerceAtLeast(0)) / 2
+                val verticalInset = ((targetSizePx - hitBounds.height()).coerceAtLeast(0)) / 2
+                localBounds.inset(-horizontalInset, -verticalInset)
+                hitBounds.inset(-horizontalInset, -verticalInset)
+                targets +=
+                    PageIndicatorTouchTarget(
+                        view = circle,
+                        localBounds = Rect(localBounds),
+                        hitBounds = Rect(hitBounds),
+                        slopBounds =
+                            Rect(hitBounds).apply {
+                                inset(-touchSlop, -touchSlop)
+                            },
+                        centerX = hitBounds.centerX(),
+                        centerY = hitBounds.centerY(),
+                    )
+            }
+
+            pageIndicatorTouchHandler = targets.takeIf { it.isNotEmpty() }?.let(::PageIndicatorTouchHandler)
         }
     }
 
