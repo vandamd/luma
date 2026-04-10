@@ -2072,6 +2072,7 @@ class ActionService : AccessibilityService() {
     ) {
         runOnMainThread {
             val isDark = prefs.isDarkTheme()
+            val backgroundColor = if (isDark) Color.BLACK else Color.WHITE
             val textColor = if (isDark) Color.WHITE else Color.BLACK
             val view =
                 volumeOnlyOverlayView ?: overlayInflater.inflate(R.layout.volume_only_overlay, null).also {
@@ -2080,6 +2081,7 @@ class ActionService : AccessibilityService() {
 
             val indicator = view as LinearLayout
             indicator.visibility = View.VISIBLE
+            indicator.setBackgroundColor(backgroundColor)
             val density = indicator.context.resources.displayMetrics.density
             val paddingBottomPx = if (compactPadding) (2.3f * density).toInt() else (9.3f * density).toInt()
             indicator.setPadding(
