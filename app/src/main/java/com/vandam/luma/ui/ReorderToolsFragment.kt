@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -42,7 +43,6 @@ import com.vandam.luma.helper.performAppTapHapticFeedback
 import com.vandam.luma.helper.performHapticFeedback
 import com.vandam.luma.style.SettingsTheme
 import com.vandam.luma.ui.compose.LazySettingsList
-import com.vandam.luma.ui.compose.NotificationListContentPadding
 import com.vandam.luma.ui.compose.SettingsListContentPaddingNoBottom
 import com.vandam.luma.ui.compose.SettingsScreen
 
@@ -116,7 +116,7 @@ class ReorderToolsFragment : Fragment() {
         SettingsScreen(
             title = stringResource(R.string.homescreen_reorder_tools),
             onBack = ::goBack,
-            contentPadding = NotificationListContentPadding,
+            contentPadding = PaddingValues(bottom = 28.dp),
             scrollable = false,
         ) {
             LazySettingsList(
