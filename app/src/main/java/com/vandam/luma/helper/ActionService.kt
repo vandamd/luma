@@ -649,6 +649,16 @@ class ActionService : AccessibilityService() {
     private fun handleScrollwheelButtonKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != SCROLLWHEEL_BUTTON_KEY_CODE) return false
 
+        val phase = unlockGateStateMachine.state.phase
+        if (phase == UnlockGatePhase.Idle && currentForegroundPackage == ZERO_PACKAGE) {
+            mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+            scrollwheelKeyDownTime = 0L
+            scrollwheelLongPressFired = false
+            scrollwheelButtonPassThroughActive = false
+            scrollwheelButtonPassThroughInterrupted = false
+            return false
+        }
+
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
             scrollwheelButtonPassThroughInterrupted = false
         }
