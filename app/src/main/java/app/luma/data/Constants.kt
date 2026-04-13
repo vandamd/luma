@@ -8,7 +8,7 @@ import app.luma.R
 
 object HomeLayout {
     const val APPS_PER_PAGE = 6
-    const val MAX_PAGES = 5
+    const val MAX_PAGES = 8
     const val MIN_PAGES = 1
     const val MIN_APPS_PER_PAGE = 1
     const val TOTAL_SLOTS = APPS_PER_PAGE * MAX_PAGES
