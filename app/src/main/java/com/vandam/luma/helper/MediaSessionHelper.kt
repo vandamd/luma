@@ -2,6 +2,7 @@ package com.vandam.luma.helper
 
 import android.content.ComponentName
 import android.content.Context
+import android.media.MediaDescription
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -27,6 +28,8 @@ data class MediaInfo(
 )
 
 object MediaSessionHelper {
+    private const val PODCAST_SEEK_MS = 15_000L
+
     private val _mediaInfo = MutableStateFlow<MediaInfo?>(null)
     val mediaInfo: StateFlow<MediaInfo?> = _mediaInfo.asStateFlow()
 
@@ -92,13 +95,13 @@ object MediaSessionHelper {
     fun rewind() {
         val controller = activeController() ?: return
         val pos = controller.playbackState?.position ?: 0
-        controller.transportControls.seekTo((pos - 10_000).coerceAtLeast(0))
+        controller.transportControls.seekTo((pos - PODCAST_SEEK_MS).coerceAtLeast(0))
     }
 
     fun fastForward() {
         val controller = activeController() ?: return
         val pos = controller.playbackState?.position ?: 0
-        controller.transportControls.seekTo(pos + 10_000)
+        controller.transportControls.seekTo(pos + PODCAST_SEEK_MS)
     }
 
     fun stopAndDismiss() {
@@ -165,6 +168,54 @@ object MediaSessionHelper {
             playbackState == PlaybackState.STATE_SKIPPING_TO_PREVIOUS ||
             playbackState == PlaybackState.STATE_SKIPPING_TO_NEXT ||
             playbackState == PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM
+
+    private fun hasPodcastMetadata(description: MediaDescription?): Boolean {
+        val mediaUri = description?.mediaUri?.toString().orEmpty()
+        val extras = description?.extras
+        return extras?.let { bundle ->
+            val mediaType = bundle.getString("android.mediaType") ?: bundle.getString("media_type")
+            mediaType?.contains("podcast", ignoreCase = true) == true
+        } == true || mediaUri.contains("podcast", ignoreCase = true)
+    }
+
+    private fun hasPodcastSeekCustomActions(playbackState: PlaybackState?): Boolean {
+        val customActions = playbackState?.customActions.orEmpty()
+        val hasBackSeek = customActions.any { it.matchesPodcastSeekAction(isBack = true) }
+        val hasForwardSeek = customActions.any { it.matchesPodcastSeekAction(isBack = false) }
+        return hasBackSeek && hasForwardSeek
+    }
+
+    private fun PlaybackState.CustomAction.matchesPodcastSeekAction(isBack: Boolean): Boolean {
+        if (matchesPodcastSeekText(action, isBack)) return true
+        return matchesPodcastSeekText(name?.toString().orEmpty(), isBack)
+    }
+
+    private fun matchesPodcastSeekText(
+        value: String,
+        isBack: Boolean,
+    ): Boolean {
+        if (!value.contains("15", ignoreCase = true)) return false
+
+        val hasSeekHint =
+            value.contains("seek", ignoreCase = true) ||
+                value.contains("skip", ignoreCase = true) ||
+                value.contains("replay", ignoreCase = true) ||
+                value.contains("rewind", ignoreCase = true) ||
+                value.contains("fastforward", ignoreCase = true) ||
+                value.contains("fast_forward", ignoreCase = true)
+        if (!hasSeekHint) return false
+
+        return if (isBack) {
+            value.contains("back", ignoreCase = true) ||
+                value.contains("backward", ignoreCase = true) ||
+                value.contains("replay", ignoreCase = true) ||
+                value.contains("rewind", ignoreCase = true)
+        } else {
+            value.contains("forward", ignoreCase = true) ||
+                value.contains("fastforward", ignoreCase = true) ||
+                value.contains("fast_forward", ignoreCase = true)
+        }
+    }
 
     private fun currentControllers(): List<MediaController> {
         val msm = mediaSessionManager ?: return emptyList()
@@ -256,18 +307,12 @@ object MediaSessionHelper {
             metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
                 ?: ""
-        val playbackState = active.playbackState?.state ?: PlaybackState.STATE_NONE
-        val showsPauseButton = showsPauseButton(playbackState)
-        val showsStopButton = playbackState == PlaybackState.STATE_PAUSED
-
-        val description = active.metadata?.description
-        val mediaUri = description?.mediaUri?.toString().orEmpty()
-        val extras = description?.extras
-        val isPodcast =
-            extras?.let { bundle ->
-                val mediaType = bundle.getString("android.mediaType") ?: bundle.getString("media_type")
-                mediaType?.contains("podcast", ignoreCase = true) == true
-            } == true || mediaUri.contains("podcast", ignoreCase = true)
+        val playbackState = active.playbackState
+        val playbackStatus = playbackState?.state ?: PlaybackState.STATE_NONE
+        val showsPauseButton = showsPauseButton(playbackStatus)
+        val showsStopButton = playbackStatus == PlaybackState.STATE_PAUSED
+        val description = metadata.description
+        val isPodcast = hasPodcastMetadata(description) || hasPodcastSeekCustomActions(playbackState)
 
         _mediaInfo.value =
             MediaInfo(

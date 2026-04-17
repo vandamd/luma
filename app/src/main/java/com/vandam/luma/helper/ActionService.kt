@@ -2475,8 +2475,8 @@ class ActionService : AccessibilityService() {
             val prevView = view.findViewById<ImageView>(R.id.unlockGateMediaPrev)
             val nextView = view.findViewById<ImageView>(R.id.unlockGateMediaNext)
             if (mediaInfo.isPodcast) {
-                prevView.setImageResource(R.drawable.ic_media_replay_10)
-                nextView.setImageResource(R.drawable.ic_media_forward_10)
+                prevView.setImageResource(R.drawable.ic_media_replay_15)
+                nextView.setImageResource(R.drawable.ic_media_forward_15)
             } else {
                 prevView.setImageResource(R.drawable.ic_media_skip_previous)
                 nextView.setImageResource(R.drawable.ic_media_skip_next)
