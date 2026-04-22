@@ -2115,12 +2115,22 @@ class ActionService : AccessibilityService() {
             if (!view.isAttachedToWindow) {
                 try {
                     windowManager.addView(view, layoutParams)
-                } catch (_: Exception) {
+                } catch (exception: Exception) {
+                    Log.e(TAG, "showVolumeOnlyOverlay: addView failed", exception)
+                    if (!view.isAttachedToWindow && volumeOnlyOverlayView === view) {
+                        volumeOnlyOverlayView = null
+                    }
+                    return@runOnMainThread
                 }
             } else {
                 try {
                     windowManager.updateViewLayout(view, layoutParams)
-                } catch (_: Exception) {
+                } catch (exception: Exception) {
+                    Log.e(TAG, "showVolumeOnlyOverlay: updateViewLayout failed", exception)
+                    if (!view.isAttachedToWindow && volumeOnlyOverlayView === view) {
+                        volumeOnlyOverlayView = null
+                    }
+                    return@runOnMainThread
                 }
             }
 
@@ -2136,11 +2146,31 @@ class ActionService : AccessibilityService() {
             volumeOnlyOverlayHideRunnable?.let { mainHandler.removeCallbacks(it) }
             volumeOnlyOverlayHideRunnable = null
             val view = volumeOnlyOverlayView ?: return@runOnMainThread
-            volumeOnlyOverlayView = null
-            if (!view.isAttachedToWindow) return@runOnMainThread
+            if (!view.isAttachedToWindow) {
+                if (volumeOnlyOverlayView === view) {
+                    volumeOnlyOverlayView = null
+                }
+                return@runOnMainThread
+            }
             try {
                 windowManager.removeView(view)
-            } catch (_: Exception) {
+            } catch (exception: Exception) {
+                Log.e(TAG, "hideVolumeOnlyOverlay: removeView failed", exception)
+                if (view.isAttachedToWindow) {
+                    try {
+                        windowManager.removeViewImmediate(view)
+                    } catch (immediateException: Exception) {
+                        Log.e(
+                            TAG,
+                            "hideVolumeOnlyOverlay: removeViewImmediate failed",
+                            immediateException,
+                        )
+                    }
+                }
+            } finally {
+                if (volumeOnlyOverlayView === view) {
+                    volumeOnlyOverlayView = null
+                }
             }
         }
     }
