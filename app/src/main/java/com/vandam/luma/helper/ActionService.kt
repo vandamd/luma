@@ -2058,27 +2058,6 @@ class ActionService : AccessibilityService() {
             }
     }
 
-    private fun clearVolumeOnlyOverlayViewIfDetached(view: View) {
-        if (!view.isAttachedToWindow && volumeOnlyOverlayView === view) {
-            volumeOnlyOverlayView = null
-        }
-    }
-
-    private fun createVolumeOnlyOverlayView(): View =
-        overlayInflater.inflate(R.layout.volume_only_overlay, null).also { view ->
-            view.addOnAttachStateChangeListener(
-                object : View.OnAttachStateChangeListener {
-                    override fun onViewAttachedToWindow(v: View) {
-                    }
-
-                    override fun onViewDetachedFromWindow(v: View) {
-                        clearVolumeOnlyOverlayViewIfDetached(v)
-                    }
-                },
-            )
-            volumeOnlyOverlayView = view
-        }
-
     private fun handleVolumeIndicatorTap() {
         performAppTapHapticFeedback(this)
         val phase = unlockGateStateMachine.state.phase
@@ -2105,7 +2084,10 @@ class ActionService : AccessibilityService() {
             val isDark = prefs.isDarkTheme()
             val backgroundColor = if (isDark) Color.BLACK else Color.WHITE
             val textColor = if (isDark) Color.WHITE else Color.BLACK
-            val view = volumeOnlyOverlayView ?: createVolumeOnlyOverlayView()
+            val view =
+                volumeOnlyOverlayView ?: overlayInflater.inflate(R.layout.volume_only_overlay, null).also {
+                    volumeOnlyOverlayView = it
+                }
 
             val indicator = view as LinearLayout
             indicator.visibility = View.VISIBLE
@@ -2135,7 +2117,9 @@ class ActionService : AccessibilityService() {
                     windowManager.addView(view, layoutParams)
                 } catch (exception: Exception) {
                     Log.e(TAG, "showVolumeOnlyOverlay: addView failed", exception)
-                    clearVolumeOnlyOverlayViewIfDetached(view)
+                    if (!view.isAttachedToWindow && volumeOnlyOverlayView === view) {
+                        volumeOnlyOverlayView = null
+                    }
                     return@runOnMainThread
                 }
             } else {
@@ -2143,7 +2127,9 @@ class ActionService : AccessibilityService() {
                     windowManager.updateViewLayout(view, layoutParams)
                 } catch (exception: Exception) {
                     Log.e(TAG, "showVolumeOnlyOverlay: updateViewLayout failed", exception)
-                    clearVolumeOnlyOverlayViewIfDetached(view)
+                    if (!view.isAttachedToWindow && volumeOnlyOverlayView === view) {
+                        volumeOnlyOverlayView = null
+                    }
                     return@runOnMainThread
                 }
             }
@@ -2161,7 +2147,9 @@ class ActionService : AccessibilityService() {
             volumeOnlyOverlayHideRunnable = null
             val view = volumeOnlyOverlayView ?: return@runOnMainThread
             if (!view.isAttachedToWindow) {
-                clearVolumeOnlyOverlayViewIfDetached(view)
+                if (volumeOnlyOverlayView === view) {
+                    volumeOnlyOverlayView = null
+                }
                 return@runOnMainThread
             }
             try {
@@ -2179,8 +2167,11 @@ class ActionService : AccessibilityService() {
                         )
                     }
                 }
+            } finally {
+                if (volumeOnlyOverlayView === view) {
+                    volumeOnlyOverlayView = null
+                }
             }
-            clearVolumeOnlyOverlayViewIfDetached(view)
         }
     }
 
