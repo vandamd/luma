@@ -78,6 +78,13 @@ object ManagedAppCatalog {
                 repoOwner = DEFAULT_REPO_OWNER,
                 repoName = "echo",
             ),
+            ManagedApp(
+                id = "reverb",
+                label = "Reverb",
+                packageName = "com.vandam.reverb",
+                repoOwner = DEFAULT_REPO_OWNER,
+                repoName = "reverb",
+            ),
         )
 
     fun fromId(id: String?): ManagedApp? = entries.firstOrNull { it.id == id }

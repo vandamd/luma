@@ -18,10 +18,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.os.bundleOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
 import androidx.navigation.Navigation
@@ -52,6 +50,7 @@ import com.vandam.luma.style.DisplayDefaults.withDisplayDefaults
 import com.vandam.luma.ui.HomeFragment
 import com.vandam.luma.ui.RESTORE_UNLOCK_GATE_ON_BACK
 import dev.convex.android.WebSocketState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -138,14 +137,15 @@ class MainActivity : AppCompatActivity() {
         handleLockscreenGestureIntent(intent)
         handleStatusBarSectionIntent(intent)
         sanitizeActivityIntent(intent)
+    }
 
+    override fun onStart() {
+        super.onStart()
         startToolSyncSubscription()
     }
 
     override fun onDestroy() {
-        toolSyncJob?.cancel()
-        toolSyncWebSocketJob?.cancel()
-        toolSyncReconnectWatchdogJob?.cancel()
+        stopToolSyncSubscription(closeConvexClient = true)
         setLumaForeground(false)
         ActionService.instance()?.setRepeatedHomeGateEligible(false)
         volumeController.destroy()
@@ -172,6 +172,7 @@ class MainActivity : AppCompatActivity() {
         if (finishAfterStop) {
             finish()
         }
+        stopToolSyncSubscription(closeConvexClient = true)
         super.onStop()
     }
 
@@ -328,13 +329,7 @@ class MainActivity : AppCompatActivity() {
         lastSyncedManagedAppIds = initialManagedAppIds
         lastSyncedAndroidApps = initialAndroidApps
         lastRequestedAppUpdateVersions = initialRequestedAppUpdateVersions
-        subscribedAccountNumber = null
-        toolSyncJob?.cancel()
-        toolSyncWebSocketJob?.cancel()
-        toolSyncReconnectWatchdogJob?.cancel()
-        toolSyncJob = null
-        toolSyncWebSocketJob = null
-        toolSyncReconnectWatchdogJob = null
+        stopToolSyncSubscription(closeConvexClient = true)
         startToolSyncSubscription()
     }
 
@@ -347,14 +342,7 @@ class MainActivity : AppCompatActivity() {
         lastSyncedManagedAppIds = null
         lastSyncedAndroidApps = null
         lastRequestedAppUpdateVersions = null
-        subscribedAccountNumber = null
-
-        toolSyncJob?.cancel()
-        toolSyncWebSocketJob?.cancel()
-        toolSyncReconnectWatchdogJob?.cancel()
-        toolSyncJob = null
-        toolSyncWebSocketJob = null
-        toolSyncReconnectWatchdogJob = null
+        stopToolSyncSubscription(closeConvexClient = true)
 
         ManagedAppManager.clearSessionWork()
 
@@ -369,100 +357,118 @@ class MainActivity : AppCompatActivity() {
             if (BuildConfig.DEBUG) {
                 Log.d(LOG_TAG, "Skipping tool sync subscription because account is blank")
             }
+            stopToolSyncSubscription(closeConvexClient = true)
             return
         }
 
-        if (toolSyncJob?.isActive == true && subscribedAccountNumber == accountNumber) {
+        if (
+            subscribedAccountNumber == accountNumber &&
+            toolSyncJob?.isActive == true &&
+            toolSyncWebSocketJob?.isActive == true
+        ) {
             return
         }
 
-        toolSyncJob?.cancel()
-        toolSyncWebSocketJob?.cancel()
-        toolSyncReconnectWatchdogJob?.cancel()
+        stopToolSyncSubscription(closeConvexClient = false)
         subscribedAccountNumber = accountNumber
-        ManagedAppManager.syncInstalledAppsToDashboard(this, accountNumber)
+        if (!ManagedAppManager.syncPendingInstalledAppsToDashboardForStoredAccount(this)) {
+            ManagedAppManager.syncInstalledAppsToDashboard(this, accountNumber)
+        }
         if (BuildConfig.DEBUG) {
             Log.d(LOG_TAG, "Starting tool sync subscription")
         }
         toolSyncJob =
             lifecycleScope.launch {
-                repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    runCatching {
-                        ToolSyncManager
-                            .observeSyncResults(this@MainActivity, accountNumber)
-                            .collectLatest { result ->
-                                handleToolSyncResult(result, "subscription")
-                            }
-                    }.onFailure { error ->
-                        Log.w(LOG_TAG, "Tool sync subscription failed", error)
-                    }
+                try {
+                    ToolSyncManager
+                        .observeSyncResults(this@MainActivity, accountNumber)
+                        .collectLatest { result ->
+                            handleToolSyncResult(result, "subscription")
+                        }
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    Log.w(LOG_TAG, "Tool sync subscription failed", exception)
                 }
             }
 
         toolSyncWebSocketJob =
             lifecycleScope.launch {
-                repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    val application = applicationContext as? LumaApplication ?: return@repeatOnLifecycle
-                    var lastState: WebSocketState? = null
+                val application = applicationContext as? LumaApplication ?: return@launch
+                var lastState: WebSocketState? = null
 
-                    application
-                        .getOrCreateConvexClient()
-                        ?.webSocketStateFlow
-                        ?.collectLatest { state ->
-                            if (BuildConfig.DEBUG) {
-                                Log.d(LOG_TAG, "Convex websocket state=$state")
-                            }
-
-                            when (state) {
-                                WebSocketState.CONNECTED -> {
-                                    toolSyncReconnectWatchdogJob?.cancel()
-                                    toolSyncReconnectWatchdogJob = null
-                                }
-
-                                WebSocketState.CONNECTING -> {
-                                    if (lastState == WebSocketState.CONNECTED) {
-                                        Log.w(
-                                            LOG_TAG,
-                                            "Convex websocket dropped back to CONNECTING",
-                                        )
-                                    }
-
-                                    if (toolSyncReconnectWatchdogJob == null) {
-                                        toolSyncReconnectWatchdogJob =
-                                            lifecycleScope.launch {
-                                                delay(WEBSOCKET_RECONNECT_GRACE_MS)
-
-                                                val currentState =
-                                                    application
-                                                        .getOrCreateConvexClient()
-                                                        ?.webSocketStateFlow
-                                                        ?.value
-
-                                                if (
-                                                    subscribedAccountNumber == accountNumber &&
-                                                    currentState == WebSocketState.CONNECTING
-                                                ) {
-                                                    Log.w(
-                                                        LOG_TAG,
-                                                        "Convex websocket stuck in CONNECTING, recreating client",
-                                                    )
-                                                    application.recreateConvexClient()
-                                                    restartToolSyncSubscription(
-                                                        initialToolIds = lastSyncedToolIds,
-                                                        initialManagedAppIds = lastSyncedManagedAppIds,
-                                                        initialAndroidApps = lastSyncedAndroidApps,
-                                                        initialRequestedAppUpdateVersions = lastRequestedAppUpdateVersions,
-                                                    )
-                                                }
-                                            }
-                                    }
-                                }
-                            }
-
-                            lastState = state
+                application
+                    .getOrCreateConvexClient()
+                    ?.webSocketStateFlow
+                    ?.collectLatest { state ->
+                        if (BuildConfig.DEBUG) {
+                            Log.d(LOG_TAG, "Convex websocket state=$state")
                         }
-                }
+
+                        when (state) {
+                            WebSocketState.CONNECTED -> {
+                                toolSyncReconnectWatchdogJob?.cancel()
+                                toolSyncReconnectWatchdogJob = null
+                            }
+
+                            WebSocketState.CONNECTING -> {
+                                if (lastState == WebSocketState.CONNECTED) {
+                                    Log.w(
+                                        LOG_TAG,
+                                        "Convex websocket dropped back to CONNECTING",
+                                    )
+                                }
+
+                                if (toolSyncReconnectWatchdogJob == null) {
+                                    toolSyncReconnectWatchdogJob =
+                                        lifecycleScope.launch {
+                                            delay(WEBSOCKET_RECONNECT_GRACE_MS)
+                                            handleConvexReconnectTimeout(accountNumber, application)
+                                        }
+                                }
+                            }
+                        }
+
+                        lastState = state
+                    }
             }
+    }
+
+    private fun stopToolSyncSubscription(closeConvexClient: Boolean) {
+        toolSyncJob?.cancel()
+        toolSyncWebSocketJob?.cancel()
+        toolSyncReconnectWatchdogJob?.cancel()
+        toolSyncJob = null
+        toolSyncWebSocketJob = null
+        toolSyncReconnectWatchdogJob = null
+        subscribedAccountNumber = null
+        if (closeConvexClient) {
+            (applicationContext as? LumaApplication)?.closeConvexClient()
+        }
+    }
+
+    private fun handleConvexReconnectTimeout(
+        accountNumber: String,
+        application: LumaApplication,
+    ) {
+        if (subscribedAccountNumber != accountNumber) {
+            return
+        }
+
+        val currentState = application.getOrCreateConvexClient()?.webSocketStateFlow?.value
+        if (currentState != WebSocketState.CONNECTING) {
+            return
+        }
+
+        Log.w(LOG_TAG, "Convex websocket stuck in CONNECTING, recreating client")
+        toolSyncJob?.cancel()
+        toolSyncWebSocketJob?.cancel()
+        toolSyncJob = null
+        toolSyncWebSocketJob = null
+        toolSyncReconnectWatchdogJob = null
+        subscribedAccountNumber = null
+        application.recreateConvexClient()
+        startToolSyncSubscription()
     }
 
     private fun handleToolSyncResult(
@@ -710,7 +716,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val LOG_TAG = "ToolSync"
-        private const val WEBSOCKET_RECONNECT_GRACE_MS = 5000L
+        private const val WEBSOCKET_RECONNECT_GRACE_MS = 60_000L
         const val EXTRA_UNLOCK_GATE_HOME_LAUNCH = "com.vandam.luma.extra.UNLOCK_GATE_HOME_LAUNCH"
         const val EXTRA_RUN_LOCKSCREEN_CLOCK_TAP = "com.vandam.luma.extra.RUN_LOCKSCREEN_CLOCK_TAP"
         const val EXTRA_RUN_LOCKSCREEN_SHORTCUT = "com.vandam.luma.extra.RUN_LOCKSCREEN_SHORTCUT"

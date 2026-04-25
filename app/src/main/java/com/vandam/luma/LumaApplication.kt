@@ -3,6 +3,7 @@ package com.vandam.luma
 import android.app.Application
 import android.content.pm.LauncherApps
 import android.os.UserHandle
+import android.util.Log
 import com.vandam.luma.helper.HomeCleanupHelper
 import com.vandam.luma.helper.ManagedAppManager
 import dev.convex.android.ConvexClient
@@ -33,8 +34,25 @@ class LumaApplication : Application() {
 
     @Synchronized
     fun recreateConvexClient(): ConvexClient? {
-        convexClientInstance = null
+        closeConvexClient()
         return getOrCreateConvexClient()
+    }
+
+    @Synchronized
+    fun closeConvexClient() {
+        val client = convexClientInstance ?: return
+        convexClientInstance = null
+        runCatching {
+            val ffiClient =
+                client
+                    .javaClass
+                    .getDeclaredMethod("getFfiClient")
+                    .apply { isAccessible = true }
+                    .invoke(client)
+            (ffiClient as? AutoCloseable)?.close()
+        }.onFailure { error ->
+            Log.w(LOG_TAG, "Failed to close Convex client", error)
+        }
     }
 
     private val launcherAppsCallback =
@@ -44,21 +62,21 @@ class LumaApplication : Application() {
                 user: UserHandle,
             ) {
                 HomeCleanupHelper.cleanupRemovedPackage(this@LumaApplication, packageName, user)
-                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                scheduleInstalledAppsDashboardSync()
             }
 
             override fun onPackageAdded(
                 packageName: String,
                 user: UserHandle,
             ) {
-                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                scheduleInstalledAppsDashboardSync()
             }
 
             override fun onPackageChanged(
                 packageName: String,
                 user: UserHandle,
             ) {
-                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                scheduleInstalledAppsDashboardSync()
             }
 
             override fun onPackagesAvailable(
@@ -66,7 +84,7 @@ class LumaApplication : Application() {
                 user: UserHandle,
                 replacing: Boolean,
             ) {
-                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                scheduleInstalledAppsDashboardSync()
             }
 
             override fun onPackagesUnavailable(
@@ -74,12 +92,20 @@ class LumaApplication : Application() {
                 user: UserHandle,
                 replacing: Boolean,
             ) {
-                ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccount(this@LumaApplication)
+                scheduleInstalledAppsDashboardSync()
             }
         }
+
+    private fun scheduleInstalledAppsDashboardSync() {
+        ManagedAppManager.scheduleInstalledAppsToDashboardForStoredAccountIfForeground(this)
+    }
 
     override fun onCreate() {
         super.onCreate()
         getSystemService(LauncherApps::class.java).registerCallback(launcherAppsCallback)
+    }
+
+    companion object {
+        private const val LOG_TAG = "LumaApplication"
     }
 }

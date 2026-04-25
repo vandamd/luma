@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import com.vandam.luma.BuildConfig
 import com.vandam.luma.LumaApplication
+import com.vandam.luma.MainActivity
 import com.vandam.luma.R
 import com.vandam.luma.data.AndroidLauncherApp
 import com.vandam.luma.data.InstalledManagedApp
@@ -34,6 +35,8 @@ object ManagedAppManager {
     private const val LIGHT_OS_PACKAGE_PREFIX = "com.lightos"
     private const val SYNC_INSTALLED_APPS_MUTATION = "accounts:syncInstalledApps"
     private const val INSTALLED_APPS_SYNC_DEBOUNCE_MS = 1500L
+    @Volatile
+    private var installedAppsDashboardSyncPending = false
     private val androidAppLabelOverrides =
         mapOf(
             "com.android.settings|com.android.settings.Settings" to "System",
@@ -216,7 +219,40 @@ object ManagedAppManager {
         scheduleInstalledAppsToDashboard(context, accountNumber, immediate)
     }
 
+    fun scheduleInstalledAppsToDashboardForStoredAccountIfForeground(
+        context: Context,
+        immediate: Boolean = false,
+    ) {
+        val accountNumber = Prefs.getInstance(context).accountNumber
+        if (accountNumber.isBlank()) {
+            return
+        }
+
+        if (MainActivity.isLumaForeground()) {
+            scheduleInstalledAppsToDashboard(context, accountNumber, immediate)
+        } else {
+            installedAppsDashboardSyncPending = true
+        }
+    }
+
+    fun syncPendingInstalledAppsToDashboardForStoredAccount(context: Context): Boolean {
+        if (!installedAppsDashboardSyncPending) {
+            return false
+        }
+
+        val accountNumber = Prefs.getInstance(context).accountNumber
+        if (accountNumber.isBlank()) {
+            installedAppsDashboardSyncPending = false
+            return false
+        }
+
+        installedAppsDashboardSyncPending = false
+        syncInstalledAppsToDashboard(context, accountNumber)
+        return true
+    }
+
     fun clearSessionWork() {
+        installedAppsDashboardSyncPending = false
         dashboardSyncDebounceJob?.cancel()
         dashboardSyncDebounceJob = null
         dashboardSyncJob?.cancel()
