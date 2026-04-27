@@ -2252,6 +2252,7 @@ class ActionService : AccessibilityService() {
     }
 
     private fun dispatchLockscreenClockTap(): Boolean {
+        if (prefs.getLockscreenClockTapAction() == Action.Disabled) return false
         if (prefs.getLockscreenClockTapAction() == Action.OpenApp) {
             DaltonizerManager.onAppLaunch(this, prefs.getLockscreenClockTapApp().appPackage, prefs.colorApps)
         }
@@ -2265,6 +2266,7 @@ class ActionService : AccessibilityService() {
     }
 
     private fun dispatchLockscreenDateTap(): Boolean {
+        if (prefs.getLockscreenDateTapAction() == Action.Disabled) return false
         if (prefs.getLockscreenDateTapAction() == Action.OpenApp) {
             DaltonizerManager.onAppLaunch(this, prefs.getLockscreenDateTapApp().appPackage, prefs.colorApps)
         }
