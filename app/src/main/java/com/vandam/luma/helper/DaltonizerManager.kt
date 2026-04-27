@@ -3,6 +3,7 @@ package com.vandam.luma.helper
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
+import android.view.inputmethod.InputMethodManager
 
 object DaltonizerManager {
     private const val TAG = "DaltonizerManager"
@@ -40,6 +41,10 @@ object DaltonizerManager {
             return
         }
 
+        if ((currentColorApp != null || pendingColorApp != null) && isTransientOverlay(context, packageName)) {
+            return
+        }
+
         val isColorApp = colorApps.contains(packageName)
         if (isColorApp) {
             if (currentColorApp != packageName || pendingColorApp != packageName) {
@@ -54,6 +59,17 @@ object DaltonizerManager {
                 pendingColorApp = null
             }
         }
+    }
+
+    private fun isTransientOverlay(
+        context: Context,
+        packageName: String,
+    ): Boolean {
+        if (packageName == "com.android.systemui" || packageName == "android") {
+            return true
+        }
+        val inputMethodManager = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager ?: return false
+        return inputMethodManager.enabledInputMethodList.any { it.packageName == packageName }
     }
 
     fun restoreIfNeeded(context: Context) {

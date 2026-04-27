@@ -325,10 +325,7 @@ class ActionService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
         val eventType = event.eventType
 
-        if (
-            eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
-        ) {
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             DaltonizerManager.onWindowStateChanged(this, packageName, prefs.colorApps)
         }
 
