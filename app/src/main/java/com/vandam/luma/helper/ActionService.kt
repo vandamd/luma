@@ -2235,24 +2235,17 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun dispatchLockscreenShortcut(): Boolean {
-        if (prefs.getLockscreenShortcutAction() == Action.OpenApp) {
-            DaltonizerManager.onAppLaunch(this, prefs.getLockscreenShortcutApp().appPackage, prefs.colorApps)
-        }
-        return try {
+    private fun dispatchLockscreenShortcut(): Boolean =
+        try {
             startActivity(MainActivity.createLockscreenShortcutIntent(this))
             true
         } catch (exception: Exception) {
             Log.e(TAG, "dispatchLockscreenShortcut: startActivity failed", exception)
             false
         }
-    }
 
     private fun dispatchLockscreenClockTap(): Boolean {
         if (prefs.getLockscreenClockTapAction() == Action.Disabled) return false
-        if (prefs.getLockscreenClockTapAction() == Action.OpenApp) {
-            DaltonizerManager.onAppLaunch(this, prefs.getLockscreenClockTapApp().appPackage, prefs.colorApps)
-        }
         return try {
             startActivity(MainActivity.createLockscreenClockTapIntent(this))
             true
@@ -2264,9 +2257,6 @@ class ActionService : AccessibilityService() {
 
     private fun dispatchLockscreenDateTap(): Boolean {
         if (prefs.getLockscreenDateTapAction() == Action.Disabled) return false
-        if (prefs.getLockscreenDateTapAction() == Action.OpenApp) {
-            DaltonizerManager.onAppLaunch(this, prefs.getLockscreenDateTapApp().appPackage, prefs.colorApps)
-        }
         return try {
             startActivity(MainActivity.createLockscreenDateTapIntent(this))
             true
@@ -2285,10 +2275,6 @@ class ActionService : AccessibilityService() {
 
     private fun dispatchLockscreenGesture(gestureType: GestureType): Boolean {
         if (!canHandleLockscreenGesture(gestureType)) return false
-        val action = prefs.getGestureAction(gestureType, GestureScope.Lockscreen)
-        if (action == Action.OpenApp) {
-            DaltonizerManager.onAppLaunch(this, prefs.getGestureApp(gestureType, GestureScope.Lockscreen).appPackage, prefs.colorApps)
-        }
         return try {
             startActivity(MainActivity.createLockscreenGestureIntent(this, gestureType))
             true
@@ -2331,9 +2317,6 @@ class ActionService : AccessibilityService() {
 
     private fun dispatchStatusBarSectionTap(section: StatusBarSectionType): Boolean {
         if (!canHandleStatusBarSectionTap(section)) return false
-        if (prefs.getSectionAction(section) == Action.OpenApp) {
-            DaltonizerManager.onAppLaunch(this, prefs.getSectionApp(section).appPackage, prefs.colorApps)
-        }
         return try {
             startActivity(MainActivity.createStatusBarSectionIntent(this, section))
             true
