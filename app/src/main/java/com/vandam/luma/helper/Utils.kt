@@ -133,6 +133,8 @@ fun launchAppModel(
         return launchLightOsRoute(context, (tool ?: Tool.fromId(appActivityName) ?: return true).lightOsRoute)
     }
 
+    DaltonizerManager.onAppLaunch(appContext, packageName, Prefs.getInstance(appContext).colorApps)
+
     val managedApp = ManagedAppCatalog.fromPackageName(packageName)
     if (appModel.entryType == AppEntryType.ManagedApp || managedApp != null) {
         if (managedApp != null && ManagedAppManager.handleManagedAppLaunch(context, managedApp)) {

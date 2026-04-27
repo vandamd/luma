@@ -31,6 +31,7 @@ private const val APP_PACKAGE = "APP_PACKAGE"
 private const val APP_ACTIVITY = "APP_ACTIVITY"
 private const val APP_USER_SERIAL = "APP_USER_SERIAL"
 private const val APP_ENTRY_TYPE = "APP_ENTRY_TYPE"
+private const val COLOR_APPS = "COLOR_APPS"
 
 enum class GestureType(
     val actionKey: String,
@@ -718,6 +719,10 @@ class Prefs(
         val appId = ManagedAppCatalog.fromPackageName(packageName)?.id ?: return false
         return enabledManagedAppIds.contains(appId)
     }
+
+    var colorApps: Set<String>
+        get() = prefs.getStringSet(COLOR_APPS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(COLOR_APPS, value).apply()
 
     fun homeItemKey(
         appPackage: String,

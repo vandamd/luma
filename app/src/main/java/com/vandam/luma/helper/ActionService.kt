@@ -170,6 +170,7 @@ class ActionService : AccessibilityService() {
         unregisterUnlockGateReceiver()
         stopMediaInfoObserver()
         stopIncomingCallMonitor()
+        DaltonizerManager.restoreIfNeeded(this)
         instance = WeakReference(null)
         return super.onUnbind(intent)
     }
@@ -192,6 +193,7 @@ class ActionService : AccessibilityService() {
         unregisterUnlockGateReceiver()
         stopMediaInfoObserver()
         stopIncomingCallMonitor()
+        DaltonizerManager.restoreIfNeeded(this)
         instance = WeakReference(null)
         super.onDestroy()
     }
@@ -323,6 +325,13 @@ class ActionService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
         val eventType = event.eventType
 
+        if (
+            eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+        ) {
+            DaltonizerManager.onWindowStateChanged(this, packageName, prefs.colorApps)
+        }
+
         runOnMainThread {
             if (
                 eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
@@ -359,6 +368,7 @@ class ActionService : AccessibilityService() {
         consumedMappedKeyUps.clear()
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+        mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         if (cameraKeyPassThroughActive) {
             cameraKeyPassThroughInterrupted = true
         }
@@ -371,6 +381,7 @@ class ActionService : AccessibilityService() {
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
         hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
+        DaltonizerManager.restoreIfNeeded(this)
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
@@ -1234,6 +1245,7 @@ class ActionService : AccessibilityService() {
         if (pkg == packageName) return false
         val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        DaltonizerManager.onAppLaunch(this, pkg, prefs.colorApps)
         return try {
             startActivity(intent)
             true
@@ -2226,17 +2238,23 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun dispatchLockscreenShortcut(): Boolean =
-        try {
+    private fun dispatchLockscreenShortcut(): Boolean {
+        if (prefs.getLockscreenShortcutAction() == Action.OpenApp) {
+            DaltonizerManager.onAppLaunch(this, prefs.getLockscreenShortcutApp().appPackage, prefs.colorApps)
+        }
+        return try {
             startActivity(MainActivity.createLockscreenShortcutIntent(this))
             true
         } catch (exception: Exception) {
             Log.e(TAG, "dispatchLockscreenShortcut: startActivity failed", exception)
             false
         }
+    }
 
     private fun dispatchLockscreenClockTap(): Boolean {
-        if (prefs.getLockscreenClockTapAction() == Action.Disabled) return false
+        if (prefs.getLockscreenClockTapAction() == Action.OpenApp) {
+            DaltonizerManager.onAppLaunch(this, prefs.getLockscreenClockTapApp().appPackage, prefs.colorApps)
+        }
         return try {
             startActivity(MainActivity.createLockscreenClockTapIntent(this))
             true
@@ -2247,7 +2265,9 @@ class ActionService : AccessibilityService() {
     }
 
     private fun dispatchLockscreenDateTap(): Boolean {
-        if (prefs.getLockscreenDateTapAction() == Action.Disabled) return false
+        if (prefs.getLockscreenDateTapAction() == Action.OpenApp) {
+            DaltonizerManager.onAppLaunch(this, prefs.getLockscreenDateTapApp().appPackage, prefs.colorApps)
+        }
         return try {
             startActivity(MainActivity.createLockscreenDateTapIntent(this))
             true
@@ -2266,6 +2286,10 @@ class ActionService : AccessibilityService() {
 
     private fun dispatchLockscreenGesture(gestureType: GestureType): Boolean {
         if (!canHandleLockscreenGesture(gestureType)) return false
+        val action = prefs.getGestureAction(gestureType, GestureScope.Lockscreen)
+        if (action == Action.OpenApp) {
+            DaltonizerManager.onAppLaunch(this, prefs.getGestureApp(gestureType, GestureScope.Lockscreen).appPackage, prefs.colorApps)
+        }
         return try {
             startActivity(MainActivity.createLockscreenGestureIntent(this, gestureType))
             true
@@ -2308,6 +2332,9 @@ class ActionService : AccessibilityService() {
 
     private fun dispatchStatusBarSectionTap(section: StatusBarSectionType): Boolean {
         if (!canHandleStatusBarSectionTap(section)) return false
+        if (prefs.getSectionAction(section) == Action.OpenApp) {
+            DaltonizerManager.onAppLaunch(this, prefs.getSectionApp(section).appPackage, prefs.colorApps)
+        }
         return try {
             startActivity(MainActivity.createStatusBarSectionIntent(this, section))
             true
