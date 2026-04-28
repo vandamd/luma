@@ -171,10 +171,10 @@ object DaltonizerManager {
             .putBoolean(PREF_DID_WE_DISABLE, true)
             .putBoolean(PREF_WAS_ENABLED, wasEnabled)
             .putInt(PREF_PREVIOUS_MODE, previousMode)
-            .apply()
+            .commit()
     }
 
     private fun clearPersistedState(context: Context) {
-        context.getSharedPreferences(PREFS_FILENAME, 0).edit().clear().apply()
+        context.getSharedPreferences(PREFS_FILENAME, 0).edit().clear().commit()
     }
 }
