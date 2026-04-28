@@ -1242,11 +1242,12 @@ class ActionService : AccessibilityService() {
         if (pkg == packageName) return false
         val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        DaltonizerManager.onAppLaunch(this, pkg, prefs.colorApps)
         return try {
+            DaltonizerManager.onAppLaunch(this, pkg, prefs.colorApps)
             startActivity(intent)
             true
         } catch (_: Exception) {
+            DaltonizerManager.restoreIfNeeded(this)
             false
         }
     }
