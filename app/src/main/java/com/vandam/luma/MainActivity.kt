@@ -31,6 +31,7 @@ import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
+import com.vandam.luma.data.Tool
 import com.vandam.luma.data.ToolSyncManager
 import com.vandam.luma.data.ToolSyncResult
 import com.vandam.luma.databinding.ActivityMainBinding
@@ -471,30 +472,58 @@ class MainActivity : AppCompatActivity() {
         startToolSyncSubscription()
     }
 
+    private fun prefsEnabledToolIds(): Set<String> =
+        Tool.entries
+            .filter(prefs::isToolEnabled)
+            .mapTo(mutableSetOf(), Tool::id)
+
     private fun handleToolSyncResult(
         result: ToolSyncResult,
         source: String,
     ) {
         when (result) {
             is ToolSyncResult.Success -> {
-                val toolsChanged = lastSyncedToolIds != result.enabledToolIds
-                val appsChanged = lastSyncedManagedAppIds != result.enabledAppIds
-                val androidAppsChanged = lastSyncedAndroidApps != result.enabledAndroidApps
+                val hasSyncBaseline =
+                    lastSyncedToolIds != null &&
+                        lastSyncedManagedAppIds != null &&
+                        lastSyncedAndroidApps != null
+                val toolsChanged =
+                    if (hasSyncBaseline) {
+                        lastSyncedToolIds != result.enabledToolIds
+                    } else {
+                        prefsEnabledToolIds() != result.enabledToolIds.toSet()
+                    }
+                val appsChanged =
+                    if (hasSyncBaseline) {
+                        lastSyncedManagedAppIds != result.enabledAppIds
+                    } else {
+                        prefs.enabledManagedAppIds != result.enabledAppIds.toSet()
+                    }
+                val androidAppsChanged =
+                    if (hasSyncBaseline) {
+                        lastSyncedAndroidApps != result.enabledAndroidApps
+                    } else {
+                        prefs.enabledAndroidApps.toSet() != result.enabledAndroidApps.toSet()
+                    }
                 val requestedAppUpdatesChanged =
                     lastRequestedAppUpdateVersions != result.requestedAppUpdateVersions
+                val homeLayoutChanged = toolsChanged || appsChanged || androidAppsChanged
 
                 Log.d(
                     LOG_TAG,
                     "Tool sync result from $source changedTools=$toolsChanged changedApps=$appsChanged changedAndroidApps=$androidAppsChanged changedRequestedUpdates=$requestedAppUpdatesChanged",
                 )
 
-                if (toolsChanged || appsChanged || androidAppsChanged || requestedAppUpdatesChanged) {
-                    val previousManagedAppIds = lastSyncedManagedAppIds
+                val previousManagedAppIds = lastSyncedManagedAppIds ?: prefs.enabledManagedAppIds.toList()
+                if (homeLayoutChanged) {
                     when (ToolSyncManager.applySyncResult(this, result)) {
                         is ToolSyncResult.Success -> Unit
                         ToolSyncResult.InvalidAccount -> return
                         is ToolSyncResult.Failure -> return
                     }
+                }
+
+                if (homeLayoutChanged || requestedAppUpdatesChanged || !hasSyncBaseline) {
                     lastSyncedToolIds = result.enabledToolIds
                     lastSyncedManagedAppIds = result.enabledAppIds
                     lastSyncedAndroidApps = result.enabledAndroidApps
@@ -505,7 +534,9 @@ class MainActivity : AppCompatActivity() {
                         result.enabledAppIds,
                         result.requestedAppUpdateVersions,
                     )
-                    onToolSyncApplied()
+                    if (homeLayoutChanged) {
+                        onToolSyncApplied()
+                    }
                 }
             }
 
