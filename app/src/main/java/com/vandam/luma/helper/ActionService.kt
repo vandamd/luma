@@ -150,6 +150,7 @@ class ActionService : AccessibilityService() {
         instance = WeakReference(this)
         publishUnlockGateState()
         startIncomingCallMonitor()
+        DaltonizerManager.recoverFromProcessDeath(this)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {

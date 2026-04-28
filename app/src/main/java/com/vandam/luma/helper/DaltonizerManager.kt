@@ -10,6 +10,11 @@ object DaltonizerManager {
     private const val DALTONIZER_ENABLED = "accessibility_display_daltonizer_enabled"
     private const val DALTONIZER_MODE = "accessibility_display_daltonizer"
 
+    private const val PREFS_FILENAME = "com.vandam.luma.daltonizer"
+    private const val PREF_DID_WE_DISABLE = "did_we_disable"
+    private const val PREF_WAS_ENABLED = "was_enabled"
+    private const val PREF_PREVIOUS_MODE = "previous_mode"
+
     private var wasDaltonizerEnabled = false
     private var previousDaltonizerMode = 0
     private var didWeDisableDaltonizer = false
@@ -80,6 +85,29 @@ object DaltonizerManager {
         }
     }
 
+    fun recoverFromProcessDeath(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_FILENAME, 0)
+        if (!prefs.getBoolean(PREF_DID_WE_DISABLE, false)) return
+
+        val wasEnabled = prefs.getBoolean(PREF_WAS_ENABLED, false)
+        val previousMode = prefs.getInt(PREF_PREVIOUS_MODE, 0)
+
+        if (wasEnabled) {
+            try {
+                Settings.Secure.putInt(context.contentResolver, DALTONIZER_MODE, previousMode)
+                Settings.Secure.putInt(context.contentResolver, DALTONIZER_ENABLED, 1)
+                Log.d(TAG, "Restored after process death (mode: $previousMode)")
+            } catch (exception: SecurityException) {
+                Log.e(TAG, "No permission to restore daltonizer after process death", exception)
+            }
+        }
+
+        prefs.edit().clear().apply()
+        wasDaltonizerEnabled = false
+        previousDaltonizerMode = 0
+        didWeDisableDaltonizer = false
+    }
+
     private fun disableDaltonizer(context: Context) {
         if (didWeDisableDaltonizer) return
 
@@ -104,6 +132,7 @@ object DaltonizerManager {
 
             try {
                 Settings.Secure.putInt(context.contentResolver, DALTONIZER_ENABLED, 0)
+                persistState(context, wasEnabled = true, previousMode = daltonizerMode)
                 Log.d(TAG, "Disabled (was mode: $daltonizerMode)")
             } catch (exception: SecurityException) {
                 Log.e(TAG, "No permission to disable daltonizer", exception)
@@ -116,6 +145,7 @@ object DaltonizerManager {
         if (!didWeDisableDaltonizer) return
         if (!wasDaltonizerEnabled) {
             didWeDisableDaltonizer = false
+            clearPersistedState(context)
             return
         }
 
@@ -128,5 +158,24 @@ object DaltonizerManager {
         }
 
         didWeDisableDaltonizer = false
+        clearPersistedState(context)
+    }
+
+    private fun persistState(
+        context: Context,
+        wasEnabled: Boolean,
+        previousMode: Int,
+    ) {
+        context
+            .getSharedPreferences(PREFS_FILENAME, 0)
+            .edit()
+            .putBoolean(PREF_DID_WE_DISABLE, true)
+            .putBoolean(PREF_WAS_ENABLED, wasEnabled)
+            .putInt(PREF_PREVIOUS_MODE, previousMode)
+            .apply()
+    }
+
+    private fun clearPersistedState(context: Context) {
+        context.getSharedPreferences(PREFS_FILENAME, 0).edit().clear().apply()
     }
 }
