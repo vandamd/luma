@@ -153,12 +153,11 @@ object DaltonizerManager {
             Settings.Secure.putInt(context.contentResolver, DALTONIZER_MODE, previousDaltonizerMode)
             Settings.Secure.putInt(context.contentResolver, DALTONIZER_ENABLED, 1)
             Log.d(TAG, "Restored (mode: $previousDaltonizerMode)")
+            didWeDisableDaltonizer = false
+            clearPersistedState(context)
         } catch (exception: SecurityException) {
             Log.e(TAG, "No permission to restore daltonizer", exception)
         }
-
-        didWeDisableDaltonizer = false
-        clearPersistedState(context)
     }
 
     private fun persistState(
