@@ -196,9 +196,16 @@
         android:name="com.vandam.luma.ui.GeneralFragment"
         android:label="GeneralFragment">
         <action
+            android:id="@+id/action_generalFragment_to_colourAppsFragment"
+            app:destination="@id/colourAppsFragment" />
+        <action
             android:id="@+id/action_generalFragment_to_hapticsFragment"
             app:destination="@id/hapticsFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/colourAppsFragment"
+        android:name="com.vandam.luma.ui.ColourAppsFragment"
+        android:label="ColourAppsFragment" />
     <fragment
         android:id="@+id/hapticsFragment"
         android:name="com.vandam.luma.ui.HapticsFragment"

@@ -150,6 +150,7 @@ class ActionService : AccessibilityService() {
         instance = WeakReference(this)
         publishUnlockGateState()
         startIncomingCallMonitor()
+        DaltonizerManager.recoverFromProcessDeath(this)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -170,6 +171,7 @@ class ActionService : AccessibilityService() {
         unregisterUnlockGateReceiver()
         stopMediaInfoObserver()
         stopIncomingCallMonitor()
+        DaltonizerManager.restoreIfNeeded(this)
         instance = WeakReference(null)
         return super.onUnbind(intent)
     }
@@ -192,6 +194,7 @@ class ActionService : AccessibilityService() {
         unregisterUnlockGateReceiver()
         stopMediaInfoObserver()
         stopIncomingCallMonitor()
+        DaltonizerManager.restoreIfNeeded(this)
         instance = WeakReference(null)
         super.onDestroy()
     }
@@ -323,6 +326,10 @@ class ActionService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
         val eventType = event.eventType
 
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            DaltonizerManager.onWindowStateChanged(this, packageName, prefs.colorApps)
+        }
+
         runOnMainThread {
             if (
                 eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
@@ -359,6 +366,7 @@ class ActionService : AccessibilityService() {
         consumedMappedKeyUps.clear()
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
+        mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
         if (cameraKeyPassThroughActive) {
             cameraKeyPassThroughInterrupted = true
         }
@@ -371,6 +379,7 @@ class ActionService : AccessibilityService() {
         cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility = true)
         hideVolumeOnlyOverlay()
         secureLockMaskGestureAttempt = 0
+        DaltonizerManager.restoreIfNeeded(this)
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
@@ -1235,9 +1244,11 @@ class ActionService : AccessibilityService() {
         val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return try {
+            DaltonizerManager.onAppLaunch(this, pkg, prefs.colorApps)
             startActivity(intent)
             true
         } catch (_: Exception) {
+            DaltonizerManager.restoreIfNeeded(this)
             false
         }
     }

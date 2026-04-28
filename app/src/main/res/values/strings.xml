@@ -27,6 +27,8 @@
     <string name="settings_haptics">Haptics</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_miscellaneous">General</string>
+    <string name="settings_colour_apps">Colour Filter</string>
+    <string name="colour_apps_permission_message">Luma requires a system-level permission to toggle the colour filter. To grant it, run:\n\nadb shell pm grant com.vandam.luma android.permission.WRITE_SECURE_SETTINGS</string>
     <string name="settings_keymaps">Keymaps</string>
     <string name="settings_account">Account</string>
     <string name="settings_update_luma">Update Luma</string>
