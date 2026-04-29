@@ -327,7 +327,15 @@ class ActionService : AccessibilityService() {
         val eventType = event.eventType
 
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            DaltonizerManager.onWindowStateChanged(this, packageName, prefs.colorApps)
+            DaltonizerManager.onWindowStateChanged(
+                this,
+                packageName,
+                prefs.colorApps,
+                isLumaTransientOverlay =
+                    packageName == this.packageName &&
+                        !MainActivity.isLumaForeground() &&
+                        isVolumeOnlyOverlayVisible(),
+            )
         }
 
         runOnMainThread {

@@ -36,8 +36,12 @@ object DaltonizerManager {
         context: Context,
         packageName: String,
         colorApps: Set<String>,
+        isLumaTransientOverlay: Boolean = false,
     ) {
         if (packageName == context.packageName) {
+            if (isLumaTransientOverlay && (currentColorApp != null || pendingColorApp != null)) {
+                return
+            }
             if (currentColorApp != null || pendingColorApp != null) {
                 restoreDaltonizer(context)
                 currentColorApp = null
