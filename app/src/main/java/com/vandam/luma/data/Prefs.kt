@@ -629,15 +629,7 @@ class Prefs(
         get() = enumPref(NOTIFICATION_INDICATOR_ALIGNMENT, NotificationIndicatorAlignment.After)
         set(value) = prefs.edit().putString(NOTIFICATION_INDICATOR_ALIGNMENT, value.name).apply()
 
-    fun isStatusBarVisibleOnHomescreen(): Boolean = false
-
     fun isStatusBarVisibleOnLockscreen(): Boolean = true
-
-    fun showsLumaStatusBarOnHomescreen(): Boolean = false
-
-    fun showsLumaStatusBarOnLockscreen(): Boolean = true
-
-    fun showsLumaStatusBarAnywhere(): Boolean = true
 
     fun showsAndroidStatusBarOnHomescreen(): Boolean = false
 
@@ -654,26 +646,6 @@ class Prefs(
     var leadingZero: Boolean
         get() = prefs.getBoolean(LEADING_ZERO, false)
         set(value) = prefs.edit().putBoolean(LEADING_ZERO, value).apply()
-
-    var batteryPercentage: Boolean
-        get() = true
-        set(value) {}
-
-    var batteryIcon: Boolean
-        get() = true
-        set(value) {}
-
-    var cellularEnabled: Boolean
-        get() = true
-        set(value) {}
-
-    var wifiEnabled: Boolean
-        get() = true
-        set(value) {}
-
-    var bluetoothEnabled: Boolean
-        get() = true
-        set(value) {}
 
     var lastCellularSignalLevel: Int?
         get() = prefs.getInt(LAST_CELLULAR_SIGNAL_LEVEL, -1).takeIf { it >= 0 }

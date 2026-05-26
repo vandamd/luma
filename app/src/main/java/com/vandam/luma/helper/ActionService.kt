@@ -2627,14 +2627,11 @@ class ActionService : AccessibilityService() {
         val batteryText = view.findViewById<TextView>(R.id.statusBatteryText)
         val batteryIcon = view.findViewById<ImageView>(R.id.statusBattery)
 
-        if (!prefs.batteryPercentage && !prefs.batteryIcon) {
-            batteryText.visibility = View.GONE
-            batteryIcon.visibility = View.GONE
-            batteryLayout.visibility = View.INVISIBLE
-            return
-        }
-
-        val sticky = batteryIntent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val sticky =
+            batteryIntent
+                ?: runCatching {
+                    registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                }.getOrNull()
         if (sticky == null) {
             batteryText.visibility = View.GONE
             batteryIcon.visibility = View.GONE
@@ -2655,9 +2652,9 @@ class ActionService : AccessibilityService() {
         val battery = LumaStatusBarUi.batteryIconRes(sticky)
 
         batteryLayout.visibility = View.VISIBLE
-        batteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
+        batteryText.visibility = View.VISIBLE
         batteryText.text = "$pct%"
-        batteryIcon.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
+        batteryIcon.visibility = View.VISIBLE
         LumaStatusBarUi.setBatteryIcon(batteryIcon, battery.iconRes, textColor, battery.isCharging)
     }
 
@@ -2672,9 +2669,12 @@ class ActionService : AccessibilityService() {
         val wifiIcon = view.findViewById<ImageView>(R.id.statusWifi)
         val bluetoothIcon = view.findViewById<ImageView>(R.id.statusBluetooth)
 
-        val airplaneMode = Settings.Global.getInt(contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0)
+        val airplaneMode =
+            runCatching {
+                Settings.Global.getInt(contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0)
+            }.getOrDefault(0)
 
-        if (airplaneMode != 0 && prefs.cellularEnabled) {
+        if (airplaneMode != 0) {
             LumaStatusBarUi.showTinted(airplaneIcon, R.drawable.airplane, textColor)
             signalIcon.visibility = View.GONE
             networkType.visibility = View.GONE
@@ -2682,64 +2682,51 @@ class ActionService : AccessibilityService() {
         } else {
             airplaneIcon.visibility = View.GONE
 
-            if (prefs.cellularEnabled) {
-                val state = unlockGateCellularSnapshot.serviceState
-                if (state == ServiceState.STATE_EMERGENCY_ONLY) {
-                    val level = unlockGateCellularSnapshot.signalLevel
-                    if (level != null) {
-                        LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
-                    } else {
-                        signalIcon.visibility = View.GONE
-                    }
-                    networkType.visibility = View.VISIBLE
-                    networkType.text = "SOS"
-                } else if (state == ServiceState.STATE_IN_SERVICE) {
-                    val level = unlockGateCellularSnapshot.signalLevel
-                    if (level != null) {
-                        LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
-                    } else {
-                        signalIcon.visibility = View.GONE
-                    }
-                    val label = LumaStatusBarUi.networkLabelForType(unlockGateCellularSnapshot.networkType)
-                    networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
-                    networkType.text = label
+            val state = unlockGateCellularSnapshot.serviceState
+            if (state == ServiceState.STATE_EMERGENCY_ONLY) {
+                val level = unlockGateCellularSnapshot.signalLevel
+                if (level != null) {
+                    LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
                 } else {
-                    LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
-                    networkType.visibility = View.GONE
+                    signalIcon.visibility = View.GONE
                 }
+                networkType.visibility = View.VISIBLE
+                networkType.text = "SOS"
+            } else if (state == ServiceState.STATE_IN_SERVICE) {
+                val level = unlockGateCellularSnapshot.signalLevel
+                if (level != null) {
+                    LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
+                } else {
+                    signalIcon.visibility = View.GONE
+                }
+                val label = LumaStatusBarUi.networkLabelForType(unlockGateCellularSnapshot.networkType)
+                networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
+                networkType.text = label
             } else {
-                signalIcon.visibility = View.GONE
+                LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
                 networkType.visibility = View.GONE
             }
 
-            if (prefs.wifiEnabled) {
-                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                val wm = getSystemService(Context.WIFI_SERVICE) as WifiManager
-                val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
-                if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                    val level = wm.calculateSignalLevel(activeCaps.signalStrength)
-                    LumaStatusBarUi.showTinted(wifiIcon, LumaStatusBarUi.wifiDrawableForLevel(level), textColor)
-                } else {
-                    wifiIcon.visibility = View.GONE
-                }
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val wifiManager = getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val activeCaps = connectivityManager?.activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+            if (wifiManager != null && activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+                val level = wifiManager.calculateSignalLevel(activeCaps.signalStrength)
+                LumaStatusBarUi.showTinted(wifiIcon, LumaStatusBarUi.wifiDrawableForLevel(level), textColor)
             } else {
                 wifiIcon.visibility = View.GONE
             }
         }
 
-        if (prefs.bluetoothEnabled) {
-            when (val state = BluetoothStatusHelper.indicatorState(this)) {
-                BluetoothStatusHelper.IndicatorState.On,
-                BluetoothStatusHelper.IndicatorState.Connected -> LumaStatusBarUi.showTinted(
-                    bluetoothIcon,
-                    LumaStatusBarUi.bluetoothDrawableForState(state),
-                    textColor,
-                )
+        when (val state = BluetoothStatusHelper.indicatorState(this)) {
+            BluetoothStatusHelper.IndicatorState.On,
+            BluetoothStatusHelper.IndicatorState.Connected -> LumaStatusBarUi.showTinted(
+                bluetoothIcon,
+                LumaStatusBarUi.bluetoothDrawableForState(state),
+                textColor,
+            )
 
-                BluetoothStatusHelper.IndicatorState.Off, null -> bluetoothIcon.visibility = View.GONE
-            }
-        } else {
-            bluetoothIcon.visibility = View.GONE
+            BluetoothStatusHelper.IndicatorState.Off, null -> bluetoothIcon.visibility = View.GONE
         }
 
         val anyVisible =
@@ -2820,29 +2807,10 @@ class ActionService : AccessibilityService() {
             return
         }
 
-        if (prefs.batteryPercentage || prefs.batteryIcon) {
-            startUnlockGateBatteryMonitor()
-        } else {
-            stopUnlockGateBatteryMonitor()
-        }
-
-        if (prefs.cellularEnabled) {
-            startUnlockGateCellularMonitor()
-        } else {
-            stopUnlockGateCellularMonitor()
-        }
-
-        if (prefs.wifiEnabled) {
-            startUnlockGateWifiMonitor()
-        } else {
-            stopUnlockGateWifiMonitor()
-        }
-
-        if (prefs.bluetoothEnabled) {
-            startUnlockGateBluetoothMonitor()
-        } else {
-            stopUnlockGateBluetoothMonitor()
-        }
+        startUnlockGateBatteryMonitor()
+        startUnlockGateCellularMonitor()
+        startUnlockGateWifiMonitor()
+        startUnlockGateBluetoothMonitor()
     }
 
     private fun stopUnlockGateStatusBarMonitors() {
@@ -3053,7 +3021,11 @@ class ActionService : AccessibilityService() {
                 }
             }
 
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: run {
+                refreshUnlockGateConnectivityStatus()
+                return
+            }
         val request =
             NetworkRequest
                 .Builder()
@@ -3070,9 +3042,9 @@ class ActionService : AccessibilityService() {
 
     private fun stopUnlockGateWifiMonitor() {
         val callback = unlockGateWifiNetworkCallback ?: return
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         try {
-            connectivityManager.unregisterNetworkCallback(callback)
+            connectivityManager?.unregisterNetworkCallback(callback)
         } catch (exception: Exception) {
             Log.e(TAG, "stopUnlockGateWifiMonitor: unregisterNetworkCallback failed", exception)
         } finally {
