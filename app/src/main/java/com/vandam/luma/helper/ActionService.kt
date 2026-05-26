@@ -2902,7 +2902,17 @@ class ActionService : AccessibilityService() {
                 TelephonyCallback.DataConnectionStateListener,
                 TelephonyCallback.ServiceStateListener {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
-                    val level = signalStrength.level.coerceIn(0, 4)
+                    val level =
+                        runCatching {
+                            signalStrength.level.coerceIn(0, 4)
+                        }.getOrElse {
+                            runOnMainThread {
+                                unlockGateCellularSnapshot =
+                                    unlockGateCellularSnapshot.copy(serviceState = ServiceState.STATE_OUT_OF_SERVICE)
+                                refreshUnlockGateConnectivityStatus()
+                            }
+                            return
+                        }
                     runOnMainThread {
                         unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(signalLevel = level)
                         refreshUnlockGateConnectivityStatus()
@@ -2922,8 +2932,14 @@ class ActionService : AccessibilityService() {
                 }
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
+                    val state =
+                        runCatching {
+                            serviceState.state
+                        }.getOrElse {
+                            ServiceState.STATE_OUT_OF_SERVICE
+                        }
                     runOnMainThread {
-                        unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(serviceState = serviceState.state)
+                        unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(serviceState = state)
                         refreshUnlockGateConnectivityStatus()
                     }
                 }
@@ -2932,7 +2948,7 @@ class ActionService : AccessibilityService() {
         try {
             telephonyManager.registerTelephonyCallback(mainExecutor, callback)
             unlockGateTelephonyCallback = callback
-        } catch (exception: SecurityException) {
+        } catch (exception: Exception) {
             Log.w(TAG, "startUnlockGateCellularMonitor: registerTelephonyCallback failed", exception)
         }
     }
@@ -2958,7 +2974,11 @@ class ActionService : AccessibilityService() {
         }
         try {
             telephonyManager.signalStrength?.let {
-                updatedSnapshot = updatedSnapshot.copy(signalLevel = it.level.coerceIn(0, 4))
+                runCatching {
+                    it.level.coerceIn(0, 4)
+                }.getOrNull()?.let { level ->
+                    updatedSnapshot = updatedSnapshot.copy(signalLevel = level)
+                }
             }
         } catch (_: SecurityException) {
         }

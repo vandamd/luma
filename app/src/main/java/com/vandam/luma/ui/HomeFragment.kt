@@ -737,7 +737,13 @@ class HomeFragment :
                 TelephonyCallback.ServiceStateListener {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     if (_binding == null) return
-                    val level = signalStrength.level.coerceIn(0, 4)
+                    val level =
+                        runCatching {
+                            signalStrength.level.coerceIn(0, 4)
+                        }.getOrElse {
+                            hideCellular()
+                            return
+                        }
                     cellularSnapshot = cellularSnapshot.copy(signalLevel = level)
                     updateSignalIcon(level)
                 }
@@ -757,14 +763,23 @@ class HomeFragment :
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
                     if (_binding == null) return
-                    cellularSnapshot = cellularSnapshot.copy(serviceState = serviceState.state)
+                    val state =
+                        runCatching {
+                            serviceState.state
+                        }.getOrElse {
+                            cellularSnapshot = cellularSnapshot.copy(serviceState = ServiceState.STATE_OUT_OF_SERVICE)
+                            applyCellularState()
+                            return
+                        }
+                    cellularSnapshot = cellularSnapshot.copy(serviceState = state)
                     applyCellularState()
                 }
             }
         telephonyCallback = callback
         try {
             tm.registerTelephonyCallback(requireContext().mainExecutor, callback)
-        } catch (_: SecurityException) {
+        } catch (exception: Exception) {
+            Log.w(TAG, "startCellularMonitor: registerTelephonyCallback failed", exception)
             telephonyCallback = null
             hideCellular()
         }
@@ -779,8 +794,11 @@ class HomeFragment :
         }
         try {
             tm.signalStrength?.let {
-                val level = it.level.coerceIn(0, 4)
-                updatedSnapshot = updatedSnapshot.copy(signalLevel = level)
+                runCatching {
+                    it.level.coerceIn(0, 4)
+                }.getOrNull()?.let { level ->
+                    updatedSnapshot = updatedSnapshot.copy(signalLevel = level)
+                }
             }
         } catch (_: SecurityException) {
         }
@@ -834,8 +852,12 @@ class HomeFragment :
 
     private fun stopCellularMonitor() {
         telephonyCallback?.let {
-            val tm = requireContext().getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-            tm.unregisterTelephonyCallback(it)
+            runCatching {
+                val tm = requireContext().getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                tm.unregisterTelephonyCallback(it)
+            }.onFailure { exception ->
+                Log.w(TAG, "stopCellularMonitor: unregisterTelephonyCallback failed", exception)
+            }
             telephonyCallback = null
         }
     }
