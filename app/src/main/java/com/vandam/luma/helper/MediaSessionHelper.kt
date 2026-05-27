@@ -2,6 +2,7 @@ package com.vandam.luma.helper
 
 import android.content.ComponentName
 import android.content.Context
+import android.media.AudioManager
 import android.media.MediaDescription
 import android.media.MediaMetadata
 import android.media.session.MediaController
@@ -9,6 +10,8 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.view.KeyEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,10 +28,14 @@ data class MediaInfo(
     val showsPauseButton: Boolean,
     val showsStopButton: Boolean,
     val isPodcast: Boolean,
+    val showsPreviousButton: Boolean,
+    val showsNextButton: Boolean,
 )
 
 object MediaSessionHelper {
+    private const val LIGHT_OS_PACKAGE = "com.lightos"
     private const val PODCAST_SEEK_MS = 15_000L
+    private const val TRACK_SWITCH_GRACE_MS = 1_500L
 
     private val _mediaInfo = MutableStateFlow<MediaInfo?>(null)
     val mediaInfo: StateFlow<MediaInfo?> = _mediaInfo.asStateFlow()
@@ -36,9 +43,13 @@ object MediaSessionHelper {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var mediaSessionManager: MediaSessionManager? = null
+    private var audioManager: AudioManager? = null
     private var listenerComponent: ComponentName? = null
     private val activeCallbacks = mutableMapOf<MediaController, MediaController.Callback>()
-    private var dismissedPackageName: String? = null
+    private val dismissedPackageNames = mutableSetOf<String>()
+    private var trackSwitchPackageName: String? = null
+    private var trackSwitchGraceUntilUptimeMs = 0L
+    private var trackSwitchGraceRunnable: Runnable? = null
     private var initialized = false
     private var notificationObserverJob: Job? = null
     @Volatile
@@ -50,6 +61,7 @@ object MediaSessionHelper {
         listenerComponent = ComponentName(context, LumaNotificationListener::class.java)
         mediaSessionManager =
             context.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
+        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     }
 
     fun setTrackingEnabled(enabled: Boolean) {
@@ -61,6 +73,7 @@ object MediaSessionHelper {
         } else {
             notificationObserverJob?.cancel()
             notificationObserverJob = null
+            clearTrackSwitchGrace()
             clearCallbacks()
             _mediaInfo.value = null
         }
@@ -76,62 +89,100 @@ object MediaSessionHelper {
 
     fun togglePlayPause() {
         val controller = activeController() ?: return
+        clearTrackSwitchGrace()
         val playbackState = controller.playbackState?.state ?: PlaybackState.STATE_NONE
         if (showsPauseButton(playbackState)) {
-            controller.transportControls.pause()
+            if (controller.packageName == LIGHT_OS_PACKAGE) {
+                dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE)
+            } else {
+                controller.transportControls.pause()
+            }
         } else {
-            controller.transportControls.play()
+            if (controller.packageName == LIGHT_OS_PACKAGE) {
+                dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY)
+            } else {
+                controller.transportControls.play()
+            }
         }
     }
 
     fun skipToNext() {
-        activeController()?.transportControls?.skipToNext()
+        val controller = activeController() ?: return
+        startTrackSwitchGrace(controller)
+        if (controller.packageName == LIGHT_OS_PACKAGE) {
+            dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT)
+        } else {
+            controller.transportControls.skipToNext()
+        }
     }
 
     fun skipToPrevious() {
-        activeController()?.transportControls?.skipToPrevious()
+        val controller = activeController() ?: return
+        startTrackSwitchGrace(controller)
+        if (controller.packageName == LIGHT_OS_PACKAGE) {
+            dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+        } else {
+            controller.transportControls.skipToPrevious()
+        }
     }
 
     fun rewind() {
         val controller = activeController() ?: return
-        val pos = controller.playbackState?.position ?: 0
-        controller.transportControls.seekTo((pos - PODCAST_SEEK_MS).coerceAtLeast(0))
+        val playbackState = controller.playbackState ?: return
+        val customAction = playbackState.podcastSeekCustomAction(isBack = true)
+        if (customAction != null) {
+            controller.transportControls.sendCustomAction(customAction.action, null)
+        } else if (playbackState.hasAction(PlaybackState.ACTION_SEEK_TO)) {
+            val position = (playbackState.currentPosition() - PODCAST_SEEK_MS).coerceAtLeast(0)
+            controller.transportControls.seekTo(position)
+        } else {
+            controller.transportControls.rewind()
+        }
     }
 
     fun fastForward() {
         val controller = activeController() ?: return
-        val pos = controller.playbackState?.position ?: 0
-        controller.transportControls.seekTo(pos + PODCAST_SEEK_MS)
+        val playbackState = controller.playbackState ?: return
+        val customAction = playbackState.podcastSeekCustomAction(isBack = false)
+        if (customAction != null) {
+            controller.transportControls.sendCustomAction(customAction.action, null)
+        } else if (playbackState.hasAction(PlaybackState.ACTION_SEEK_TO)) {
+            controller.transportControls.seekTo(playbackState.currentPosition() + PODCAST_SEEK_MS)
+        } else {
+            controller.transportControls.fastForward()
+        }
     }
 
     fun stopAndDismiss() {
-        val controller = activeController() ?: return
+        val controllers = activeCallbacks.keys.toList()
+        val controller = activeController(controllers) ?: return
+        clearTrackSwitchGrace()
+        dismissedPackageNames.addAll(
+            controllers
+                .filterNot { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                .map { it.packageName },
+        )
         controller.transportControls.stop()
         LumaNotificationListener.dismissMediaNotifications(controller.packageName)
-        if (controller.playbackState?.state != PlaybackState.STATE_PLAYING) {
-            dismissedPackageName = controller.packageName
-        }
-        updateMediaInfo()
+        updateMediaInfo(controllers)
     }
 
     private fun activeController(
         controllers: List<MediaController> = activeCallbacks.keys.toList(),
     ): MediaController? {
-        clearDismissedPackageIfInactive(controllers)
+        pruneDismissedPackages(controllers)
 
         val playingController =
             controllers.firstOrNull { controller ->
                 controller.playbackState?.state == PlaybackState.STATE_PLAYING
             }
         if (playingController != null) {
-            if (playingController.packageName == dismissedPackageName) {
-                dismissedPackageName = null
-            }
+            dismissedPackageNames.remove(playingController.packageName)
             return playingController
         }
 
         return controllers.firstOrNull { controller ->
-            controller.isPausedSession() && controller.packageName != dismissedPackageName
+            controller.isPausedSession() && controller.packageName !in dismissedPackageNames
         }
     }
 
@@ -142,21 +193,18 @@ object MediaSessionHelper {
             activeController()?.packageName
         }
 
-    private fun clearDismissedPackageIfInactive(controllers: List<MediaController>) {
-        val dismissedPackage = dismissedPackageName ?: return
-        val stillDismissed =
-            controllers.any { controller ->
-                controller.packageName == dismissedPackage && controller.isPausedSession()
-            }
-        if (!stillDismissed) {
-            dismissedPackageName = null
-        }
+    private fun pruneDismissedPackages(controllers: List<MediaController>) {
+        val activePackages = controllers.mapTo(mutableSetOf()) { it.packageName }
+        dismissedPackageNames.retainAll(activePackages)
     }
 
     private fun MediaController.isPausedSession(): Boolean {
         val state = playbackState?.state
         val isPaused = state == PlaybackState.STATE_PAUSED || state == PlaybackState.STATE_BUFFERING
-        return isPaused && LumaNotificationListener.hasActiveMediaNotification(packageName)
+        return isPaused && (
+            packageName == LIGHT_OS_PACKAGE ||
+                LumaNotificationListener.hasActiveMediaNotification(packageName)
+        )
     }
 
     private fun showsPauseButton(playbackState: Int): Boolean =
@@ -179,16 +227,17 @@ object MediaSessionHelper {
     }
 
     private fun hasPodcastSeekCustomActions(playbackState: PlaybackState?): Boolean {
-        val customActions = playbackState?.customActions.orEmpty()
-        val hasBackSeek = customActions.any { it.matchesPodcastSeekAction(isBack = true) }
-        val hasForwardSeek = customActions.any { it.matchesPodcastSeekAction(isBack = false) }
-        return hasBackSeek && hasForwardSeek
+        return playbackState.podcastSeekCustomAction(isBack = true) != null &&
+            playbackState.podcastSeekCustomAction(isBack = false) != null
     }
 
     private fun PlaybackState.CustomAction.matchesPodcastSeekAction(isBack: Boolean): Boolean {
         if (matchesPodcastSeekText(action, isBack)) return true
         return matchesPodcastSeekText(name?.toString().orEmpty(), isBack)
     }
+
+    private fun PlaybackState?.podcastSeekCustomAction(isBack: Boolean): PlaybackState.CustomAction? =
+        this?.customActions.orEmpty().firstOrNull { it.matchesPodcastSeekAction(isBack) }
 
     private fun matchesPodcastSeekText(
         value: String,
@@ -215,6 +264,55 @@ object MediaSessionHelper {
                 value.contains("fastforward", ignoreCase = true) ||
                 value.contains("fast_forward", ignoreCase = true)
         }
+    }
+
+    private fun PlaybackState.hasAction(action: Long): Boolean = actions and action != 0L
+
+    private fun startTrackSwitchGrace(controller: MediaController) {
+        val playbackState = controller.playbackState?.state ?: PlaybackState.STATE_NONE
+        if (!showsPauseButton(playbackState)) return
+
+        trackSwitchPackageName = controller.packageName
+        trackSwitchGraceUntilUptimeMs = SystemClock.uptimeMillis() + TRACK_SWITCH_GRACE_MS
+        trackSwitchGraceRunnable?.let(mainHandler::removeCallbacks)
+        trackSwitchGraceRunnable =
+            Runnable {
+                clearTrackSwitchGrace()
+                updateMediaInfo()
+            }.also { runnable ->
+                mainHandler.postDelayed(runnable, TRACK_SWITCH_GRACE_MS)
+            }
+    }
+
+    private fun clearTrackSwitchGrace() {
+        trackSwitchGraceRunnable?.let(mainHandler::removeCallbacks)
+        trackSwitchGraceRunnable = null
+        trackSwitchPackageName = null
+        trackSwitchGraceUntilUptimeMs = 0L
+    }
+
+    private fun shouldShowPlayingControlsDuringTrackSwitch(controller: MediaController): Boolean {
+        if (trackSwitchPackageName != controller.packageName) return false
+        if (SystemClock.uptimeMillis() <= trackSwitchGraceUntilUptimeMs) return true
+        clearTrackSwitchGrace()
+        return false
+    }
+
+    private fun dispatchMediaKey(keyCode: Int) {
+        val manager = audioManager ?: return
+        val downTime = SystemClock.uptimeMillis()
+        manager.dispatchMediaKeyEvent(KeyEvent(downTime, downTime, KeyEvent.ACTION_DOWN, keyCode, 0))
+        manager.dispatchMediaKeyEvent(KeyEvent(downTime, downTime, KeyEvent.ACTION_UP, keyCode, 0))
+    }
+
+    private fun PlaybackState.currentPosition(): Long {
+        val basePosition = position.coerceAtLeast(0)
+        if (state != PlaybackState.STATE_PLAYING) return basePosition
+
+        val elapsedMs = SystemClock.elapsedRealtime() - lastPositionUpdateTime
+        if (elapsedMs <= 0L) return basePosition
+
+        return (basePosition + elapsedMs * playbackSpeed).toLong().coerceAtLeast(0)
     }
 
     private fun currentControllers(): List<MediaController> {
@@ -296,31 +394,62 @@ object MediaSessionHelper {
             return
         }
 
-        val metadata =
-            active.metadata ?: run {
-                _mediaInfo.value = null
-                return
-            }
-
-        val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: return
+        val metadata = active.metadata
+        val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty()
         val artist =
-            metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
-                ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
+            metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
                 ?: ""
         val playbackState = active.playbackState
         val playbackStatus = playbackState?.state ?: PlaybackState.STATE_NONE
-        val showsPauseButton = showsPauseButton(playbackStatus)
-        val showsStopButton = playbackStatus == PlaybackState.STATE_PAUSED
-        val description = metadata.description
-        val isPodcast = hasPodcastMetadata(description) || hasPodcastSeekCustomActions(playbackState)
+        val showPlayingControlsDuringTrackSwitch = shouldShowPlayingControlsDuringTrackSwitch(active)
+        val showsPauseButton = showPlayingControlsDuringTrackSwitch || showsPauseButton(playbackStatus)
+        val showsStopButton = playbackStatus == PlaybackState.STATE_PAUSED && !showPlayingControlsDuringTrackSwitch
+        val hasPodcastCustomSeekActions = hasPodcastSeekCustomActions(playbackState)
+        val isPodcast =
+            hasPodcastMetadata(metadata?.description) ||
+                hasPodcastCustomSeekActions ||
+                playbackState.hasPodcastSeekActions()
+        val showsPreviousButton =
+            if (isPodcast) {
+                hasPodcastCustomSeekActions || playbackState.hasPodcastBackAction()
+            } else {
+                playbackState?.hasAction(PlaybackState.ACTION_SKIP_TO_PREVIOUS) == true
+            }
+        val showsNextButton =
+            if (isPodcast) {
+                hasPodcastCustomSeekActions || playbackState.hasPodcastForwardAction()
+            } else {
+                playbackState?.hasAction(PlaybackState.ACTION_SKIP_TO_NEXT) == true
+            }
 
         _mediaInfo.value =
             MediaInfo(
-                title = title.toString(),
-                artist = artist.toString(),
+                title = title,
+                artist = artist,
                 showsPauseButton = showsPauseButton,
                 showsStopButton = showsStopButton,
                 isPodcast = isPodcast,
+                showsPreviousButton = showsPreviousButton,
+                showsNextButton = showsNextButton,
             )
     }
+
+    private fun PlaybackState?.hasPodcastSeekActions(): Boolean =
+        this?.let { state ->
+            state.hasAction(PlaybackState.ACTION_REWIND) &&
+                state.hasAction(PlaybackState.ACTION_FAST_FORWARD)
+        } == true
+
+    private fun PlaybackState?.hasPodcastBackAction(): Boolean =
+        this?.let { state ->
+            state.hasAction(PlaybackState.ACTION_SEEK_TO) ||
+                state.hasAction(PlaybackState.ACTION_REWIND)
+        } == true
+
+    private fun PlaybackState?.hasPodcastForwardAction(): Boolean =
+        this?.let { state ->
+            state.hasAction(PlaybackState.ACTION_SEEK_TO) ||
+                state.hasAction(PlaybackState.ACTION_FAST_FORWARD)
+        } == true
 }

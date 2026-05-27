@@ -2523,6 +2523,8 @@ class ActionService : AccessibilityService() {
 
             val prevView = view.findViewById<ImageView>(R.id.unlockGateMediaPrev)
             val nextView = view.findViewById<ImageView>(R.id.unlockGateMediaNext)
+            prevView.visibility = if (mediaInfo.showsPreviousButton) View.VISIBLE else View.GONE
+            nextView.visibility = if (mediaInfo.showsNextButton) View.VISIBLE else View.GONE
             if (mediaInfo.isPodcast) {
                 prevView.setImageResource(R.drawable.ic_media_replay_15)
                 nextView.setImageResource(R.drawable.ic_media_forward_15)
