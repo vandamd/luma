@@ -438,7 +438,12 @@ class ActionService : AccessibilityService() {
                                 launchLightOsRoute(this@ActionService, "call")
                             } else {
                                 val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
-                                if (mediaPkg != null) {
+                                if (mediaPkg == LIGHT_OS_PACKAGE) {
+                                    CoroutineScope(Dispatchers.Main).launch {
+                                        val route = if (LightOSMediaResolver.isPodcastPlaying()) "podcasts" else "music"
+                                        launchLightOsRoute(this@ActionService, route)
+                                    }
+                                } else if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
                                 } else if (isLumaForeground()) {
@@ -516,7 +521,12 @@ class ActionService : AccessibilityService() {
                                 launchLightOsRoute(this@ActionService, "call")
                             } else {
                                 val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
-                                if (mediaPkg != null) {
+                                if (mediaPkg == LIGHT_OS_PACKAGE) {
+                                    CoroutineScope(Dispatchers.Main).launch {
+                                        val route = if (LightOSMediaResolver.isPodcastPlaying()) "podcasts" else "music"
+                                        launchLightOsRoute(this@ActionService, route)
+                                    }
+                                } else if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
                                 } else if (isLumaForeground()) {
