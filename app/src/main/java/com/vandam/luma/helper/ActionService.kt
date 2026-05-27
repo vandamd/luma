@@ -439,10 +439,8 @@ class ActionService : AccessibilityService() {
                             } else {
                                 val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
                                 if (mediaPkg == LIGHT_OS_PACKAGE) {
-                                    CoroutineScope(Dispatchers.Main).launch {
-                                        val route = if (LightOSMediaResolver.isPodcastPlaying()) "podcasts" else "music"
-                                        launchLightOsRoute(this@ActionService, route)
-                                    }
+                                    val route = resolveLightOsMediaRoute()
+                                    launchLightOsRoute(this@ActionService, route)
                                 } else if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
@@ -522,10 +520,8 @@ class ActionService : AccessibilityService() {
                             } else {
                                 val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
                                 if (mediaPkg == LIGHT_OS_PACKAGE) {
-                                    CoroutineScope(Dispatchers.Main).launch {
-                                        val route = if (LightOSMediaResolver.isPodcastPlaying()) "podcasts" else "music"
-                                        launchLightOsRoute(this@ActionService, route)
-                                    }
+                                    val route = resolveLightOsMediaRoute()
+                                    launchLightOsRoute(this@ActionService, route)
                                 } else if (mediaPkg != null) {
                                     val targetPkg = resolveMediaAppPackage(mediaPkg)
                                     openAppByPackage(targetPkg)
@@ -1242,6 +1238,16 @@ class ActionService : AccessibilityService() {
                 mediaPkg
             }
         }
+
+    private fun resolveLightOsMediaRoute(): String {
+        val musicEnabled = prefs.isToolEnabled(Tool.Music)
+        val podcastsEnabled = prefs.isToolEnabled(Tool.Podcasts)
+        return when {
+            musicEnabled && podcastsEnabled -> prefs.getLightOsMediaRoute()
+            podcastsEnabled -> "podcasts"
+            else -> "music"
+        }
+    }
 
     private fun isPackageInstalled(pkg: String): Boolean =
         try {

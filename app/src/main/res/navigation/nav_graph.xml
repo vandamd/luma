@@ -122,7 +122,15 @@
     <fragment
         android:id="@+id/keymapsFragment"
         android:name="com.vandam.luma.ui.KeymapsFragment"
-        android:label="KeymapsFragment" />
+        android:label="KeymapsFragment">
+        <action
+            android:id="@+id/action_keymapsFragment_to_lightOSMediaRouteFragment"
+            app:destination="@id/lightOSMediaRouteFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/lightOSMediaRouteFragment"
+        android:name="com.vandam.luma.ui.LightOSMediaRouteFragment"
+        android:label="LightOSMediaRouteFragment" />
     <fragment
         android:id="@+id/homescreenFragment"
         android:name="com.vandam.luma.ui.HomescreenFragment"

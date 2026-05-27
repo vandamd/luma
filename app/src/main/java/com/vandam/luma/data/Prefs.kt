@@ -89,6 +89,7 @@ private const val SCROLLWHEEL_BUTTON_PRESS_ACTION = "scrollwheel_button_press_ac
 private const val SCROLLWHEEL_BUTTON_PRESS_APP = "scrollwheel_button_press_app"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION = "scrollwheel_button_long_press_action"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_APP = "scrollwheel_button_long_press_app"
+private const val LIGHT_OS_MEDIA_ROUTE = "light_os_media_route"
 private const val LOCKSCREEN_DATE_FORMAT = "lockscreen_date_format"
 private const val LOCKSCREEN_CLOCK_TAP_ACTION = "lockscreen_clock_tap_action"
 private const val LOCKSCREEN_CLOCK_TAP_APP = "lockscreen_clock_tap_app"
@@ -396,6 +397,12 @@ class Prefs(
 
     fun setScrollwheelButtonLongPressApp(appModel: AppModel) {
         storeApp(SCROLLWHEEL_BUTTON_LONG_PRESS_APP, appModel)
+    }
+
+    fun getLightOsMediaRoute(): String = prefs.getString(LIGHT_OS_MEDIA_ROUTE, "music") ?: "music"
+
+    fun setLightOsMediaRoute(route: String) {
+        prefs.edit().putString(LIGHT_OS_MEDIA_ROUTE, route).apply()
     }
 
     fun isToolEnabled(tool: Tool): Boolean = prefs.getBoolean(tool.prefKey, tool == Tool.Phone || tool == Tool.Settings)
