@@ -1586,7 +1586,7 @@ class ActionService : AccessibilityService() {
                 addAction(Intent.ACTION_SCREEN_ON)
             }
 
-        ContextCompat.registerReceiver(this, unlockGateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(this, unlockGateReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
     }
 
     private fun unregisterUnlockGateReceiver() {
