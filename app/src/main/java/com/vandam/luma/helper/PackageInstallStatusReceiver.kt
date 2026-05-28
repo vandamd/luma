@@ -13,16 +13,24 @@ class PackageInstallStatusReceiver : BroadcastReceiver() {
         context: Context,
         intent: Intent,
     ) {
+        val packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME).orEmpty()
         when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 val confirmationIntent = intent.getInstallConfirmationIntent() ?: return
                 confirmationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(confirmationIntent)
+                try {
+                    context.startActivity(confirmationIntent)
+                } catch (_: Exception) {
+                    ManagedAppManager.onPackageInstallResult(context, packageName, success = false)
+                }
             }
 
-            PackageInstaller.STATUS_SUCCESS -> Unit
+            PackageInstaller.STATUS_SUCCESS -> {
+                ManagedAppManager.onPackageInstallResult(context, packageName, success = true)
+            }
 
             else -> {
+                ManagedAppManager.onPackageInstallResult(context, packageName, success = false)
                 val appLabel =
                     intent.getStringExtra(EXTRA_APP_LABEL).orEmpty().ifBlank {
                         context.getString(R.string.app_name)

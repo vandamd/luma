@@ -93,6 +93,7 @@ object ManagedAppManager {
         enabledAppIds: List<String>,
         requestedAppUpdateVersions: Map<String, String> = emptyMap(),
     ) {
+        val appContext = context.applicationContext
         val previousIds = previousEnabledAppIds?.toSet().orEmpty()
         val enabledIds = enabledAppIds.toSet()
 
@@ -109,13 +110,13 @@ object ManagedAppManager {
             .sorted()
             .forEach { appId ->
                 maybeEnqueueManagedAppInstallOrUpdate(
-                    context = context,
+                    context = appContext,
                     appId = appId,
                     requestedVersionName = requestedAppUpdateVersions[appId],
                 )
             }
 
-        processNext(context)
+        processNext(appContext)
     }
 
     fun syncInstalledAppsToDashboard(
@@ -272,12 +273,13 @@ object ManagedAppManager {
     }
 
     fun onResume(context: Context) {
+        val appContext = context.applicationContext
         val currentAction = activeAction
         when {
             currentAction is PendingAction.InstallOrUpdate && awaitingExternalResult -> {
                 if (currentAction.installerLaunched) {
                     clearActiveAction()
-                } else if (ApkInstaller.canRequestPackageInstalls(context)) {
+                } else if (ApkInstaller.canRequestPackageInstalls(appContext)) {
                     awaitingExternalResult = false
                 } else {
                     return
@@ -289,7 +291,24 @@ object ManagedAppManager {
             }
         }
 
-        processNext(context)
+        processNext(appContext)
+    }
+
+    fun onPackageInstallResult(
+        context: Context,
+        packageName: String,
+        success: Boolean,
+    ) {
+        val appContext = context.applicationContext
+        val currentAction = activeAction as? PendingAction.InstallOrUpdate ?: return
+        val managedApp = ManagedAppCatalog.fromId(currentAction.appId) ?: return
+        if (managedApp.packageName != packageName) return
+
+        clearActiveAction()
+        if (success) {
+            scheduleInstalledAppsToDashboardForStoredAccount(appContext, immediate = true)
+        }
+        processNext(appContext)
     }
 
     fun handleManagedAppLaunch(
@@ -320,6 +339,7 @@ object ManagedAppManager {
         context: Context,
         retryCurrentAction: Boolean = false,
     ) {
+        val appContext = context.applicationContext
         if (awaitingExternalResult || processingJob?.isActive == true) {
             return
         }
@@ -337,7 +357,23 @@ object ManagedAppManager {
             is PendingAction.InstallOrUpdate -> {
                 processingJob =
                     scope.launch {
-                        processInstallOrUpdate(context, nextAction)
+                        runCatching {
+                            processInstallOrUpdate(appContext, nextAction)
+                        }.onFailure { error ->
+                            Log.w(LOG_TAG, "Managed app install/update failed", error)
+                            withContext(Dispatchers.Main.immediate) {
+                                val managedApp = ManagedAppCatalog.fromId(nextAction.appId)
+                                if (managedApp != null) {
+                                    showToast(
+                                        appContext,
+                                        appContext.getString(R.string.toast_unable_to_fetch_release, managedApp.label),
+                                    )
+                                }
+                            }
+                            clearActiveAction()
+                            processingJob = null
+                            processNext(appContext)
+                        }
                     }
             }
 
@@ -345,13 +381,13 @@ object ManagedAppManager {
                 val managedApp = ManagedAppCatalog.fromId(nextAction.appId)
                 if (managedApp == null || !isPackageInstalled(context, managedApp.packageName)) {
                     clearActiveAction()
-                    processNext(context)
+                    processNext(appContext)
                     return
                 }
 
                 awaitingExternalResult = true
                 scope.launch(Dispatchers.Main.immediate) {
-                    uninstallApp(context, managedApp.packageName)
+                    uninstallApp(appContext, managedApp.packageName)
                 }
             }
         }
@@ -640,6 +676,16 @@ object ManagedAppManager {
     private fun fetchReleaseFromUrl(
         managedApp: ManagedApp,
         url: String,
+    ): ReleaseAsset? =
+        runCatching {
+            fetchReleaseFromUrlOrThrow(managedApp, url)
+        }.onFailure { error ->
+            Log.w(LOG_TAG, "Failed to fetch release for ${managedApp.id}", error)
+        }.getOrNull()
+
+    private fun fetchReleaseFromUrlOrThrow(
+        managedApp: ManagedApp,
+        url: String,
     ): ReleaseAsset? {
         val connection =
             (URL(url).openConnection() as HttpURLConnection).apply {
@@ -681,8 +727,17 @@ object ManagedAppManager {
         val cacheDir = File(context.cacheDir, "managed-apps").apply { mkdirs() }
         val normalizedVersion = normalizeVersion(releaseAsset.versionName) ?: "latest"
         val destinationFile = File(cacheDir, "${managedApp.id}-$normalizedVersion.apk")
-        if (destinationFile.exists() && destinationFile.length() > 0) {
+        if (
+            ApkInstaller.isValidCachedApk(
+                context = context,
+                apkFile = destinationFile,
+                expectedPackageName = managedApp.packageName,
+                expectedVersionName = normalizedVersion,
+            )
+        ) {
             return destinationFile
+        } else if (destinationFile.exists()) {
+            destinationFile.delete()
         }
 
         val tempFile = File(cacheDir, "${managedApp.id}.download")
