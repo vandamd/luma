@@ -6,6 +6,7 @@ import android.accessibilityservice.GestureDescription
 import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -45,6 +46,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -343,15 +345,11 @@ class ActionService : AccessibilityService() {
                 eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
                 eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
             ) {
-                if (packageName != this.packageName) {
+                if (isPreviousAppCandidate(packageName)) {
                     if (packageName != currentForegroundPackage && currentForegroundPackage != null) {
                         lastForegroundPackage = currentForegroundPackage
                     }
                     currentForegroundPackage = packageName
-                } else if (MainActivity.isLumaForeground()) {
-                    if (currentForegroundPackage != null) {
-                        lastForegroundPackage = currentForegroundPackage
-                    }
                 }
                 if (packageName != this.packageName) {
                     clearPendingCameraOwner()
@@ -434,22 +432,7 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            if (isInCall()) {
-                                launchLightOsRoute(this@ActionService, "call")
-                            } else {
-                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
-                                if (mediaPkg == LIGHT_OS_PACKAGE) {
-                                    val route = resolveLightOsMediaRoute()
-                                    launchLightOsRoute(this@ActionService, route)
-                                } else if (mediaPkg != null) {
-                                    val targetPkg = resolveMediaAppPackage(mediaPkg)
-                                    openAppByPackage(targetPkg)
-                                } else if (isLumaForeground()) {
-                                    openLastUsedApp()
-                                } else {
-                                    launchLumaHome(suppressLauncherIntentHandling = true)
-                                }
-                            }
+                            executeHomeLongPress()
                             dispatchUnlockGateEventOnMain(
                                 UnlockGateEvent.DismissRequested(
                                     nowUptimeMs = SystemClock.uptimeMillis(),
@@ -515,22 +498,7 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            if (isInCall()) {
-                                launchLightOsRoute(this@ActionService, "call")
-                            } else {
-                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
-                                if (mediaPkg == LIGHT_OS_PACKAGE) {
-                                    val route = resolveLightOsMediaRoute()
-                                    launchLightOsRoute(this@ActionService, route)
-                                } else if (mediaPkg != null) {
-                                    val targetPkg = resolveMediaAppPackage(mediaPkg)
-                                    openAppByPackage(targetPkg)
-                                } else if (isLumaForeground()) {
-                                    openLastUsedApp()
-                                } else {
-                                    launchLumaHome(suppressLauncherIntentHandling = true)
-                                }
-                            }
+                            executeHomeLongPress()
                             homeLongPressFired = true
                         }
                     }
@@ -572,6 +540,34 @@ class ActionService : AccessibilityService() {
 
             else -> {
                 false
+            }
+        }
+    }
+
+    private fun executeHomeLongPress() {
+        if (isInCall()) {
+            launchLightOsRoute(this, "call")
+            return
+        }
+
+        val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
+        when {
+            mediaPkg == LIGHT_OS_PACKAGE -> {
+                val route = resolveLightOsMediaRoute()
+                launchLightOsRoute(this, route)
+            }
+
+            mediaPkg != null -> {
+                val targetPkg = resolveMediaAppPackage(mediaPkg)
+                openAppByPackage(targetPkg)
+            }
+
+            openLastUsedApp() -> {
+                Unit
+            }
+
+            else -> {
+                launchLumaHome(suppressLauncherIntentHandling = true)
             }
         }
     }
@@ -1258,8 +1254,13 @@ class ActionService : AccessibilityService() {
         }
 
     private fun openLastUsedApp(): Boolean {
-        val pkg = lastForegroundPackage ?: return false
-        if (pkg == packageName) return false
+        val pkg =
+            if (isLumaForeground()) {
+                currentForegroundPackage
+            } else {
+                lastForegroundPackage
+            } ?: return false
+        if (!isPreviousAppCandidate(pkg)) return false
         return openAppByPackage(pkg)
     }
 
@@ -1276,6 +1277,26 @@ class ActionService : AccessibilityService() {
             false
         }
     }
+
+    private fun isPreviousAppCandidate(pkg: String): Boolean =
+        pkg != packageName &&
+            !isInputMethodPackage(pkg) &&
+            packageManager.getLaunchIntentForPackage(pkg) != null
+
+    private fun isInputMethodPackage(pkg: String): Boolean {
+        if (currentInputMethodPackage() == pkg) return true
+        return runCatching {
+            getSystemService(InputMethodManager::class.java)
+                ?.inputMethodList
+                ?.any { inputMethod -> inputMethod.packageName == pkg } == true
+        }.getOrDefault(false)
+    }
+
+    private fun currentInputMethodPackage(): String? =
+        runCatching {
+            Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
+                ?.let { ComponentName.unflattenFromString(it)?.packageName }
+        }.getOrNull()
 
     private fun isInCall(): Boolean =
         try {
