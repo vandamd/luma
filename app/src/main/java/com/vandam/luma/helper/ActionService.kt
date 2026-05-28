@@ -1946,6 +1946,7 @@ class ActionService : AccessibilityService() {
         patternView.onPatternCompleteListener = { _, screenCoords ->
             dispatchPatternGesture(screenCoords)
         }
+        view.setOnTouchListener(createUnlockGatePatternTouchListener(patternView))
         view.isClickable = false
         view.isFocusable = false
         view.setOnClickListener(null)
@@ -2008,6 +2009,21 @@ class ActionService : AccessibilityService() {
                 View.GONE
             }
     }
+
+    private fun createUnlockGatePatternTouchListener(patternView: PatternLockView): View.OnTouchListener =
+        View.OnTouchListener { _, event ->
+            if (patternView.visibility != View.VISIBLE) {
+                return@OnTouchListener false
+            }
+
+            val location = IntArray(2)
+            patternView.getLocationOnScreen(location)
+            val patternEvent = MotionEvent.obtain(event)
+            patternEvent.setLocation(event.rawX - location[0], event.rawY - location[1])
+            val handled = patternView.dispatchTouchEvent(patternEvent)
+            patternEvent.recycle()
+            handled
+        }
 
     private fun removeUnlockGateViewOnMain() {
         val view = unlockGateView ?: return
@@ -2661,12 +2677,14 @@ class ActionService : AccessibilityService() {
 
         setUnlockGateMaskTouchable(touchable = false)
         val patternView = unlockGateView?.findViewById<PatternLockView>(R.id.unlockGatePatternGrid)
+        val gestureYOffset = resources.getDimension(R.dimen.unlock_gate_pattern_vertical_offset)
+        val gestureCoords = screenCoords.map { PointF(it.x, it.y + gestureYOffset) }
 
         val path =
             Path().apply {
-                moveTo(screenCoords.first().x, screenCoords.first().y)
-                for (i in 1 until screenCoords.size) {
-                    lineTo(screenCoords[i].x, screenCoords[i].y)
+                moveTo(gestureCoords.first().x, gestureCoords.first().y)
+                for (i in 1 until gestureCoords.size) {
+                    lineTo(gestureCoords[i].x, gestureCoords[i].y)
                 }
             }
 
@@ -3316,7 +3334,7 @@ class ActionService : AccessibilityService() {
         private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.05f
         private const val SECURE_LOCK_MASK_GESTURE_MAX_RETRIES = 1
         private const val PATTERN_GESTURE_DISPATCH_DELAY_MS = 50L
-        private const val PATTERN_GESTURE_DURATION_PER_DOT_MS = 60L
+        private const val PATTERN_GESTURE_DURATION_PER_DOT_MS = 50L
         private const val SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE = 317
         private const val SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE = 318
         private const val SCROLLWHEEL_BUTTON_KEY_CODE = 319
