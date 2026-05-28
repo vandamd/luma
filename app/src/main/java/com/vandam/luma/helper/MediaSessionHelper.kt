@@ -363,7 +363,7 @@ object MediaSessionHelper {
         if (!trackingEnabled) return
         notificationObserverJob =
             scope.launch {
-                LumaNotificationListener.changeVersion.collectLatest {
+                LumaNotificationListener.mediaChangeVersion.collectLatest {
                     mainHandler.post { refreshSessions(registerCallbacks = trackingEnabled) }
                 }
             }

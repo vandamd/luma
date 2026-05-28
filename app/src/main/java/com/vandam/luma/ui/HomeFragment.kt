@@ -437,7 +437,7 @@ class HomeFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 merge(
-                    LumaNotificationListener.changeVersion.map { Unit },
+                    LumaNotificationListener.badgeChangeVersion.map { Unit },
                     PhoneSignalHelper.changeVersion.map { Unit },
                 ).collect {
                     refreshHomeBadges()

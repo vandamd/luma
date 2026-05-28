@@ -15,6 +15,7 @@ class LumaNotificationListener : NotificationListenerService() {
         private data class NotificationSnapshot(
             val notifications: List<StatusBarNotification> = emptyList(),
             val packages: Set<String> = emptySet(),
+            val mediaKeys: Set<String> = emptySet(),
         )
 
         private val PHONE_NOTIFICATION_PACKAGES =
@@ -29,6 +30,10 @@ class LumaNotificationListener : NotificationListenerService() {
 
         private val _changeVersion = MutableStateFlow(0L)
         val changeVersion: StateFlow<Long> = _changeVersion.asStateFlow()
+        private val _badgeChangeVersion = MutableStateFlow(0L)
+        val badgeChangeVersion: StateFlow<Long> = _badgeChangeVersion.asStateFlow()
+        private val _mediaChangeVersion = MutableStateFlow(0L)
+        val mediaChangeVersion: StateFlow<Long> = _mediaChangeVersion.asStateFlow()
 
         @Suppress("DEPRECATION")
         private fun StatusBarNotification.shouldFilter(svc: LumaNotificationListener): Boolean {
@@ -96,16 +101,17 @@ class LumaNotificationListener : NotificationListenerService() {
 
         private fun rebuildNotificationSnapshot() {
             val svc = instance.get()
-            notificationSnapshot =
+            val previousSnapshot = notificationSnapshot
+            val nextSnapshot =
                 if (svc == null) {
                     NotificationSnapshot()
                 } else {
-                    val filteredNotifications =
+                    val activeNotifications =
                         runCatching {
-                            svc.activeNotifications
-                                .filterNot { it.shouldFilter(svc) }
-                                .toList()
+                            svc.activeNotifications.toList()
                         }.getOrDefault(emptyList())
+                    val filteredNotifications =
+                        activeNotifications.filterNot { it.shouldFilter(svc) }
                     NotificationSnapshot(
                         notifications = filteredNotifications,
                         packages =
@@ -115,10 +121,27 @@ class LumaNotificationListener : NotificationListenerService() {
                                 .map { it.packageName }
                                 .filterNot(PHONE_NOTIFICATION_PACKAGES::contains)
                                 .toSet(),
+                        mediaKeys =
+                            activeNotifications
+                                .asSequence()
+                                .filter { it.isMediaNotification() }
+                                .map { it.key }
+                                .toSet(),
                     )
                 }
-            _changeVersion.update { it + 1 }
+            notificationSnapshot = nextSnapshot
+            if (previousSnapshot.notifications.notificationKeys() != nextSnapshot.notifications.notificationKeys()) {
+                _changeVersion.update { it + 1 }
+            }
+            if (previousSnapshot.packages != nextSnapshot.packages) {
+                _badgeChangeVersion.update { it + 1 }
+            }
+            if (previousSnapshot.mediaKeys != nextSnapshot.mediaKeys) {
+                _mediaChangeVersion.update { it + 1 }
+            }
         }
+
+        private fun List<StatusBarNotification>.notificationKeys(): List<String> = map { it.key }
     }
 
     override fun onCreate() {
