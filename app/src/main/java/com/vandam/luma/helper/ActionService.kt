@@ -1371,6 +1371,7 @@ class ActionService : AccessibilityService() {
     }
 
     private fun cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility: Boolean = false) {
+        MediaSessionHelper.setTrackingEnabled(false)
         secureLockMaskGestureAttempt = 0
         unlockGateVolumeIndicatorVisible = false
         unlockGateVolumeIndicatorHideRunnable?.let { mainHandler.removeCallbacks(it) }
@@ -1564,7 +1565,7 @@ class ActionService : AccessibilityService() {
                 addAction(Intent.ACTION_SCREEN_ON)
             }
 
-        ContextCompat.registerReceiver(this, unlockGateReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        ContextCompat.registerReceiver(this, unlockGateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     private fun unregisterUnlockGateReceiver() {

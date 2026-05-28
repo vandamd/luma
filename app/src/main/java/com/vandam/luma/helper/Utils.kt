@@ -115,6 +115,7 @@ fun launchLightOsRoute(
     } catch (_: Exception) {
         actionService?.cancelToolLaunchMask()
         showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
+        return false
     }
     return true
 }
