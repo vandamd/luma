@@ -36,6 +36,7 @@ import android.provider.Settings
 import android.telecom.TelecomManager
 import android.telephony.ServiceState
 import android.telephony.SignalStrength
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -2845,7 +2846,9 @@ class ActionService : AccessibilityService() {
                 networkType.text = "SOS"
             } else if (state == ServiceState.STATE_IN_SERVICE) {
                 val level = unlockGateCellularSnapshot.signalLevel
-                if (level != null) {
+                if (isMobileDataDisabled()) {
+                    LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
+                } else if (level != null) {
                     LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
                 } else {
                     signalIcon.visibility = View.GONE
@@ -3107,6 +3110,19 @@ class ActionService : AccessibilityService() {
             updatedSnapshot = updatedSnapshot.copy(networkType = networkType)
         }
         unlockGateCellularSnapshot = updatedSnapshot
+    }
+
+    private fun isMobileDataDisabled(): Boolean {
+        val resolver = contentResolver
+        val subId = SubscriptionManager.getDefaultDataSubscriptionId()
+        if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            runCatching {
+                Settings.Global.getInt(resolver, "mobile_data$subId")
+            }.getOrNull()?.let { return it == 0 }
+        }
+        return runCatching {
+            Settings.Global.getInt(resolver, "mobile_data")
+        }.getOrDefault(1) == 0
     }
 
     private fun startIncomingCallMonitor() {
