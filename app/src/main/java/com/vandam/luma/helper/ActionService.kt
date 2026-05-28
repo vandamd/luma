@@ -6,6 +6,7 @@ import android.accessibilityservice.GestureDescription
 import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -13,6 +14,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.PointF
 import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
 import android.hardware.camera2.CameraAccessException
@@ -45,6 +47,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -62,6 +65,7 @@ import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
 import com.vandam.luma.data.Tool
 import com.vandam.luma.listener.SwipeTouchListener
+import com.vandam.luma.view.PatternLockView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -115,6 +119,7 @@ class ActionService : AccessibilityService() {
     private var volumeOnlyOverlayView: View? = null
     private var volumeOnlyOverlayHideRunnable: Runnable? = null
     private var secureLockMaskGestureAttempt = 0
+    private var unlockGateShowPatternRunnable: Runnable? = null
     private val consumedMappedKeyUps = mutableSetOf<Int>()
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
     private var currentForegroundPackage: String? = null
@@ -343,15 +348,11 @@ class ActionService : AccessibilityService() {
                 eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
                 eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
             ) {
-                if (packageName != this.packageName) {
+                if (isPreviousAppCandidate(packageName)) {
                     if (packageName != currentForegroundPackage && currentForegroundPackage != null) {
                         lastForegroundPackage = currentForegroundPackage
                     }
                     currentForegroundPackage = packageName
-                } else if (MainActivity.isLumaForeground()) {
-                    if (currentForegroundPackage != null) {
-                        lastForegroundPackage = currentForegroundPackage
-                    }
                 }
                 if (packageName != this.packageName) {
                     clearPendingCameraOwner()
@@ -434,19 +435,7 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            if (isInCall()) {
-                                launchLightOsRoute(this@ActionService, "call")
-                            } else {
-                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
-                                if (mediaPkg != null) {
-                                    val targetPkg = resolveMediaAppPackage(mediaPkg)
-                                    openAppByPackage(targetPkg)
-                                } else if (isLumaForeground()) {
-                                    openLastUsedApp()
-                                } else {
-                                    launchLumaHome(suppressLauncherIntentHandling = true)
-                                }
-                            }
+                            executeHomeLongPress()
                             dispatchUnlockGateEventOnMain(
                                 UnlockGateEvent.DismissRequested(
                                     nowUptimeMs = SystemClock.uptimeMillis(),
@@ -512,19 +501,7 @@ class ActionService : AccessibilityService() {
                 val runnable =
                     Runnable {
                         if (homeKeyDownTime == downTime) {
-                            if (isInCall()) {
-                                launchLightOsRoute(this@ActionService, "call")
-                            } else {
-                                val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
-                                if (mediaPkg != null) {
-                                    val targetPkg = resolveMediaAppPackage(mediaPkg)
-                                    openAppByPackage(targetPkg)
-                                } else if (isLumaForeground()) {
-                                    openLastUsedApp()
-                                } else {
-                                    launchLumaHome(suppressLauncherIntentHandling = true)
-                                }
-                            }
+                            executeHomeLongPress()
                             homeLongPressFired = true
                         }
                     }
@@ -566,6 +543,34 @@ class ActionService : AccessibilityService() {
 
             else -> {
                 false
+            }
+        }
+    }
+
+    private fun executeHomeLongPress() {
+        if (isInCall()) {
+            launchLightOsRoute(this, "call")
+            return
+        }
+
+        val mediaPkg = MediaSessionHelper.getActiveMediaPackageName(forceRefresh = true)
+        when {
+            mediaPkg == LIGHT_OS_PACKAGE -> {
+                val route = resolveLightOsMediaRoute()
+                launchLightOsRoute(this, route)
+            }
+
+            mediaPkg != null -> {
+                val targetPkg = resolveMediaAppPackage(mediaPkg)
+                openAppByPackage(targetPkg)
+            }
+
+            openLastUsedApp() -> {
+                Unit
+            }
+
+            else -> {
+                launchLumaHome(suppressLauncherIntentHandling = true)
             }
         }
     }
@@ -1233,6 +1238,16 @@ class ActionService : AccessibilityService() {
             }
         }
 
+    private fun resolveLightOsMediaRoute(): String {
+        val musicEnabled = prefs.isToolEnabled(Tool.Music)
+        val podcastsEnabled = prefs.isToolEnabled(Tool.Podcasts)
+        return when {
+            musicEnabled && podcastsEnabled -> prefs.getLightOsMediaRoute()
+            podcastsEnabled -> "podcasts"
+            else -> "music"
+        }
+    }
+
     private fun isPackageInstalled(pkg: String): Boolean =
         try {
             packageManager.getPackageInfo(pkg, 0)
@@ -1242,8 +1257,13 @@ class ActionService : AccessibilityService() {
         }
 
     private fun openLastUsedApp(): Boolean {
-        val pkg = lastForegroundPackage ?: return false
-        if (pkg == packageName) return false
+        val pkg =
+            if (isLumaForeground()) {
+                currentForegroundPackage
+            } else {
+                lastForegroundPackage
+            } ?: return false
+        if (!isPreviousAppCandidate(pkg)) return false
         return openAppByPackage(pkg)
     }
 
@@ -1260,6 +1280,26 @@ class ActionService : AccessibilityService() {
             false
         }
     }
+
+    private fun isPreviousAppCandidate(pkg: String): Boolean =
+        pkg != packageName &&
+            !isInputMethodPackage(pkg) &&
+            packageManager.getLaunchIntentForPackage(pkg) != null
+
+    private fun isInputMethodPackage(pkg: String): Boolean {
+        if (currentInputMethodPackage() == pkg) return true
+        return runCatching {
+            getSystemService(InputMethodManager::class.java)
+                ?.inputMethodList
+                ?.any { inputMethod -> inputMethod.packageName == pkg } == true
+        }.getOrDefault(false)
+    }
+
+    private fun currentInputMethodPackage(): String? =
+        runCatching {
+            Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
+                ?.let { ComponentName.unflattenFromString(it)?.packageName }
+        }.getOrNull()
 
     private fun isInCall(): Boolean =
         try {
@@ -1355,6 +1395,7 @@ class ActionService : AccessibilityService() {
     }
 
     private fun cancelUnlockGateOnMain(clearRepeatedHomeGateEligibility: Boolean = false) {
+        MediaSessionHelper.setTrackingEnabled(false)
         secureLockMaskGestureAttempt = 0
         unlockGateVolumeIndicatorVisible = false
         unlockGateVolumeIndicatorHideRunnable?.let { mainHandler.removeCallbacks(it) }
@@ -1482,6 +1523,7 @@ class ActionService : AccessibilityService() {
     private fun cancelUnlockGateCallbacks() {
         cancelUnlockGateDismissCallback()
         cancelUnlockGateClockTick()
+        cancelUnlockGateShowPatternCallback()
     }
 
     private fun cancelUnlockGateDismissCallback() {
@@ -1492,6 +1534,11 @@ class ActionService : AccessibilityService() {
     private fun cancelUnlockGateClockTick() {
         unlockGateClockRunnable?.let(mainHandler::removeCallbacks)
         unlockGateClockRunnable = null
+    }
+
+    private fun cancelUnlockGateShowPatternCallback() {
+        unlockGateShowPatternRunnable?.let(mainHandler::removeCallbacks)
+        unlockGateShowPatternRunnable = null
     }
 
     private fun registerUnlockGateReceiver() {
@@ -1670,9 +1717,10 @@ class ActionService : AccessibilityService() {
                 }
 
                 UnlockGatePhase.AwaitingCredential -> {
+                    val patternGridVisible = view.findViewById<View>(R.id.unlockGatePatternGrid).visibility == View.VISIBLE
                     createSecureLockMaskLayoutParams(
                         title = SECURE_LOCK_MASK_WINDOW_TITLE,
-                        touchable = false,
+                        touchable = patternGridVisible,
                     )
                 }
 
@@ -1893,11 +1941,37 @@ class ActionService : AccessibilityService() {
     ) {
         view.setBackgroundColor(if (isDark) Color.BLACK else Color.WHITE)
         hideUnlockGatePrimaryContent(view)
-        setUnlockGatePatternGridVisible(view, visible = true)
-        updateUnlockGatePatternGridAppearance(view, isDark)
+        val patternView = view.findViewById<PatternLockView>(R.id.unlockGatePatternGrid)
+        patternView.setDarkMode(isDark)
+        patternView.onPatternCompleteListener = { _, screenCoords ->
+            dispatchPatternGesture(screenCoords)
+        }
+        view.setOnTouchListener(createUnlockGatePatternTouchListener(patternView))
         view.isClickable = false
         view.isFocusable = false
         view.setOnClickListener(null)
+
+        if (patternView.visibility != View.VISIBLE) {
+            setUnlockGatePatternGridVisible(view, visible = false)
+            unlockGateShowPatternRunnable?.let { mainHandler.removeCallbacks(it) }
+            val runnable =
+                Runnable {
+                    unlockGateShowPatternRunnable = null
+                    if (unlockGateStateMachine.state.phase == UnlockGatePhase.AwaitingCredential) {
+                        setUnlockGatePatternGridVisible(view, visible = true)
+                        tryUpdateUnlockGateViewLayoutOnMain(
+                            view = view,
+                            layoutParams = createSecureLockMaskLayoutParams(
+                                title = SECURE_LOCK_MASK_WINDOW_TITLE,
+                                touchable = true,
+                            ),
+                            logPrefix = "showPatternGrid",
+                        )
+                    }
+                }
+            unlockGateShowPatternRunnable = runnable
+            mainHandler.postDelayed(runnable, SECURE_LOCK_MASK_GESTURE_DISPATCH_DELAY_MS + SECURE_LOCK_MASK_GESTURE_DURATION_MS)
+        }
     }
 
     private fun hideUnlockGatePrimaryContent(view: View) {
@@ -1926,28 +2000,30 @@ class ActionService : AccessibilityService() {
         view: View,
         visible: Boolean,
     ) {
-        view.findViewById<View>(R.id.unlockGatePatternGrid).visibility =
+        val patternGrid = view.findViewById<View>(R.id.unlockGatePatternGrid)
+        patternGrid.visibility =
             if (visible) {
                 View.VISIBLE
             } else {
+                (patternGrid as? PatternLockView)?.resetPattern()
                 View.GONE
             }
     }
 
-    private fun updateUnlockGatePatternGridAppearance(
-        view: View,
-        isDark: Boolean,
-    ) {
-        val grid = view.findViewById<LinearLayout>(R.id.unlockGatePatternGrid)
-        val dotBackground = createUnlockGatePatternDotBackground(isDark)
-        for (rowIndex in 0 until grid.childCount) {
-            val row = grid.getChildAt(rowIndex) as? LinearLayout ?: continue
-            for (columnIndex in 0 until row.childCount) {
-                row.getChildAt(columnIndex).background =
-                    dotBackground.constantState?.newDrawable()?.mutate() ?: createUnlockGatePatternDotBackground(isDark)
+    private fun createUnlockGatePatternTouchListener(patternView: PatternLockView): View.OnTouchListener =
+        View.OnTouchListener { _, event ->
+            if (patternView.visibility != View.VISIBLE) {
+                return@OnTouchListener false
             }
+
+            val location = IntArray(2)
+            patternView.getLocationOnScreen(location)
+            val patternEvent = MotionEvent.obtain(event)
+            patternEvent.setLocation(event.rawX - location[0], event.rawY - location[1])
+            val handled = patternView.dispatchTouchEvent(patternEvent)
+            patternEvent.recycle()
+            handled
         }
-    }
 
     private fun removeUnlockGateViewOnMain() {
         val view = unlockGateView ?: return
@@ -2523,6 +2599,8 @@ class ActionService : AccessibilityService() {
 
             val prevView = view.findViewById<ImageView>(R.id.unlockGateMediaPrev)
             val nextView = view.findViewById<ImageView>(R.id.unlockGateMediaNext)
+            prevView.visibility = if (mediaInfo.showsPreviousButton) View.VISIBLE else View.GONE
+            nextView.visibility = if (mediaInfo.showsNextButton) View.VISIBLE else View.GONE
             if (mediaInfo.isPodcast) {
                 prevView.setImageResource(R.drawable.ic_media_replay_15)
                 nextView.setImageResource(R.drawable.ic_media_forward_15)
@@ -2594,6 +2672,79 @@ class ActionService : AccessibilityService() {
             .build()
     }
 
+    private fun dispatchPatternGesture(screenCoords: List<PointF>) {
+        if (screenCoords.isEmpty()) return
+
+        setUnlockGateMaskTouchable(touchable = false)
+        val patternView = unlockGateView?.findViewById<PatternLockView>(R.id.unlockGatePatternGrid)
+        val gestureYOffset = resources.getDimension(R.dimen.unlock_gate_pattern_vertical_offset)
+        val gestureCoords = screenCoords.map { PointF(it.x, it.y + gestureYOffset) }
+
+        val path =
+            Path().apply {
+                moveTo(gestureCoords.first().x, gestureCoords.first().y)
+                for (i in 1 until gestureCoords.size) {
+                    lineTo(gestureCoords[i].x, gestureCoords[i].y)
+                }
+            }
+
+        val gestureDuration = (screenCoords.size * PATTERN_GESTURE_DURATION_PER_DOT_MS).toLong()
+        val gestureDescription =
+            GestureDescription
+                .Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, gestureDuration))
+                .build()
+
+        mainHandler.postDelayed(
+            {
+                if (unlockGateStateMachine.state.phase != UnlockGatePhase.AwaitingCredential) {
+                    patternView?.resetPattern()
+                    return@postDelayed
+                }
+
+                val dispatched =
+                    dispatchGesture(
+                        gestureDescription,
+                        object : GestureResultCallback() {
+                            override fun onCompleted(gestureDescription: GestureDescription) {
+                                Log.d(TAG, "dispatchPatternGesture: pattern gesture completed")
+                                patternView?.resetPattern()
+                                dispatchUnlockGateEventOnMain(UnlockGateEvent.PatternGestureCompleted)
+                            }
+
+                            override fun onCancelled(gestureDescription: GestureDescription) {
+                                Log.w(TAG, "dispatchPatternGesture: pattern gesture cancelled")
+                                patternView?.resetPattern()
+                                dispatchUnlockGateEventOnMain(UnlockGateEvent.PatternGestureFailed)
+                            }
+                        },
+                        null,
+                    )
+                if (!dispatched) {
+                    Log.w(TAG, "dispatchPatternGesture: pattern gesture dispatch failed")
+                    patternView?.resetPattern()
+                    dispatchUnlockGateEventOnMain(UnlockGateEvent.PatternGestureFailed)
+                }
+            },
+            PATTERN_GESTURE_DISPATCH_DELAY_MS,
+        )
+    }
+
+    private fun setUnlockGateMaskTouchable(touchable: Boolean) {
+        val view = unlockGateView ?: return
+        if (!view.isAttachedToWindow) return
+
+        tryUpdateUnlockGateViewLayoutOnMain(
+            view = view,
+            layoutParams =
+                createSecureLockMaskLayoutParams(
+                    title = SECURE_LOCK_MASK_WINDOW_TITLE,
+                    touchable = touchable,
+                ),
+            logPrefix = "setUnlockGateMaskTouchable",
+        )
+    }
+
     private fun updateSecureLockMaskStatusBar(view: View) {
         val statusBar = view.findViewById<View>(R.id.unlockGateStatusBar)
         val shouldShow = shouldShowUnlockGateStatusBar()
@@ -2627,14 +2778,11 @@ class ActionService : AccessibilityService() {
         val batteryText = view.findViewById<TextView>(R.id.statusBatteryText)
         val batteryIcon = view.findViewById<ImageView>(R.id.statusBattery)
 
-        if (!prefs.batteryPercentage && !prefs.batteryIcon) {
-            batteryText.visibility = View.GONE
-            batteryIcon.visibility = View.GONE
-            batteryLayout.visibility = View.INVISIBLE
-            return
-        }
-
-        val sticky = batteryIntent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val sticky =
+            batteryIntent
+                ?: runCatching {
+                    registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                }.getOrNull()
         if (sticky == null) {
             batteryText.visibility = View.GONE
             batteryIcon.visibility = View.GONE
@@ -2655,9 +2803,9 @@ class ActionService : AccessibilityService() {
         val battery = LumaStatusBarUi.batteryIconRes(sticky)
 
         batteryLayout.visibility = View.VISIBLE
-        batteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
+        batteryText.visibility = View.VISIBLE
         batteryText.text = "$pct%"
-        batteryIcon.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
+        batteryIcon.visibility = View.VISIBLE
         LumaStatusBarUi.setBatteryIcon(batteryIcon, battery.iconRes, textColor, battery.isCharging)
     }
 
@@ -2672,9 +2820,12 @@ class ActionService : AccessibilityService() {
         val wifiIcon = view.findViewById<ImageView>(R.id.statusWifi)
         val bluetoothIcon = view.findViewById<ImageView>(R.id.statusBluetooth)
 
-        val airplaneMode = Settings.Global.getInt(contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0)
+        val airplaneMode =
+            runCatching {
+                Settings.Global.getInt(contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0)
+            }.getOrDefault(0)
 
-        if (airplaneMode != 0 && prefs.cellularEnabled) {
+        if (airplaneMode != 0) {
             LumaStatusBarUi.showTinted(airplaneIcon, R.drawable.airplane, textColor)
             signalIcon.visibility = View.GONE
             networkType.visibility = View.GONE
@@ -2682,64 +2833,51 @@ class ActionService : AccessibilityService() {
         } else {
             airplaneIcon.visibility = View.GONE
 
-            if (prefs.cellularEnabled) {
-                val state = unlockGateCellularSnapshot.serviceState
-                if (state == ServiceState.STATE_EMERGENCY_ONLY) {
-                    val level = unlockGateCellularSnapshot.signalLevel
-                    if (level != null) {
-                        LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
-                    } else {
-                        signalIcon.visibility = View.GONE
-                    }
-                    networkType.visibility = View.VISIBLE
-                    networkType.text = "SOS"
-                } else if (state == ServiceState.STATE_IN_SERVICE) {
-                    val level = unlockGateCellularSnapshot.signalLevel
-                    if (level != null) {
-                        LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
-                    } else {
-                        signalIcon.visibility = View.GONE
-                    }
-                    val label = LumaStatusBarUi.networkLabelForType(unlockGateCellularSnapshot.networkType)
-                    networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
-                    networkType.text = label
+            val state = unlockGateCellularSnapshot.serviceState
+            if (state == ServiceState.STATE_EMERGENCY_ONLY) {
+                val level = unlockGateCellularSnapshot.signalLevel
+                if (level != null) {
+                    LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
                 } else {
-                    LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
-                    networkType.visibility = View.GONE
+                    signalIcon.visibility = View.GONE
                 }
+                networkType.visibility = View.VISIBLE
+                networkType.text = "SOS"
+            } else if (state == ServiceState.STATE_IN_SERVICE) {
+                val level = unlockGateCellularSnapshot.signalLevel
+                if (level != null) {
+                    LumaStatusBarUi.showTinted(signalIcon, LumaStatusBarUi.signalDrawableForLevel(level), textColor)
+                } else {
+                    signalIcon.visibility = View.GONE
+                }
+                val label = LumaStatusBarUi.networkLabelForType(unlockGateCellularSnapshot.networkType)
+                networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
+                networkType.text = label
             } else {
-                signalIcon.visibility = View.GONE
+                LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
                 networkType.visibility = View.GONE
             }
 
-            if (prefs.wifiEnabled) {
-                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                val wm = getSystemService(Context.WIFI_SERVICE) as WifiManager
-                val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
-                if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                    val level = wm.calculateSignalLevel(activeCaps.signalStrength)
-                    LumaStatusBarUi.showTinted(wifiIcon, LumaStatusBarUi.wifiDrawableForLevel(level), textColor)
-                } else {
-                    wifiIcon.visibility = View.GONE
-                }
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val wifiManager = getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val activeCaps = connectivityManager?.activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+            if (wifiManager != null && activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+                val level = wifiManager.calculateSignalLevel(activeCaps.signalStrength)
+                LumaStatusBarUi.showTinted(wifiIcon, LumaStatusBarUi.wifiDrawableForLevel(level), textColor)
             } else {
                 wifiIcon.visibility = View.GONE
             }
         }
 
-        if (prefs.bluetoothEnabled) {
-            when (val state = BluetoothStatusHelper.indicatorState(this)) {
-                BluetoothStatusHelper.IndicatorState.On,
-                BluetoothStatusHelper.IndicatorState.Connected -> LumaStatusBarUi.showTinted(
-                    bluetoothIcon,
-                    LumaStatusBarUi.bluetoothDrawableForState(state),
-                    textColor,
-                )
+        when (val state = BluetoothStatusHelper.indicatorState(this)) {
+            BluetoothStatusHelper.IndicatorState.On,
+            BluetoothStatusHelper.IndicatorState.Connected -> LumaStatusBarUi.showTinted(
+                bluetoothIcon,
+                LumaStatusBarUi.bluetoothDrawableForState(state),
+                textColor,
+            )
 
-                BluetoothStatusHelper.IndicatorState.Off, null -> bluetoothIcon.visibility = View.GONE
-            }
-        } else {
-            bluetoothIcon.visibility = View.GONE
+            BluetoothStatusHelper.IndicatorState.Off, null -> bluetoothIcon.visibility = View.GONE
         }
 
         val anyVisible =
@@ -2820,29 +2958,10 @@ class ActionService : AccessibilityService() {
             return
         }
 
-        if (prefs.batteryPercentage || prefs.batteryIcon) {
-            startUnlockGateBatteryMonitor()
-        } else {
-            stopUnlockGateBatteryMonitor()
-        }
-
-        if (prefs.cellularEnabled) {
-            startUnlockGateCellularMonitor()
-        } else {
-            stopUnlockGateCellularMonitor()
-        }
-
-        if (prefs.wifiEnabled) {
-            startUnlockGateWifiMonitor()
-        } else {
-            stopUnlockGateWifiMonitor()
-        }
-
-        if (prefs.bluetoothEnabled) {
-            startUnlockGateBluetoothMonitor()
-        } else {
-            stopUnlockGateBluetoothMonitor()
-        }
+        startUnlockGateBatteryMonitor()
+        startUnlockGateCellularMonitor()
+        startUnlockGateWifiMonitor()
+        startUnlockGateBluetoothMonitor()
     }
 
     private fun stopUnlockGateStatusBarMonitors() {
@@ -2902,7 +3021,17 @@ class ActionService : AccessibilityService() {
                 TelephonyCallback.DataConnectionStateListener,
                 TelephonyCallback.ServiceStateListener {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
-                    val level = signalStrength.level.coerceIn(0, 4)
+                    val level =
+                        runCatching {
+                            signalStrength.level.coerceIn(0, 4)
+                        }.getOrElse {
+                            runOnMainThread {
+                                unlockGateCellularSnapshot =
+                                    unlockGateCellularSnapshot.copy(serviceState = ServiceState.STATE_OUT_OF_SERVICE)
+                                refreshUnlockGateConnectivityStatus()
+                            }
+                            return
+                        }
                     runOnMainThread {
                         unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(signalLevel = level)
                         refreshUnlockGateConnectivityStatus()
@@ -2922,8 +3051,14 @@ class ActionService : AccessibilityService() {
                 }
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
+                    val state =
+                        runCatching {
+                            serviceState.state
+                        }.getOrElse {
+                            ServiceState.STATE_OUT_OF_SERVICE
+                        }
                     runOnMainThread {
-                        unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(serviceState = serviceState.state)
+                        unlockGateCellularSnapshot = unlockGateCellularSnapshot.copy(serviceState = state)
                         refreshUnlockGateConnectivityStatus()
                     }
                 }
@@ -2932,7 +3067,7 @@ class ActionService : AccessibilityService() {
         try {
             telephonyManager.registerTelephonyCallback(mainExecutor, callback)
             unlockGateTelephonyCallback = callback
-        } catch (exception: SecurityException) {
+        } catch (exception: Exception) {
             Log.w(TAG, "startUnlockGateCellularMonitor: registerTelephonyCallback failed", exception)
         }
     }
@@ -2958,7 +3093,11 @@ class ActionService : AccessibilityService() {
         }
         try {
             telephonyManager.signalStrength?.let {
-                updatedSnapshot = updatedSnapshot.copy(signalLevel = it.level.coerceIn(0, 4))
+                runCatching {
+                    it.level.coerceIn(0, 4)
+                }.getOrNull()?.let { level ->
+                    updatedSnapshot = updatedSnapshot.copy(signalLevel = level)
+                }
             }
         } catch (_: SecurityException) {
         }
@@ -3033,7 +3172,11 @@ class ActionService : AccessibilityService() {
                 }
             }
 
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: run {
+                refreshUnlockGateConnectivityStatus()
+                return
+            }
         val request =
             NetworkRequest
                 .Builder()
@@ -3050,9 +3193,9 @@ class ActionService : AccessibilityService() {
 
     private fun stopUnlockGateWifiMonitor() {
         val callback = unlockGateWifiNetworkCallback ?: return
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         try {
-            connectivityManager.unregisterNetworkCallback(callback)
+            connectivityManager?.unregisterNetworkCallback(callback)
         } catch (exception: Exception) {
             Log.e(TAG, "stopUnlockGateWifiMonitor: unregisterNetworkCallback failed", exception)
         } finally {
@@ -3167,12 +3310,6 @@ class ActionService : AccessibilityService() {
             setStroke(6, if (isDark) Color.WHITE else Color.BLACK)
         }
 
-    private fun createUnlockGatePatternDotBackground(isDark: Boolean): GradientDrawable =
-        GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(if (isDark) Color.WHITE else Color.BLACK)
-        }
-
     companion object {
         private const val TAG = "LumaActionService"
         private const val LIGHT_OS_PACKAGE = "com.lightos"
@@ -3190,12 +3327,14 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"
         private const val VOLUME_ONLY_OVERLAY_WINDOW_TITLE = "Luma Volume Overlay"
-        private const val SECURE_LOCK_MASK_GESTURE_DISPATCH_DELAY_MS = 96L
+        private const val SECURE_LOCK_MASK_GESTURE_DISPATCH_DELAY_MS = 50L
         private const val SECURE_LOCK_MASK_GESTURE_RETRY_DELAY_MS = 160L
-        private const val SECURE_LOCK_MASK_GESTURE_DURATION_MS = 320L
-        private const val SECURE_LOCK_MASK_GESTURE_START_Y_RATIO = 0.90f
-        private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.14f
+        private const val SECURE_LOCK_MASK_GESTURE_DURATION_MS = 150L
+        private const val SECURE_LOCK_MASK_GESTURE_START_Y_RATIO = 0.95f
+        private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.05f
         private const val SECURE_LOCK_MASK_GESTURE_MAX_RETRIES = 1
+        private const val PATTERN_GESTURE_DISPATCH_DELAY_MS = 50L
+        private const val PATTERN_GESTURE_DURATION_PER_DOT_MS = 50L
         private const val SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE = 317
         private const val SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE = 318
         private const val SCROLLWHEEL_BUTTON_KEY_CODE = 319

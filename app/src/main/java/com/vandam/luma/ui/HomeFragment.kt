@@ -1,21 +1,7 @@
 package com.vandam.luma.ui
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Rect
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import android.net.wifi.WifiManager
-import android.os.BatteryManager
 import android.os.Bundle
-import android.telephony.ServiceState
-import android.telephony.SignalStrength
-import android.telephony.TelephonyCallback
-import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -24,7 +10,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewConfiguration
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.os.bundleOf
@@ -43,7 +28,6 @@ import com.vandam.luma.data.Constants.Action
 import com.vandam.luma.data.GestureType
 import com.vandam.luma.data.HomeLayout
 import com.vandam.luma.data.Prefs
-import com.vandam.luma.data.StatusBarSectionType
 import com.vandam.luma.data.Tool
 import com.vandam.luma.databinding.FragmentHomeBinding
 import com.vandam.luma.helper.*
@@ -54,14 +38,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
 private const val TAG = "HomeFragment"
-private const val STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS = 120L
 private const val PAGE_INDICATOR_TOUCH_TARGET_DP = 48
-
-private data class HomeCellularSnapshot(
-    val serviceState: Int = ServiceState.STATE_OUT_OF_SERVICE,
-    val signalLevel: Int? = null,
-    val networkType: Int? = null,
-)
 
 private data class PageIndicatorConfig(
     val totalPages: Int,
@@ -143,30 +120,6 @@ private class PageIndicatorTouchHandler(
     }
 }
 
-private val FragmentHomeBinding.statusBattery: ImageView
-    get() = statusBar.findViewById(R.id.statusBattery)
-
-private val FragmentHomeBinding.statusBatteryLayout: LinearLayout
-    get() = statusBar.findViewById(R.id.statusBatteryLayout)
-
-private val FragmentHomeBinding.statusBatteryText: TextView
-    get() = statusBar.findViewById(R.id.statusBatteryText)
-
-private val FragmentHomeBinding.statusBluetooth: ImageView
-    get() = statusBar.findViewById(R.id.statusBluetooth)
-
-private val FragmentHomeBinding.statusConnectivityLayout: LinearLayout
-    get() = statusBar.findViewById(R.id.statusConnectivityLayout)
-
-private val FragmentHomeBinding.statusNetworkType: TextView
-    get() = statusBar.findViewById(R.id.statusNetworkType)
-
-private val FragmentHomeBinding.statusSignal: ImageView
-    get() = statusBar.findViewById(R.id.statusSignal)
-
-private val FragmentHomeBinding.statusWifi: ImageView
-    get() = statusBar.findViewById(R.id.statusWifi)
-
 class HomeFragment :
     Fragment(),
     View.OnClickListener {
@@ -177,13 +130,7 @@ class HomeFragment :
     private var pageIndicatorLayout: LinearLayout? = null
     private var pageIndicatorConfig: PageIndicatorConfig? = null
     private var pageIndicatorTouchHandler: PageIndicatorTouchHandler? = null
-    private var batteryReceiver: BroadcastReceiver? = null
-    private var bluetoothReceiver: BroadcastReceiver? = null
-    private var telephonyCallback: TelephonyCallback? = null
-    private var wifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
-    private var isUnlockGateVisible = false
     private var visiblePageApps: List<AppModel> = emptyList()
-    private var cellularSnapshot = HomeCellularSnapshot()
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
@@ -202,15 +149,12 @@ class HomeFragment :
             binding.firstRunTips.visibility = View.VISIBLE
         }
 
-        primeStatusBar()
-
         return view
     }
 
     override fun onDestroyView() {
         pageIndicatorTouchHandler = null
         super.onDestroyView()
-        isUnlockGateVisible = false
         _binding = null
     }
 
@@ -226,8 +170,6 @@ class HomeFragment :
         initObservers()
         initPageNavigation()
         initSwipeTouchListener()
-        initStatusBarClickListeners()
-        observeUnlockGateClockVisibility()
         binding.touchArea.post { syncUnlockGateHomeContentTop() }
     }
 
@@ -245,8 +187,6 @@ class HomeFragment :
         pageIndicatorConfig = null
         refreshHomeStructure()
         refreshHomeBadges()
-        applyStatusBarVisibility()
-        syncStatusBarMonitoring()
         syncRepeatedHomeGateEligibility()
         syncUnlockGateHomeContentTop()
     }
@@ -254,8 +194,6 @@ class HomeFragment :
     override fun onPause() {
         super.onPause()
         HomeCleanupHelper.setOnHomeCleanupCallback(null)
-        stopBatteryMonitor()
-        stopConnectivityMonitors()
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility(null)
         ActionService.instance()?.setUnlockGateHomeContentTop(0)
     }
@@ -290,27 +228,6 @@ class HomeFragment :
                 }
             },
         )
-    }
-
-    private fun initStatusBarClickListeners() {
-        binding.statusConnectivityLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.CELLULAR) }
-        binding.statusBatteryLayout.setOnClickListener { handleSectionPress(StatusBarSectionType.BATTERY) }
-    }
-
-    private fun handleSectionPress(section: StatusBarSectionType) {
-        val action = prefs.getSectionAction(section)
-        if (action == Action.Disabled) return
-        performStatusBarPressHaptic()
-        if (action == Action.OpenApp) {
-            val app = prefs.getSectionApp(section)
-            if (app.appPackage.isNotEmpty()) {
-                launchApp(app)
-                ActionService.instance()?.dismissUnlockGateForStatusBarAction(STATUS_BAR_EXTERNAL_ACTION_HIDE_DELAY_MS)
-            }
-        } else {
-            handleOtherAction(action)
-            ActionService.instance()?.dismissUnlockGateForStatusBarAction()
-        }
     }
 
     private fun initPageNavigation() {
@@ -499,16 +416,7 @@ class HomeFragment :
         (activity as? MainActivity)?.syncRepeatedHomeGateEligibility()
     }
 
-    private fun shouldShowLumaStatusBarNow(): Boolean =
-        prefs.showsLumaStatusBarOnHomescreen() && !isUnlockGateVisible
-
-    private fun shouldMonitorStatusBarState(): Boolean = shouldShowLumaStatusBarNow()
-
     private fun lockscreenStatusBarInsetPx(): Int = resources.getDimensionPixelSize(R.dimen.lockscreen_gate_home_content_top)
-
-    private fun applyStatusBarVisibility() {
-        binding.statusBar.visibility = if (shouldShowLumaStatusBarNow()) View.VISIBLE else View.GONE
-    }
 
     private fun syncUnlockGateHomeContentTop() {
         if (_binding == null) return
@@ -529,453 +437,13 @@ class HomeFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 merge(
-                    LumaNotificationListener.changeVersion.map { Unit },
+                    LumaNotificationListener.badgeChangeVersion.map { Unit },
                     PhoneSignalHelper.changeVersion.map { Unit },
                 ).collect {
                     refreshHomeBadges()
                 }
             }
         }
-    }
-
-    private fun observeUnlockGateClockVisibility() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            ActionService.unlockGateState.collect { snapshot ->
-                if (_binding == null) return@collect
-                isUnlockGateVisible = snapshot.visible
-                applyStatusBarVisibility()
-                syncStatusBarMonitoring()
-            }
-        }
-    }
-
-    private fun ImageView.showTinted(icon: Int) {
-        val color = binding.statusBatteryText.currentTextColor
-        LumaStatusBarUi.showTinted(this, icon, color)
-    }
-
-    private fun primeStatusBar() {
-        applyStatusBarVisibility()
-        if (!shouldMonitorStatusBarState()) {
-            clearStatusBarViews()
-            return
-        }
-        primeBatteryState()
-        primeConnectivityState()
-    }
-
-    private fun syncStatusBarMonitoring() {
-        if (!shouldMonitorStatusBarState()) {
-            stopBatteryMonitor()
-            stopConnectivityMonitors()
-            clearStatusBarViews()
-            return
-        }
-
-        startBatteryMonitor()
-        startConnectivityMonitors()
-    }
-
-    private fun clearStatusBarViews() {
-        binding.statusBatteryText.visibility = View.GONE
-        binding.statusBattery.visibility = View.GONE
-        binding.statusBatteryLayout.visibility = View.INVISIBLE
-        binding.statusConnectivityLayout.visibility = View.INVISIBLE
-        hideCellular()
-        hideWifi()
-        hideBluetooth()
-    }
-
-    private fun primeBatteryState() {
-        if (!shouldMonitorStatusBarState()) {
-            binding.statusBatteryText.visibility = View.GONE
-            binding.statusBattery.visibility = View.GONE
-            binding.statusBatteryLayout.visibility = View.INVISIBLE
-            return
-        }
-        if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
-            binding.statusBatteryText.visibility = View.GONE
-            binding.statusBattery.visibility = View.GONE
-            binding.statusBatteryLayout.visibility = View.INVISIBLE
-            return
-        }
-        binding.statusBatteryLayout.visibility = View.VISIBLE
-        val sticky = requireContext().registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        if (sticky != null) {
-            updateBatteryIcon(sticky)
-        }
-    }
-
-    private fun startBatteryMonitor() {
-        if (!shouldMonitorStatusBarState()) {
-            binding.statusBatteryText.visibility = View.GONE
-            binding.statusBattery.visibility = View.GONE
-            binding.statusBatteryLayout.visibility = View.INVISIBLE
-            return
-        }
-        if (!prefs.showsLumaStatusBarAnywhere() || (!prefs.batteryPercentage && !prefs.batteryIcon)) {
-            binding.statusBatteryText.visibility = View.GONE
-            binding.statusBattery.visibility = View.GONE
-            binding.statusBatteryLayout.visibility = View.INVISIBLE
-            return
-        }
-        if (batteryReceiver != null) {
-            return
-        }
-        binding.statusBatteryLayout.visibility = View.VISIBLE
-        val receiver =
-            object : BroadcastReceiver() {
-                override fun onReceive(
-                    context: Context,
-                    intent: Intent,
-                ) {
-                    if (_binding == null) return
-                    updateBatteryIcon(intent)
-                }
-            }
-        batteryReceiver = receiver
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        val sticky = requireContext().registerReceiver(receiver, filter)
-        if (sticky != null) updateBatteryIcon(sticky)
-    }
-
-    private fun stopBatteryMonitor() {
-        batteryReceiver?.let {
-            requireContext().unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    private fun updateBatteryIcon(intent: Intent) {
-        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-        if (level < 0 || scale <= 0) return
-        val pct = level * 100 / scale
-        val battery = LumaStatusBarUi.batteryIconRes(intent)
-        binding.statusBatteryText.visibility = if (prefs.batteryPercentage) View.VISIBLE else View.GONE
-        binding.statusBatteryText.text = "$pct%"
-        binding.statusBattery.visibility = if (prefs.batteryIcon) View.VISIBLE else View.GONE
-        LumaStatusBarUi.setBatteryIcon(
-            binding.statusBattery,
-            battery.iconRes,
-            binding.statusBatteryText.currentTextColor,
-            battery.isCharging,
-        )
-    }
-
-    private fun startConnectivityMonitors() {
-        if (!shouldMonitorStatusBarState()) {
-            clearStatusBarViews()
-            return
-        }
-        primeConnectivityState()
-        if (!prefs.showsLumaStatusBarAnywhere()) {
-            return
-        }
-        if (prefs.cellularEnabled) startCellularMonitor() else hideCellular()
-        if (prefs.wifiEnabled) startWifiMonitor() else hideWifi()
-        if (prefs.bluetoothEnabled) startBluetoothMonitor() else hideBluetooth()
-    }
-
-    private fun stopConnectivityMonitors() {
-        stopCellularMonitor()
-        stopWifiMonitor()
-        stopBluetoothMonitor()
-    }
-
-    private fun primeConnectivityState() {
-        if (!shouldMonitorStatusBarState()) {
-            binding.statusConnectivityLayout.visibility = View.INVISIBLE
-            return
-        }
-        if (!prefs.showsLumaStatusBarAnywhere()) {
-            binding.statusConnectivityLayout.visibility = View.INVISIBLE
-            return
-        }
-        val anyEnabled = prefs.cellularEnabled || prefs.wifiEnabled || prefs.bluetoothEnabled
-        if (!anyEnabled) {
-            binding.statusNetworkType.text = "LTE"
-        }
-        binding.statusConnectivityLayout.visibility = if (anyEnabled) View.VISIBLE else View.INVISIBLE
-        if (prefs.cellularEnabled) {
-            primeCellularState()
-        } else {
-            hideCellular()
-        }
-        if (prefs.wifiEnabled) {
-            updateWifiSnapshot()
-        } else {
-            hideWifi()
-        }
-        if (prefs.bluetoothEnabled) {
-            updateBluetoothState()
-        } else {
-            hideBluetooth()
-        }
-    }
-
-    private fun primeCellularState() {
-        val tm = requireContext().getSystemService(TelephonyManager::class.java)
-        if (tm != null) {
-            updateCellularSnapshot(tm)
-        }
-        applyCellularState(fillMissingOnly = true)
-    }
-
-    private fun startCellularMonitor() {
-        val tm =
-            requireContext().getSystemService(TelephonyManager::class.java) ?: run {
-                hideCellular()
-                return
-            }
-        updateCellularSnapshot(tm)
-        val callback =
-            object :
-                TelephonyCallback(),
-                TelephonyCallback.SignalStrengthsListener,
-                TelephonyCallback.DataConnectionStateListener,
-                TelephonyCallback.ServiceStateListener {
-                override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
-                    if (_binding == null) return
-                    val level = signalStrength.level.coerceIn(0, 4)
-                    cellularSnapshot = cellularSnapshot.copy(signalLevel = level)
-                    updateSignalIcon(level)
-                }
-
-                override fun onDataConnectionStateChanged(
-                    state: Int,
-                    networkType: Int,
-                ) {
-                    if (_binding == null) return
-                    if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
-                        cellularSnapshot = cellularSnapshot.copy(networkType = networkType)
-                        updateNetworkTypeFromInt(networkType)
-                    } else {
-                        cellularSnapshot.networkType?.let { updateNetworkTypeFromInt(it) }
-                    }
-                }
-
-                override fun onServiceStateChanged(serviceState: ServiceState) {
-                    if (_binding == null) return
-                    cellularSnapshot = cellularSnapshot.copy(serviceState = serviceState.state)
-                    applyCellularState()
-                }
-            }
-        telephonyCallback = callback
-        try {
-            tm.registerTelephonyCallback(requireContext().mainExecutor, callback)
-        } catch (_: SecurityException) {
-            telephonyCallback = null
-            hideCellular()
-        }
-    }
-
-    private fun updateCellularSnapshot(tm: TelephonyManager) {
-        var updatedSnapshot = cellularSnapshot
-        try {
-            val state = tm.serviceState?.state ?: ServiceState.STATE_OUT_OF_SERVICE
-            updatedSnapshot = updatedSnapshot.copy(serviceState = state)
-        } catch (_: SecurityException) {
-        }
-        try {
-            tm.signalStrength?.let {
-                val level = it.level.coerceIn(0, 4)
-                updatedSnapshot = updatedSnapshot.copy(signalLevel = level)
-            }
-        } catch (_: SecurityException) {
-        }
-        runCatching {
-            tm.dataNetworkType.takeIf { it != TelephonyManager.NETWORK_TYPE_UNKNOWN }
-        }.getOrNull()?.let { networkType ->
-            updatedSnapshot = updatedSnapshot.copy(networkType = networkType)
-        }
-        cellularSnapshot = updatedSnapshot
-    }
-
-    private fun applyCellularState(fillMissingOnly: Boolean = false) {
-        val state = cellularSnapshot.serviceState
-        val cachedSignalLevel = cellularSnapshot.signalLevel
-        val cachedNetworkType = cellularSnapshot.networkType
-
-        when (state) {
-            ServiceState.STATE_OUT_OF_SERVICE -> {
-                binding.statusSignal.showTinted(R.drawable.signal_nodata)
-                binding.statusNetworkType.visibility = View.GONE
-            }
-
-            ServiceState.STATE_EMERGENCY_ONLY -> {
-                if (cachedSignalLevel != null) {
-                    binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(cachedSignalLevel))
-                } else {
-                    binding.statusSignal.visibility = View.GONE
-                }
-                binding.statusNetworkType.visibility = View.VISIBLE
-                binding.statusNetworkType.text = "SOS"
-            }
-
-            else -> {
-                if ((!fillMissingOnly || binding.statusSignal.visibility != View.VISIBLE) && cachedSignalLevel != null) {
-                    updateSignalIcon(cachedSignalLevel)
-                } else if (!fillMissingOnly) {
-                    binding.statusSignal.visibility = View.GONE
-                }
-                if ((!fillMissingOnly || binding.statusNetworkType.visibility != View.VISIBLE) && cachedNetworkType != null) {
-                    updateNetworkTypeFromInt(cachedNetworkType)
-                } else if (!fillMissingOnly) {
-                    binding.statusNetworkType.visibility = View.GONE
-                }
-            }
-        }
-
-        if (binding.statusSignal.visibility != View.VISIBLE && binding.statusNetworkType.visibility != View.VISIBLE) {
-            hideCellular()
-        }
-    }
-
-    private fun stopCellularMonitor() {
-        telephonyCallback?.let {
-            val tm = requireContext().getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-            tm.unregisterTelephonyCallback(it)
-            telephonyCallback = null
-        }
-    }
-
-    private fun updateSignalIcon(level: Int) {
-        val state = cellularSnapshot.serviceState
-        when (state) {
-            ServiceState.STATE_EMERGENCY_ONLY -> binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(level))
-            ServiceState.STATE_IN_SERVICE -> binding.statusSignal.showTinted(LumaStatusBarUi.signalDrawableForLevel(level))
-            else -> binding.statusSignal.showTinted(R.drawable.signal_nodata)
-        }
-    }
-
-    private fun updateNetworkTypeFromInt(type: Int) {
-        val state = cellularSnapshot.serviceState
-        when (state) {
-            ServiceState.STATE_EMERGENCY_ONLY -> {
-                binding.statusNetworkType.visibility = View.VISIBLE
-                binding.statusNetworkType.text = "SOS"
-            }
-
-            ServiceState.STATE_IN_SERVICE -> {
-                val label = LumaStatusBarUi.networkLabelForType(type)
-                binding.statusNetworkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
-                binding.statusNetworkType.text = label
-            }
-
-            else -> {
-                binding.statusNetworkType.visibility = View.GONE
-            }
-        }
-    }
-
-    private fun hideCellular() {
-        binding.statusSignal.visibility = View.GONE
-        binding.statusNetworkType.visibility = View.GONE
-    }
-
-    private fun updateWifiSnapshot() {
-        val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val wm = requireContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
-        if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-            updateWifiIcon(wm.calculateSignalLevel(activeCaps.signalStrength))
-        } else {
-            hideWifi()
-        }
-    }
-
-    private fun startWifiMonitor() {
-        val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val wm = requireContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val request =
-            NetworkRequest
-                .Builder()
-                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                .build()
-        val callback =
-            object : ConnectivityManager.NetworkCallback() {
-                override fun onCapabilitiesChanged(
-                    network: Network,
-                    caps: NetworkCapabilities,
-                ) {
-                    if (_binding == null) return
-                    val level = wm.calculateSignalLevel(caps.signalStrength)
-                    binding.statusWifi.post { if (_binding != null) updateWifiIcon(level) }
-                }
-
-                override fun onLost(network: Network) {
-                    if (_binding == null) return
-                    binding.statusWifi.post { if (_binding != null) hideWifi() }
-                }
-            }
-        wifiNetworkCallback = callback
-        cm.registerNetworkCallback(request, callback)
-        updateWifiSnapshot()
-    }
-
-    private fun stopWifiMonitor() {
-        wifiNetworkCallback?.let {
-            val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            cm.unregisterNetworkCallback(it)
-            wifiNetworkCallback = null
-        }
-    }
-
-    private fun updateWifiIcon(level: Int) {
-        binding.statusWifi.showTinted(LumaStatusBarUi.wifiDrawableForLevel(level))
-    }
-
-    private fun hideWifi() {
-        binding.statusWifi.visibility = View.GONE
-    }
-
-    private fun updateBluetoothState() {
-        when (val state = BluetoothStatusHelper.indicatorState(requireContext())) {
-            BluetoothStatusHelper.IndicatorState.On -> showBluetooth(state)
-            BluetoothStatusHelper.IndicatorState.Connected -> showBluetooth(state)
-            BluetoothStatusHelper.IndicatorState.Off, null -> hideBluetooth()
-        }
-    }
-
-    private fun startBluetoothMonitor() {
-        if (!BluetoothStatusHelper.hasBluetoothConnectPermission(requireContext())) {
-            hideBluetooth()
-            return
-        }
-        updateBluetoothState()
-        val receiver =
-            object : BroadcastReceiver() {
-                override fun onReceive(
-                    context: Context,
-                    intent: Intent,
-                ) {
-                    if (_binding == null) return
-                    updateBluetoothState()
-                }
-            }
-        try {
-            requireContext().registerReceiver(receiver, BluetoothStatusHelper.bluetoothIntentFilter())
-            bluetoothReceiver = receiver
-        } catch (_: SecurityException) {
-            bluetoothReceiver = null
-            hideBluetooth()
-        }
-    }
-
-    private fun stopBluetoothMonitor() {
-        bluetoothReceiver?.let {
-            requireContext().unregisterReceiver(it)
-            bluetoothReceiver = null
-        }
-    }
-
-    private fun showBluetooth(state: BluetoothStatusHelper.IndicatorState) {
-        binding.statusBluetooth.showTinted(LumaStatusBarUi.bluetoothDrawableForState(state))
-    }
-
-    private fun hideBluetooth() {
-        binding.statusBluetooth.visibility = View.GONE
     }
 
     private fun homeAppClicked(location: Int) {

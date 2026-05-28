@@ -43,8 +43,10 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.vandam.luma.R
+import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.Tool
 import com.vandam.luma.helper.ActionService
+import com.vandam.luma.helper.DaltonizerManager
 import com.vandam.luma.helper.LumaNotificationListener
 import com.vandam.luma.helper.PhoneNotificationSummary
 import com.vandam.luma.helper.PhoneSignalHelper
@@ -233,6 +235,12 @@ class NotificationListFragment : Fragment() {
                                 launchLightOsRoute(context, route)
                                 return@NotificationRow
                             }
+                            val appContext = context.applicationContext
+                            DaltonizerManager.onAppLaunch(
+                                appContext,
+                                item.packageName,
+                                Prefs.getInstance(appContext).colorApps,
+                            )
                             val opened =
                                 try {
                                     if (item.contentIntent != null) {
@@ -261,7 +269,18 @@ class NotificationListFragment : Fragment() {
                             if (!opened) {
                                 val launchIntent = context.packageManager.getLaunchIntentForPackage(item.packageName)
                                 launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                launchIntent?.let { context.startActivity(it) }
+                                val fallbackOpened =
+                                    launchIntent?.let {
+                                        try {
+                                            context.startActivity(it)
+                                            true
+                                        } catch (_: Exception) {
+                                            false
+                                        }
+                                    } == true
+                                if (!fallbackOpened) {
+                                    DaltonizerManager.restoreIfNeeded(appContext)
+                                }
                             }
                         },
                         onDismiss = {

@@ -158,87 +158,15 @@
 
     </LinearLayout>
 
-    <LinearLayout
+    <com.vandam.luma.view.PatternLockView
         android:id="@+id/unlockGatePatternGrid"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:orientation="horizontal">
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:orientation="horizontal">
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:orientation="horizontal">
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-            <View
-                android:layout_width="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_height="@dimen/unlock_gate_pattern_dot_size"
-                android:layout_margin="@dimen/unlock_gate_pattern_dot_margin" />
-
-        </LinearLayout>
-
-    </LinearLayout>
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
         android:id="@+id/unlockGateHomeButton"

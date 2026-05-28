@@ -144,6 +144,14 @@ object LumaUpdateManager {
             )
 
         candidateUrls.forEach { releaseUrl ->
+            fetchReleaseFromUrl(releaseUrl)?.let { return it }
+        }
+
+        return null
+    }
+
+    private fun fetchReleaseFromUrl(releaseUrl: String): GitHubLatestReleaseResponse? =
+        runCatching {
             val connection =
                 (URL(releaseUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
@@ -154,17 +162,16 @@ object LumaUpdateManager {
                 }
 
             try {
-                if (connection.responseCode in 200..299) {
+                if (connection.responseCode !in 200..299) {
+                    null
+                } else {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    return json.decodeFromString<GitHubLatestReleaseResponse>(response)
+                    json.decodeFromString<GitHubLatestReleaseResponse>(response)
                 }
             } finally {
                 connection.disconnect()
             }
-        }
-
-        return null
-    }
+        }.getOrNull()
 
     private fun normalizeVersion(versionName: String): String = versionName.trim().removePrefix("v").trim()
 
@@ -252,8 +259,17 @@ object LumaUpdateManager {
     ): File? {
         val cacheDir = File(context.cacheDir, "luma-updates").apply { mkdirs() }
         val destinationFile = File(cacheDir, "luma-$versionName.apk")
-        if (destinationFile.exists() && destinationFile.length() > 0) {
+        if (
+            ApkInstaller.isValidCachedApk(
+                context = context,
+                apkFile = destinationFile,
+                expectedPackageName = context.packageName,
+                expectedVersionName = versionName,
+            )
+        ) {
             return destinationFile
+        } else if (destinationFile.exists()) {
+            destinationFile.delete()
         }
 
         val tempFile = File(cacheDir, asset.name.ifBlank { "luma.download" })

@@ -89,6 +89,7 @@ private const val SCROLLWHEEL_BUTTON_PRESS_ACTION = "scrollwheel_button_press_ac
 private const val SCROLLWHEEL_BUTTON_PRESS_APP = "scrollwheel_button_press_app"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_ACTION = "scrollwheel_button_long_press_action"
 private const val SCROLLWHEEL_BUTTON_LONG_PRESS_APP = "scrollwheel_button_long_press_app"
+private const val LIGHT_OS_MEDIA_ROUTE = "light_os_media_route"
 private const val LOCKSCREEN_DATE_FORMAT = "lockscreen_date_format"
 private const val LOCKSCREEN_CLOCK_TAP_ACTION = "lockscreen_clock_tap_action"
 private const val LOCKSCREEN_CLOCK_TAP_APP = "lockscreen_clock_tap_app"
@@ -398,6 +399,12 @@ class Prefs(
         storeApp(SCROLLWHEEL_BUTTON_LONG_PRESS_APP, appModel)
     }
 
+    fun getLightOsMediaRoute(): String = prefs.getString(LIGHT_OS_MEDIA_ROUTE, "music") ?: "music"
+
+    fun setLightOsMediaRoute(route: String) {
+        prefs.edit().putString(LIGHT_OS_MEDIA_ROUTE, route).apply()
+    }
+
     fun isToolEnabled(tool: Tool): Boolean = prefs.getBoolean(tool.prefKey, tool == Tool.Phone || tool == Tool.Settings)
 
     fun setToolEnabled(
@@ -629,15 +636,7 @@ class Prefs(
         get() = enumPref(NOTIFICATION_INDICATOR_ALIGNMENT, NotificationIndicatorAlignment.After)
         set(value) = prefs.edit().putString(NOTIFICATION_INDICATOR_ALIGNMENT, value.name).apply()
 
-    fun isStatusBarVisibleOnHomescreen(): Boolean = false
-
     fun isStatusBarVisibleOnLockscreen(): Boolean = true
-
-    fun showsLumaStatusBarOnHomescreen(): Boolean = false
-
-    fun showsLumaStatusBarOnLockscreen(): Boolean = true
-
-    fun showsLumaStatusBarAnywhere(): Boolean = true
 
     fun showsAndroidStatusBarOnHomescreen(): Boolean = false
 
@@ -654,26 +653,6 @@ class Prefs(
     var leadingZero: Boolean
         get() = prefs.getBoolean(LEADING_ZERO, false)
         set(value) = prefs.edit().putBoolean(LEADING_ZERO, value).apply()
-
-    var batteryPercentage: Boolean
-        get() = true
-        set(value) {}
-
-    var batteryIcon: Boolean
-        get() = true
-        set(value) {}
-
-    var cellularEnabled: Boolean
-        get() = true
-        set(value) {}
-
-    var wifiEnabled: Boolean
-        get() = true
-        set(value) {}
-
-    var bluetoothEnabled: Boolean
-        get() = true
-        set(value) {}
 
     var lastCellularSignalLevel: Int?
         get() = prefs.getInt(LAST_CELLULAR_SIGNAL_LEVEL, -1).takeIf { it >= 0 }

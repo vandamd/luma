@@ -65,11 +65,14 @@ class LumaUpdateFragment : Fragment() {
                     }
                     isInstallingUpdate = true
                     scope.launch {
-                        LumaUpdateManager.installUpdate(
-                            requireContext(),
-                            LumaUpdateManager.AvailableUpdate(versionName = versionName),
-                        )
-                        isInstallingUpdate = false
+                        try {
+                            LumaUpdateManager.installUpdate(
+                                requireContext(),
+                                LumaUpdateManager.AvailableUpdate(versionName = versionName),
+                            )
+                        } finally {
+                            isInstallingUpdate = false
+                        }
                     }
                 }
             },

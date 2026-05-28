@@ -97,6 +97,10 @@ internal sealed interface UnlockGateEvent {
 
     data object SecureGestureFailed : UnlockGateEvent
 
+    data object PatternGestureCompleted : UnlockGateEvent
+
+    data object PatternGestureFailed : UnlockGateEvent
+
     data object SecureMaskTapped : UnlockGateEvent
 
     data class UserPresent(
@@ -257,6 +261,21 @@ internal class UnlockGateStateMachine(
             UnlockGateEvent.SecureGestureCompleted -> Reduction(currentState)
 
             UnlockGateEvent.SecureGestureFailed -> {
+                if (currentState.phase != UnlockGatePhase.AwaitingCredential) {
+                    Reduction(currentState)
+                } else {
+                    Reduction(
+                        currentState.copy(
+                            phase = UnlockGatePhase.SecureMask,
+                            dismissDeadlineUptimeMs = null,
+                        ),
+                    )
+                }
+            }
+
+            UnlockGateEvent.PatternGestureCompleted -> Reduction(currentState)
+
+            UnlockGateEvent.PatternGestureFailed -> {
                 if (currentState.phase != UnlockGatePhase.AwaitingCredential) {
                     Reduction(currentState)
                 } else {
