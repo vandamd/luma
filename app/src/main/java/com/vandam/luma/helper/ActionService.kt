@@ -3224,9 +3224,9 @@ class ActionService : AccessibilityService() {
         private const val VOLUME_ONLY_OVERLAY_WINDOW_TITLE = "Luma Volume Overlay"
         private const val SECURE_LOCK_MASK_GESTURE_DISPATCH_DELAY_MS = 96L
         private const val SECURE_LOCK_MASK_GESTURE_RETRY_DELAY_MS = 160L
-        private const val SECURE_LOCK_MASK_GESTURE_DURATION_MS = 320L
-        private const val SECURE_LOCK_MASK_GESTURE_START_Y_RATIO = 0.90f
-        private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.14f
+        private const val SECURE_LOCK_MASK_GESTURE_DURATION_MS = 50L
+        private const val SECURE_LOCK_MASK_GESTURE_START_Y_RATIO = 0.95f
+        private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.10f
         private const val SECURE_LOCK_MASK_GESTURE_MAX_RETRIES = 1
         private const val SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE = 317
         private const val SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE = 318
