@@ -27,6 +27,17 @@ class SecureSessionStore private constructor(
     }
 
     private val prefs: SharedPreferences =
+        openPrefs(context)
+
+    private fun openPrefs(context: Context): SharedPreferences =
+        runCatching {
+            createPrefs(context)
+        }.getOrElse {
+            context.deleteSharedPreferences(SECURE_PREFS_FILENAME)
+            createPrefs(context)
+        }
+
+    private fun createPrefs(context: Context): SharedPreferences =
         EncryptedSharedPreferences.create(
             context,
             SECURE_PREFS_FILENAME,
