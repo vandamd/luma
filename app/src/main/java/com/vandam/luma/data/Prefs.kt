@@ -322,7 +322,8 @@ class Prefs(
         if (
             action == Constants.Action.Disabled ||
             action == Constants.Action.OpenApp ||
-            action == Constants.Action.GoBack
+            action == Constants.Action.GoBack ||
+            action == Constants.Action.ToggleColourFilter
         ) {
             action
         } else {
@@ -366,7 +367,8 @@ class Prefs(
             action == Constants.Action.Disabled ||
             action == Constants.Action.OpenApp ||
             action == Constants.Action.ToggleFlashlight ||
-            action == Constants.Action.GoBack
+            action == Constants.Action.GoBack ||
+            action == Constants.Action.ToggleColourFilter
         ) {
             action
         } else {

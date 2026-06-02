@@ -89,6 +89,28 @@ object DaltonizerManager {
         }
     }
 
+    fun toggleDaltonizer(context: Context): Boolean {
+        restoreIfNeeded(context)
+
+        val enabled =
+            Settings.Secure.getInt(
+                context.contentResolver,
+                DALTONIZER_ENABLED,
+                0,
+            ) == 1
+
+        return try {
+            Settings.Secure.putInt(context.contentResolver, DALTONIZER_ENABLED, if (enabled) 0 else 1)
+            if (!enabled) {
+                Settings.Secure.putInt(context.contentResolver, DALTONIZER_MODE, 0)
+            }
+            true
+        } catch (exception: SecurityException) {
+            Log.e(TAG, "No permission to toggle daltonizer", exception)
+            false
+        }
+    }
+
     fun recoverFromProcessDeath(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_FILENAME, 0)
         if (!prefs.getBoolean(PREF_DID_WE_DISABLE, false)) return

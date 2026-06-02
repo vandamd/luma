@@ -74,6 +74,7 @@
     <string name="option_none">None</string>
     <string name="action_open_app_name">Open %1$s</string>
     <string name="action_toggle_flashlight">Toggle Flashlight</string>
+    <string name="action_toggle_colour_filter">Toggle Colour Filter</string>
     <string name="action_go_back">Go Back</string>
 
     <!-- Gestures screen -->
