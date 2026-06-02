@@ -66,11 +66,13 @@ private data class NotificationItem(
     val title: String,
     val text: String?,
     val contentIntent: PendingIntent?,
+    val deleteIntent: PendingIntent? = null,
     val canDismiss: Boolean = true,
     val launchRoute: String? = null,
 )
 
 private const val TELECOM_PACKAGE = "com.android.server.telecom"
+private const val TELECOM_MISSED_CALLS_CHANNEL = "TelecomMissedCalls"
 
 class NotificationListFragment : Fragment() {
     private val hasPermission = mutableStateOf(false)
@@ -137,13 +139,11 @@ class NotificationListFragment : Fragment() {
             .getNotificationSummaries(requireContext())
             .map { summary -> summary.toNotificationItem() }
 
-    private fun PhoneNotificationSummary.toNotificationItem(): NotificationItem =
-        NotificationItem(
+    private fun PhoneNotificationSummary.toNotificationItem(): NotificationItem {
+        val sourceNotification = findSourceNotification()
+        return NotificationItem(
             key =
-                when (kind) {
-                    PhoneNotificationSummary.Kind.UnreadMessages -> "__phone_unread_messages__"
-                    PhoneNotificationSummary.Kind.MissedCalls -> "__phone_missed_calls__"
-                },
+                sourceNotification?.key ?: syntheticKey,
             packageName = Tool.Phone.packageName,
             title =
                 when (kind) {
@@ -155,9 +155,34 @@ class NotificationListFragment : Fragment() {
                 },
             text = detail,
             contentIntent = null,
-            canDismiss = false,
+            deleteIntent = sourceNotification?.notification?.deleteIntent,
+            canDismiss = sourceNotification != null,
             launchRoute = Tool.Phone.lightOsRoute,
         )
+    }
+
+    private val PhoneNotificationSummary.syntheticKey: String
+        get() =
+            when (kind) {
+                PhoneNotificationSummary.Kind.UnreadMessages -> "__phone_unread_messages__"
+                PhoneNotificationSummary.Kind.MissedCalls -> "__phone_missed_calls__"
+            }
+
+    private fun PhoneNotificationSummary.findSourceNotification(): StatusBarNotification? {
+        val notifications = LumaNotificationListener.getActiveNotifications()
+        return when (kind) {
+            PhoneNotificationSummary.Kind.MissedCalls ->
+                notifications.firstOrNull {
+                    it.packageName == TELECOM_PACKAGE &&
+                        it.notification.channelId == TELECOM_MISSED_CALLS_CHANNEL
+                }
+
+            PhoneNotificationSummary.Kind.UnreadMessages ->
+                notifications.firstOrNull {
+                    it.notification.category == Notification.CATEGORY_MESSAGE
+                }
+        }
+    }
 
     private fun StatusBarNotification.isGroupSummary(): Boolean = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
 
@@ -284,15 +309,24 @@ class NotificationListFragment : Fragment() {
                             }
                         },
                         onDismiss = {
-                            if (item.key.isNotEmpty()) {
-                                LumaNotificationListener.dismissNotification(item.key)
-                            }
+                            dismissNotification(item)
                             dismissedKeys.add(item.key)
                             notifications.remove(item)
                         },
                     )
                 }
             }
+        }
+    }
+
+    private fun dismissNotification(item: NotificationItem) {
+        item.deleteIntent?.let { deleteIntent ->
+            runCatching {
+                deleteIntent.send()
+            }
+        }
+        if (item.key.isNotEmpty()) {
+            LumaNotificationListener.dismissNotification(item.key)
         }
     }
 
