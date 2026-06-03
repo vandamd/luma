@@ -20,6 +20,7 @@ private const val ENABLED_MANAGED_APP_IDS = "ENABLED_MANAGED_APP_IDS"
 private const val ENABLED_ANDROID_APPS = "ENABLED_ANDROID_APPS"
 private const val HOME_ITEM_ORDER = "HOME_ITEM_ORDER"
 private const val HIDDEN_HOME_ITEM_KEYS = "HIDDEN_HOME_ITEM_KEYS"
+private const val DISMISSED_PHONE_NOTIFICATION_KEYS = "DISMISSED_PHONE_NOTIFICATION_KEYS"
 private const val HOME_ITEM_LABEL_OVERRIDE_PREFIX = "HOME_ITEM_LABEL_OVERRIDE_"
 private const val HOME_PAGES = "HOME_PAGES"
 private const val HOME_APPS_PER_PAGE = "HOME_APPS_PER_PAGE_"
@@ -234,6 +235,10 @@ class Prefs(
     var hiddenHomeItemKeys: Set<String>
         get() = prefs.getStringSet(HIDDEN_HOME_ITEM_KEYS, emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet(HIDDEN_HOME_ITEM_KEYS, value.toSet()).apply()
+
+    var dismissedPhoneNotificationKeys: Set<String>
+        get() = prefs.getStringSet(DISMISSED_PHONE_NOTIFICATION_KEYS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(DISMISSED_PHONE_NOTIFICATION_KEYS, value.toSet()).apply()
 
     var homePages: Int
         get() = prefs.getInt(HOME_PAGES, 1)

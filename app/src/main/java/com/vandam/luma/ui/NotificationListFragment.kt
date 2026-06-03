@@ -62,6 +62,9 @@ import com.vandam.luma.ui.noRippleClickable
 
 private data class NotificationItem(
     val key: String,
+    val dismissedKey: String = key,
+    val notificationKey: String? = key,
+    val persistDismissal: Boolean = false,
     val packageName: String,
     val title: String,
     val text: String?,
@@ -143,7 +146,10 @@ class NotificationListFragment : Fragment() {
         val sourceNotification = findSourceNotification()
         return NotificationItem(
             key =
-                sourceNotification?.key ?: syntheticKey,
+                sourceNotification?.key ?: syntheticNotificationKey,
+            dismissedKey = dismissedNotificationKey,
+            notificationKey = sourceNotification?.key,
+            persistDismissal = true,
             packageName = Tool.Phone.packageName,
             title =
                 when (kind) {
@@ -156,17 +162,10 @@ class NotificationListFragment : Fragment() {
             text = detail,
             contentIntent = null,
             deleteIntent = sourceNotification?.notification?.deleteIntent,
-            canDismiss = sourceNotification != null,
+            canDismiss = true,
             launchRoute = Tool.Phone.lightOsRoute,
         )
     }
-
-    private val PhoneNotificationSummary.syntheticKey: String
-        get() =
-            when (kind) {
-                PhoneNotificationSummary.Kind.UnreadMessages -> "__phone_unread_messages__"
-                PhoneNotificationSummary.Kind.MissedCalls -> "__phone_missed_calls__"
-            }
 
     private fun PhoneNotificationSummary.findSourceNotification(): StatusBarNotification? {
         val notifications = LumaNotificationListener.getActiveNotifications()
@@ -211,13 +210,25 @@ class NotificationListFragment : Fragment() {
     @Composable
     private fun NotificationListScreen() {
         val context = LocalContext.current
+        val prefs = remember(context) { Prefs.getInstance(context.applicationContext) }
         val version by LumaNotificationListener.changeVersion.collectAsState()
         val refreshVersion = contentVersion.value
         val dismissedKeys = remember { mutableSetOf<String>() }
         val notifications = remember { mutableStateListOf<NotificationItem>() }
         val packageLabelCache = remember { mutableMapOf<String, String>() }
         LaunchedEffect(version, refreshVersion) {
-            val fresh = loadNotifications(packageLabelCache).filter { it.key !in dismissedKeys }
+            val loaded = loadNotifications(packageLabelCache)
+            val activePersistentDismissedKeys =
+                loaded
+                    .filter { it.persistDismissal }
+                    .map { it.dismissedKey }
+                    .toSet()
+            val persistedDismissedKeys = prefs.dismissedPhoneNotificationKeys intersect activePersistentDismissedKeys
+            if (persistedDismissedKeys != prefs.dismissedPhoneNotificationKeys) {
+                prefs.dismissedPhoneNotificationKeys = persistedDismissedKeys
+            }
+            val hiddenKeys = dismissedKeys + persistedDismissedKeys
+            val fresh = loaded.filter { it.dismissedKey !in hiddenKeys }
             notifications.clear()
             notifications.addAll(fresh)
         }
@@ -310,7 +321,10 @@ class NotificationListFragment : Fragment() {
                         },
                         onDismiss = {
                             dismissNotification(item)
-                            dismissedKeys.add(item.key)
+                            dismissedKeys.add(item.dismissedKey)
+                            if (item.persistDismissal) {
+                                prefs.dismissedPhoneNotificationKeys = prefs.dismissedPhoneNotificationKeys + item.dismissedKey
+                            }
                             notifications.remove(item)
                         },
                     )
@@ -325,8 +339,8 @@ class NotificationListFragment : Fragment() {
                 deleteIntent.send()
             }
         }
-        if (item.key.isNotEmpty()) {
-            LumaNotificationListener.dismissNotification(item.key)
+        item.notificationKey?.let { notificationKey ->
+            LumaNotificationListener.dismissNotification(notificationKey)
         }
     }
 

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.SystemClock
 import android.provider.CallLog
 import androidx.core.content.ContextCompat
+import com.vandam.luma.data.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,6 +26,16 @@ data class PhoneNotificationSummary(
         UnreadMessages,
         MissedCalls,
     }
+
+    val dismissedNotificationKey: String
+        get() = "$syntheticNotificationKey|$timestampMillis|$count"
+
+    val syntheticNotificationKey: String
+        get() =
+            when (kind) {
+                Kind.UnreadMessages -> "__phone_unread_messages__"
+                Kind.MissedCalls -> "__phone_missed_calls__"
+            }
 }
 
 object PhoneSignalHelper {
@@ -85,6 +96,11 @@ object PhoneSignalHelper {
             getMissedCallsSummary(context),
             getUnreadMessagesSummary(context),
         ).sortedByDescending { it.timestampMillis }
+
+    fun hasVisibleNotificationSignal(context: Context): Boolean {
+        val dismissedKeys = Prefs.getInstance(context).dismissedPhoneNotificationKeys
+        return getNotificationSummaries(context).any { it.dismissedNotificationKey !in dismissedKeys }
+    }
 
     fun hasUnreadMessages(context: Context): Boolean = queryHasUnreadMessages(context.applicationContext)
 
