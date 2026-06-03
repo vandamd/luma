@@ -131,7 +131,7 @@ class NotificationListFragment : Fragment() {
                 .filterNot { it.isGroupSummary() && it.groupKey in groupKeysWithChildren }
                 .map { sbn -> sbn.toNotificationItem(pm, packageLabelCache) }
                 .sortedBy { it.title.lowercase() }
-        return phoneNotifications + appNotifications
+        return (phoneNotifications + appNotifications).distinctBy { it.key }
     }
 
     private fun loadPhoneNotifications(): List<NotificationItem> =
