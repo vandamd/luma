@@ -1166,12 +1166,14 @@ class ActionService : AccessibilityService() {
                 ) {
                     if (cameraId == resolveTorchCameraId()) {
                         torchEnabled = enabled
+                        refreshUnlockGateConnectivityStatus()
                     }
                 }
 
                 override fun onTorchModeUnavailable(cameraId: String) {
                     if (cameraId == resolveTorchCameraId()) {
                         torchEnabled = false
+                        refreshUnlockGateConnectivityStatus()
                     }
                 }
             }
@@ -2822,6 +2824,7 @@ class ActionService : AccessibilityService() {
         val wifiIcon = view.findViewById<ImageView>(R.id.statusWifi)
         val bluetoothIcon = view.findViewById<ImageView>(R.id.statusBluetooth)
         val soundModeIcon = view.findViewById<ImageView>(R.id.statusSoundMode)
+        val flashlightIcon = view.findViewById<ImageView>(R.id.statusFlashlight)
 
         val airplaneMode =
             runCatching {
@@ -2892,13 +2895,20 @@ class ActionService : AccessibilityService() {
             soundModeIcon.visibility = View.GONE
         }
 
+        if (torchEnabled) {
+            LumaStatusBarUi.showTinted(flashlightIcon, R.drawable.ic_shortcut_flashlight, textColor)
+        } else {
+            flashlightIcon.visibility = View.GONE
+        }
+
         val anyVisible =
             airplaneIcon.visibility == View.VISIBLE ||
                 networkType.visibility == View.VISIBLE ||
                 signalIcon.visibility == View.VISIBLE ||
                 wifiIcon.visibility == View.VISIBLE ||
                 bluetoothIcon.visibility == View.VISIBLE ||
-                soundModeIcon.visibility == View.VISIBLE
+                soundModeIcon.visibility == View.VISIBLE ||
+                flashlightIcon.visibility == View.VISIBLE
         connectivityLayout.visibility = if (anyVisible) View.VISIBLE else View.INVISIBLE
     }
 
