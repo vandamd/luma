@@ -52,6 +52,12 @@
             android:visibility="gone"
             android:src="@drawable/bluetooth" />
 
+        <ImageView
+            android:id="@+id/statusSoundMode"
+            android:layout_width="wrap_content"
+            android:layout_height="14dp"
+            android:visibility="gone" />
+
     </LinearLayout>
 
     <LinearLayout

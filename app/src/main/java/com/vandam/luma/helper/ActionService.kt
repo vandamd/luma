@@ -109,6 +109,7 @@ class ActionService : AccessibilityService() {
     private var unlockGateReceiver: BroadcastReceiver? = null
     private var unlockGateBatteryReceiver: BroadcastReceiver? = null
     private var unlockGateBluetoothReceiver: BroadcastReceiver? = null
+    private var unlockGateSoundModeReceiver: BroadcastReceiver? = null
     private var unlockGateWifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var unlockGateTelephonyCallback: TelephonyCallback? = null
     private var incomingCallCallback: IncomingCallCallback? = null
@@ -2820,6 +2821,7 @@ class ActionService : AccessibilityService() {
         val signalIcon = view.findViewById<ImageView>(R.id.statusSignal)
         val wifiIcon = view.findViewById<ImageView>(R.id.statusWifi)
         val bluetoothIcon = view.findViewById<ImageView>(R.id.statusBluetooth)
+        val soundModeIcon = view.findViewById<ImageView>(R.id.statusSoundMode)
 
         val airplaneMode =
             runCatching {
@@ -2883,12 +2885,20 @@ class ActionService : AccessibilityService() {
             BluetoothStatusHelper.IndicatorState.Off, null -> bluetoothIcon.visibility = View.GONE
         }
 
+        val soundModeDrawable = LumaStatusBarUi.soundModeDrawableForRingerMode(audioManager.ringerMode)
+        if (soundModeDrawable != null) {
+            LumaStatusBarUi.showTinted(soundModeIcon, soundModeDrawable, textColor)
+        } else {
+            soundModeIcon.visibility = View.GONE
+        }
+
         val anyVisible =
             airplaneIcon.visibility == View.VISIBLE ||
                 networkType.visibility == View.VISIBLE ||
                 signalIcon.visibility == View.VISIBLE ||
                 wifiIcon.visibility == View.VISIBLE ||
-                bluetoothIcon.visibility == View.VISIBLE
+                bluetoothIcon.visibility == View.VISIBLE ||
+                soundModeIcon.visibility == View.VISIBLE
         connectivityLayout.visibility = if (anyVisible) View.VISIBLE else View.INVISIBLE
     }
 
@@ -2965,6 +2975,7 @@ class ActionService : AccessibilityService() {
         startUnlockGateCellularMonitor()
         startUnlockGateWifiMonitor()
         startUnlockGateBluetoothMonitor()
+        startUnlockGateSoundModeMonitor()
     }
 
     private fun stopUnlockGateStatusBarMonitors() {
@@ -2972,6 +2983,7 @@ class ActionService : AccessibilityService() {
         stopUnlockGateCellularMonitor()
         stopUnlockGateWifiMonitor()
         stopUnlockGateBluetoothMonitor()
+        stopUnlockGateSoundModeMonitor()
     }
 
     private fun startUnlockGateBatteryMonitor() {
@@ -3255,6 +3267,45 @@ class ActionService : AccessibilityService() {
             Log.e(TAG, "stopUnlockGateBluetoothMonitor: unregisterReceiver failed", exception)
         } finally {
             unlockGateBluetoothReceiver = null
+        }
+    }
+
+    private fun startUnlockGateSoundModeMonitor() {
+        if (unlockGateSoundModeReceiver != null) return
+
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+                    runOnMainThread {
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+            }
+        val filter =
+            IntentFilter().apply {
+                addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
+            }
+
+        try {
+            registerReceiver(receiver, filter)
+            unlockGateSoundModeReceiver = receiver
+            refreshUnlockGateConnectivityStatus()
+        } catch (exception: Exception) {
+            Log.e(TAG, "startUnlockGateSoundModeMonitor: registerReceiver failed", exception)
+        }
+    }
+
+    private fun stopUnlockGateSoundModeMonitor() {
+        val receiver = unlockGateSoundModeReceiver ?: return
+        try {
+            unregisterReceiver(receiver)
+        } catch (exception: Exception) {
+            Log.e(TAG, "stopUnlockGateSoundModeMonitor: unregisterReceiver failed", exception)
+        } finally {
+            unlockGateSoundModeReceiver = null
         }
     }
 
