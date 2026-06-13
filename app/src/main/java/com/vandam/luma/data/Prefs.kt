@@ -117,7 +117,7 @@ class Prefs(
             }
     }
 
-    enum class TimeFormat { Standard, TwentyFourHour }
+    enum class TimeFormat { Standard, TwelveHour, TwentyFourHour }
 
     enum class ThemeMode { Dark, Light }
 

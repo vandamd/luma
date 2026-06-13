@@ -127,6 +127,7 @@
     <string name="status_bar_mode_android">Enabled (Android)</string>
     <string name="status_bar_time_format">Time Format</string>
     <string name="status_bar_time_standard">12-Hour AM/PM</string>
+    <string name="status_bar_time_twelve">12-Hour</string>
     <string name="status_bar_time_24h">24-Hour</string>
     <string name="status_bar_show_seconds">Show Seconds</string>
     <string name="status_bar_leading_zero">Leading Zero</string>

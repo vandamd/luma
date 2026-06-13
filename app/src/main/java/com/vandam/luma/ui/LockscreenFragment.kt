@@ -65,6 +65,7 @@ class LockscreenFragment : Fragment() {
                 value =
                     when (timeFormatState.value) {
                         Prefs.TimeFormat.Standard -> stringResource(R.string.status_bar_time_standard)
+                        Prefs.TimeFormat.TwelveHour -> stringResource(R.string.status_bar_time_twelve)
                         Prefs.TimeFormat.TwentyFourHour -> stringResource(R.string.status_bar_time_24h)
                     },
                 onClick = {

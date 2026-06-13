@@ -29,14 +29,19 @@ class TimeFormatFragment : Fragment() {
             options =
                 listOf(
                     SingleChoiceOption(
-                        title = stringResource(R.string.status_bar_time_24h),
-                        selected = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour,
-                        onClick = { select(Prefs.TimeFormat.TwentyFourHour) },
-                    ),
-                    SingleChoiceOption(
                         title = stringResource(R.string.status_bar_time_standard),
                         selected = prefs.timeFormat == Prefs.TimeFormat.Standard,
                         onClick = { select(Prefs.TimeFormat.Standard) },
+                    ),
+                    SingleChoiceOption(
+                        title = stringResource(R.string.status_bar_time_twelve),
+                        selected = prefs.timeFormat == Prefs.TimeFormat.TwelveHour,
+                        onClick = { select(Prefs.TimeFormat.TwelveHour) },
+                    ),
+                    SingleChoiceOption(
+                        title = stringResource(R.string.status_bar_time_24h),
+                        selected = prefs.timeFormat == Prefs.TimeFormat.TwentyFourHour,
+                        onClick = { select(Prefs.TimeFormat.TwentyFourHour) },
                     ),
                 ),
         )
