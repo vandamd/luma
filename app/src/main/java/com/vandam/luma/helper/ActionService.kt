@@ -144,6 +144,7 @@ class ActionService : AccessibilityService() {
     private var scrollwheelLongPressFired = false
     private var homeKeyDownTime = 0L
     private var homeLongPressFired = false
+    private var unlockGatePreparedForHomeKey = false
     private var mediaInfoObserverJob: Job? = null
 
     override fun onServiceConnected() {
@@ -428,32 +429,12 @@ class ActionService : AccessibilityService() {
                 return true
             }
             if (event.action == KeyEvent.ACTION_DOWN) {
-                consumedMappedKeyUps.remove(KeyEvent.KEYCODE_HOME)
-                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
-                homeKeyDownTime = SystemClock.uptimeMillis()
-                homeLongPressFired = false
-
-                val downTime = homeKeyDownTime
-                val runnable =
-                    Runnable {
-                        if (homeKeyDownTime == downTime) {
-                            executeHomeLongPress()
-                            dispatchUnlockGateEventOnMain(
-                                UnlockGateEvent.DismissRequested(
-                                    nowUptimeMs = SystemClock.uptimeMillis(),
-                                    minDelayMs = 150L,
-                                ),
-                            )
-                            homeLongPressFired = true
-                        }
-                    }
-                mainHandler.postDelayed(runnable, HOME_LONG_PRESS_TOKEN, KEYMAP_LONG_PRESS_MS)
+                startHomeKeyPress()
+                scheduleHomeLongPress(dismissUnlockGateAfterLongPress = true)
                 return true
             }
             if (event.action == KeyEvent.ACTION_UP) {
-                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
-                homeKeyDownTime = 0L
-                if (homeLongPressFired) {
+                if (finishHomeKeyPress()) {
                     return true
                 }
             }
@@ -479,7 +460,7 @@ class ActionService : AccessibilityService() {
                     dispatchUnlockGateEventOnMain(
                         UnlockGateEvent.DismissRequested(
                             nowUptimeMs = SystemClock.uptimeMillis(),
-                            minDelayMs = UNLOCK_GATE_HIDE_DELAY_MS,
+                            minDelayMs = HOME_KEY_UNLOCK_GATE_HIDE_DELAY_MS,
                         ),
                     )
                 }
@@ -491,26 +472,20 @@ class ActionService : AccessibilityService() {
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount != 0) return true
-                consumedMappedKeyUps.remove(KeyEvent.KEYCODE_HOME)
-                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
-                homeKeyDownTime = SystemClock.uptimeMillis()
-                homeLongPressFired = false
-
-                val downTime = homeKeyDownTime
-                val runnable =
-                    Runnable {
-                        if (homeKeyDownTime == downTime) {
-                            executeHomeLongPress()
-                            homeLongPressFired = true
-                        }
+                startHomeKeyPress()
+                scheduleHomeLongPress(dismissUnlockGateAfterLongPress = false)
+                if (unlockGateStateMachine.state.repeatedHomeGateEligible) {
+                    runOnMainThread {
+                        prepareUnlockGateViewOnMain()
                     }
-                mainHandler.postDelayed(runnable, HOME_LONG_PRESS_TOKEN, KEYMAP_LONG_PRESS_MS)
+                }
                 true
             }
 
             KeyEvent.ACTION_UP -> {
-                mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
-                homeKeyDownTime = 0L
+                if (finishHomeKeyPress()) {
+                    return true
+                }
                 if (!homeLongPressFired) {
                     if (unlockGateStateMachine.state.repeatedHomeGateEligible) {
                         runOnMainThread {
@@ -544,6 +519,43 @@ class ActionService : AccessibilityService() {
                 false
             }
         }
+    }
+
+    private fun startHomeKeyPress() {
+        consumedMappedKeyUps.remove(KeyEvent.KEYCODE_HOME)
+        mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        homeKeyDownTime = SystemClock.uptimeMillis()
+        homeLongPressFired = false
+    }
+
+    private fun scheduleHomeLongPress(dismissUnlockGateAfterLongPress: Boolean) {
+        val downTime = homeKeyDownTime
+        val runnable =
+            Runnable {
+                if (homeKeyDownTime == downTime) {
+                    executeHomeLongPress()
+                    clearPreparedUnlockGateViewOnMain()
+                    if (dismissUnlockGateAfterLongPress) {
+                        dispatchUnlockGateEventOnMain(
+                            UnlockGateEvent.DismissRequested(
+                                nowUptimeMs = SystemClock.uptimeMillis(),
+                                minDelayMs = 150L,
+                            ),
+                        )
+                    }
+                    homeLongPressFired = true
+                }
+            }
+        mainHandler.postDelayed(runnable, HOME_LONG_PRESS_TOKEN, KEYMAP_LONG_PRESS_MS)
+    }
+
+    private fun finishHomeKeyPress(): Boolean {
+        mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        homeKeyDownTime = 0L
+        if (homeLongPressFired) {
+            return true
+        }
+        return false
     }
 
     private fun executeHomeLongPress() {
@@ -1409,6 +1421,46 @@ class ActionService : AccessibilityService() {
         publishUnlockGateState()
     }
 
+    private fun prepareUnlockGateViewOnMain() {
+        if (unlockGateView?.isAttachedToWindow == true) return
+        val view =
+            unlockGateView ?: overlayInflater.inflate(R.layout.unlock_gate_overlay, null).also {
+                unlockGateView = it
+            }
+        val isDark = prefs.isDarkTheme()
+
+        hideVolumeOnlyOverlay()
+        MediaSessionHelper.setTrackingEnabled(true)
+        PhoneSignalHelper.getCachedUnreadPhoneSignal(this)
+        resetUnlockGateViewState(view)
+        MediaSessionHelper.refresh()
+        updateUnlockGateTextAppearance(view, isDark)
+        updateSecureLockMaskStatusBar(
+            view = view,
+            visible = true,
+            phase = UnlockGatePhase.UnlockGateVisible,
+        )
+        applyUnlockGateVolumeIndicator(view)
+        updateUnlockGateText(view, phase = UnlockGatePhase.UnlockGateVisible)
+        updateUnlockGateVisibleMode(view, isDark)
+        applyIncomingCallUnlockGateMode(view, phase = UnlockGatePhase.UnlockGateVisible)
+        unlockGatePreparedForHomeKey = true
+    }
+
+    private fun clearPreparedUnlockGateViewOnMain() {
+        if (!unlockGatePreparedForHomeKey) return
+        unlockGatePreparedForHomeKey = false
+        if (unlockGateStateMachine.state.phase == UnlockGatePhase.Idle) {
+            MediaSessionHelper.setTrackingEnabled(false)
+            stopUnlockGateStatusBarMonitors()
+        }
+        val view = unlockGateView ?: return
+        if (!view.isAttachedToWindow) {
+            resetUnlockGateViewState(view)
+            unlockGateView = null
+        }
+    }
+
     private fun dismissSecureLockMaskWithGestureOnMain() {
         if (unlockGateStateMachine.state.phase != UnlockGatePhase.SecureMask) return
         performAppTapHapticFeedback(this)
@@ -1673,29 +1725,38 @@ class ActionService : AccessibilityService() {
             unlockGateView ?: overlayInflater.inflate(R.layout.unlock_gate_overlay, null).also {
                 unlockGateView = it
             }
+        val usePreparedHomeKeyView =
+            unlockGatePreparedForHomeKey &&
+                state.phase == UnlockGatePhase.UnlockGateVisible &&
+                !view.isAttachedToWindow
 
-        PhoneSignalHelper.getCachedUnreadPhoneSignal(this)
-        resetUnlockGateViewState(view)
-        if (shouldTrackMediaSessions) {
-            MediaSessionHelper.refresh()
-        }
-        updateUnlockGateTextAppearance(view, isDark)
-        updateSecureLockMaskStatusBar(view)
-        applyUnlockGateVolumeIndicator(view)
-        updateUnlockGateText(view)
-        if (state.phase == UnlockGatePhase.WakeCover) {
-            cancelUnlockGateClockTick()
-        } else {
+        if (usePreparedHomeKeyView) {
             scheduleNextUnlockGateClockTick(view)
-        }
+        } else {
+            unlockGatePreparedForHomeKey = false
+            PhoneSignalHelper.getCachedUnreadPhoneSignal(this)
+            resetUnlockGateViewState(view)
+            if (shouldTrackMediaSessions) {
+                MediaSessionHelper.refresh()
+            }
+            updateUnlockGateTextAppearance(view, isDark)
+            updateSecureLockMaskStatusBar(view)
+            applyUnlockGateVolumeIndicator(view)
+            updateUnlockGateText(view)
+            if (state.phase == UnlockGatePhase.WakeCover) {
+                cancelUnlockGateClockTick()
+            } else {
+                scheduleNextUnlockGateClockTick(view)
+            }
 
-        when (state.phase) {
-            UnlockGatePhase.WakeCover -> updateUnlockGateWakeCoverMode(view)
-            UnlockGatePhase.SecureMask -> updateUnlockGateSecureMode(view, isDark, blank = false)
-            UnlockGatePhase.UnlockGateVisible, UnlockGatePhase.Dismissing -> updateUnlockGateVisibleMode(view, isDark)
-            UnlockGatePhase.Idle -> Unit
+            when (state.phase) {
+                UnlockGatePhase.WakeCover -> updateUnlockGateWakeCoverMode(view)
+                UnlockGatePhase.SecureMask -> updateUnlockGateSecureMode(view, isDark, blank = false)
+                UnlockGatePhase.UnlockGateVisible, UnlockGatePhase.Dismissing -> updateUnlockGateVisibleMode(view, isDark)
+                UnlockGatePhase.Idle -> Unit
+            }
+            applyIncomingCallUnlockGateMode(view)
         }
-        applyIncomingCallUnlockGateMode(view)
 
         val layoutParams =
             when (state.phase) {
@@ -1760,6 +1821,9 @@ class ActionService : AccessibilityService() {
                     false
                 }
             }
+        if (usePreparedHomeKeyView) {
+            unlockGatePreparedForHomeKey = false
+        }
         return result
     }
 
@@ -1945,6 +2009,7 @@ class ActionService : AccessibilityService() {
 
     private fun removeUnlockGateViewOnMain() {
         val view = unlockGateView ?: return
+        unlockGatePreparedForHomeKey = false
         unlockGateVolumeIndicatorVisible = false
         unlockGateVolumeIndicatorHideRunnable?.let { mainHandler.removeCallbacks(it) }
         unlockGateVolumeIndicatorHideRunnable = null
@@ -1988,6 +2053,7 @@ class ActionService : AccessibilityService() {
             Log.e(TAG, "forceRemoveUnlockGateViewInstanceOnMain: removeViewImmediate failed", exception)
         } finally {
             if (unlockGateView === view) {
+                unlockGatePreparedForHomeKey = false
                 unlockGateView = null
             }
         }
@@ -2334,9 +2400,9 @@ class ActionService : AccessibilityService() {
         view: View,
         viewId: Int,
         section: StatusBarSectionType,
+        phase: UnlockGatePhase = unlockGateStateMachine.state.phase,
     ) {
         val target = view.findViewById<View>(viewId)
-        val phase = unlockGateStateMachine.state.phase
         val enabled =
             (phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing) &&
                 canHandleStatusBarSectionTap(section)
@@ -2464,8 +2530,10 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun updateUnlockGateText(view: View) {
-        val phase = unlockGateStateMachine.state.phase
+    private fun updateUnlockGateText(
+        view: View,
+        phase: UnlockGatePhase = unlockGateStateMachine.state.phase,
+    ) {
         val isInteractive =
             phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing
         val clockView = view.findViewById<TextView>(R.id.unlockGateClock)
@@ -2561,9 +2629,11 @@ class ActionService : AccessibilityService() {
         clearUnlockGateGestureTouchListeners(view)
     }
 
-    private fun applyIncomingCallUnlockGateMode(view: View) {
+    private fun applyIncomingCallUnlockGateMode(
+        view: View,
+        phase: UnlockGatePhase = unlockGateStateMachine.state.phase,
+    ) {
         if (!isPhoneRinging()) return
-        val phase = unlockGateStateMachine.state.phase
         view.findViewById<View>(R.id.unlockGateMediaControls).visibility = View.GONE
         view.findViewById<TextView>(R.id.unlockGateDate).apply {
             visibility = View.GONE
@@ -2677,17 +2747,21 @@ class ActionService : AccessibilityService() {
         )
     }
 
-    private fun updateSecureLockMaskStatusBar(view: View) {
+    private fun updateSecureLockMaskStatusBar(
+        view: View,
+        visible: Boolean = unlockGateStateMachine.snapshot.visible,
+        phase: UnlockGatePhase = unlockGateStateMachine.state.phase,
+    ) {
         val statusBar = view.findViewById<View>(R.id.unlockGateStatusBar)
-        val shouldShow = shouldShowUnlockGateStatusBar()
+        val shouldShow = shouldShowUnlockGateStatusBar(visible)
         statusBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
         if (!shouldShow) {
             stopUnlockGateStatusBarMonitors()
             return
         }
 
-        bindStatusBarSectionTapAction(view, R.id.statusConnectivityLayout, StatusBarSectionType.CELLULAR)
-        bindStatusBarSectionTapAction(view, R.id.statusBatteryLayout, StatusBarSectionType.BATTERY)
+        bindStatusBarSectionTapAction(view, R.id.statusConnectivityLayout, StatusBarSectionType.CELLULAR, phase)
+        bindStatusBarSectionTapAction(view, R.id.statusBatteryLayout, StatusBarSectionType.BATTERY, phase)
 
         val textColor = unlockGateTextColor(view)
         view.findViewById<TextView>(R.id.statusNetworkType).setTextColor(textColor)
@@ -2695,7 +2769,7 @@ class ActionService : AccessibilityService() {
 
         updateSecureLockMaskBatteryStatus(view, textColor)
         getSystemService(TelephonyManager::class.java)?.let { updateUnlockGateCellularSnapshot(it) }
-        if (unlockGateStateMachine.state.phase != UnlockGatePhase.Dismissing) {
+        if (phase != UnlockGatePhase.Dismissing) {
             updateSecureLockMaskConnectivityStatus(view, textColor)
         }
         syncUnlockGateStatusBarMonitors()
@@ -2840,8 +2914,8 @@ class ActionService : AccessibilityService() {
         connectivityLayout.visibility = if (anyVisible) View.VISIBLE else View.INVISIBLE
     }
 
-    private fun shouldShowUnlockGateStatusBar(): Boolean =
-        unlockGateStateMachine.snapshot.visible &&
+    private fun shouldShowUnlockGateStatusBar(visible: Boolean = unlockGateStateMachine.snapshot.visible): Boolean =
+        visible &&
             !shouldShowUnlockGateVolumeIndicator() &&
             !unlockGateStateMachine.state.prefersHomeStatusBar &&
             prefs.isStatusBarVisibleOnLockscreen()
@@ -3339,6 +3413,7 @@ class ActionService : AccessibilityService() {
         private const val NOTIFICATION_SETTINGS_LIGHT_ROUTE = "notificationsettings"
         private const val UNLOCK_GATE_MIN_VISIBILITY_MS = 150L
         private const val UNLOCK_GATE_HIDE_DELAY_MS = 100L
+        private const val HOME_KEY_UNLOCK_GATE_HIDE_DELAY_MS = 0L
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
         private const val VOLUME_INDICATOR_HIDE_DELAY_MS = 1500L
         private const val ICON_SCALE = 1.0f
