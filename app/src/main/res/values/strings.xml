@@ -39,6 +39,9 @@
     <string name="keymaps_scrollwheel_long_press">Scrollwheel Long Press</string>
     <string name="keymaps_lightos_media_playing">Long press (LightOS media playing)</string>
     <string name="unlock_gate_message">Press Home for Luma</string>
+    <string name="unlock_gate_incoming_call">Incoming call...</string>
+    <string name="unlock_gate_incoming_call_unlocked">Incoming call...\n\nTap below to open LightOS.</string>
+    <string name="unlock_gate_incoming_call_locked">Incoming call...\n\nUnlock to open LightOS.</string>
     <string name="lockscreen_enabled">Enabled</string>
     <string name="lockscreen_show_date">Show Date</string>
     <string name="lockscreen_date_format">Date Format</string>
