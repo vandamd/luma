@@ -14,7 +14,6 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PixelFormat
-import android.graphics.PointF
 import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
 import android.hardware.camera2.CameraAccessException
@@ -68,7 +67,6 @@ import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
 import com.vandam.luma.data.Tool
 import com.vandam.luma.listener.SwipeTouchListener
-import com.vandam.luma.view.PatternLockView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -123,7 +121,6 @@ class ActionService : AccessibilityService() {
     private var volumeOnlyOverlayView: View? = null
     private var volumeOnlyOverlayHideRunnable: Runnable? = null
     private var secureLockMaskGestureAttempt = 0
-    private var unlockGateShowPatternRunnable: Runnable? = null
     private val consumedMappedKeyUps = mutableSetOf<Int>()
     private var lastWriteSettingsPermissionPromptUptimeMs = 0L
     private var currentForegroundPackage: String? = null
@@ -468,9 +465,6 @@ class ActionService : AccessibilityService() {
                         dismissSecureLockMaskWithGestureOnMain()
                     }
                 }
-                return true
-            }
-            if (unlockGatePhase == UnlockGatePhase.AwaitingCredential) {
                 return true
             }
             if (event.action == KeyEvent.ACTION_DOWN) {
@@ -882,7 +876,7 @@ class ActionService : AccessibilityService() {
             return true
         }
 
-        if (phase != UnlockGatePhase.SecureMask && phase != UnlockGatePhase.AwaitingCredential) return false
+        if (phase != UnlockGatePhase.SecureMask) return false
 
         val isVolumeUp = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
         val isMusicActive = audioManager.isMusicActive
@@ -1426,9 +1420,10 @@ class ActionService : AccessibilityService() {
         attempt: Int,
     ) {
         secureLockMaskGestureAttempt = attempt
+        setUnlockGateMaskTouchable(touchable = false)
         mainHandler.postDelayed(
             {
-                if (unlockGateStateMachine.state.phase != UnlockGatePhase.AwaitingCredential || unlockGateView !== sourceView) {
+                if (unlockGateStateMachine.state.phase != UnlockGatePhase.SecureMask || unlockGateView !== sourceView) {
                     return@postDelayed
                 }
 
@@ -1474,7 +1469,7 @@ class ActionService : AccessibilityService() {
         reason: String,
     ) {
         Log.w(TAG, "dismissSecureLockMaskWithGestureOnMain: $reason attempt=$attempt")
-        if (unlockGateStateMachine.state.phase != UnlockGatePhase.AwaitingCredential || unlockGateView !== sourceView) {
+        if (unlockGateStateMachine.state.phase != UnlockGatePhase.SecureMask || unlockGateView !== sourceView) {
             secureLockMaskGestureAttempt = 0
             return
         }
@@ -1531,7 +1526,6 @@ class ActionService : AccessibilityService() {
     private fun cancelUnlockGateCallbacks() {
         cancelUnlockGateDismissCallback()
         cancelUnlockGateClockTick()
-        cancelUnlockGateShowPatternCallback()
     }
 
     private fun cancelUnlockGateDismissCallback() {
@@ -1542,11 +1536,6 @@ class ActionService : AccessibilityService() {
     private fun cancelUnlockGateClockTick() {
         unlockGateClockRunnable?.let(mainHandler::removeCallbacks)
         unlockGateClockRunnable = null
-    }
-
-    private fun cancelUnlockGateShowPatternCallback() {
-        unlockGateShowPatternRunnable?.let(mainHandler::removeCallbacks)
-        unlockGateShowPatternRunnable = null
     }
 
     private fun registerUnlockGateReceiver() {
@@ -1703,7 +1692,6 @@ class ActionService : AccessibilityService() {
         when (state.phase) {
             UnlockGatePhase.WakeCover -> updateUnlockGateWakeCoverMode(view)
             UnlockGatePhase.SecureMask -> updateUnlockGateSecureMode(view, isDark, blank = false)
-            UnlockGatePhase.AwaitingCredential -> updateUnlockGateAwaitingCredentialMode(view, isDark)
             UnlockGatePhase.UnlockGateVisible, UnlockGatePhase.Dismissing -> updateUnlockGateVisibleMode(view, isDark)
             UnlockGatePhase.Idle -> Unit
         }
@@ -1722,14 +1710,6 @@ class ActionService : AccessibilityService() {
                     createSecureLockMaskLayoutParams(
                         title = SECURE_LOCK_MASK_WINDOW_TITLE,
                         touchable = true,
-                    )
-                }
-
-                UnlockGatePhase.AwaitingCredential -> {
-                    val patternGridVisible = view.findViewById<View>(R.id.unlockGatePatternGrid).visibility == View.VISIBLE
-                    createSecureLockMaskLayoutParams(
-                        title = SECURE_LOCK_MASK_WINDOW_TITLE,
-                        touchable = patternGridVisible,
                     )
                 }
 
@@ -1789,7 +1769,6 @@ class ActionService : AccessibilityService() {
     ) {
         view.setBackgroundColor(if (isDark) Color.BLACK else Color.WHITE)
         restoreUnlockGatePrimaryContent(view)
-        setUnlockGatePatternGridVisible(view, visible = false)
         view.isClickable = true
         view.isFocusable = true
         view.setOnClickListener(null)
@@ -1845,7 +1824,6 @@ class ActionService : AccessibilityService() {
     private fun updateUnlockGateWakeCoverMode(view: View) {
         view.setBackgroundColor(Color.BLACK)
         hideUnlockGatePrimaryContent(view)
-        setUnlockGatePatternGridVisible(view, visible = false)
         view.isClickable = false
         view.isFocusable = false
         view.setOnClickListener(null)
@@ -1862,7 +1840,6 @@ class ActionService : AccessibilityService() {
         } else {
             restoreUnlockGatePrimaryContent(view)
         }
-        setUnlockGatePatternGridVisible(view, visible = false)
         view.isClickable = !blank
         view.isFocusable = !blank
         view.setOnClickListener(
@@ -1944,45 +1921,6 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun updateUnlockGateAwaitingCredentialMode(
-        view: View,
-        isDark: Boolean,
-    ) {
-        view.setBackgroundColor(if (isDark) Color.BLACK else Color.WHITE)
-        hideUnlockGatePrimaryContent(view)
-        val patternView = view.findViewById<PatternLockView>(R.id.unlockGatePatternGrid)
-        patternView.setDarkMode(isDark)
-        patternView.onPatternCompleteListener = { _, screenCoords ->
-            dispatchPatternGesture(screenCoords)
-        }
-        view.setOnTouchListener(createUnlockGatePatternTouchListener(patternView))
-        view.isClickable = false
-        view.isFocusable = false
-        view.setOnClickListener(null)
-
-        if (patternView.visibility != View.VISIBLE) {
-            setUnlockGatePatternGridVisible(view, visible = false)
-            unlockGateShowPatternRunnable?.let { mainHandler.removeCallbacks(it) }
-            val runnable =
-                Runnable {
-                    unlockGateShowPatternRunnable = null
-                    if (unlockGateStateMachine.state.phase == UnlockGatePhase.AwaitingCredential) {
-                        setUnlockGatePatternGridVisible(view, visible = true)
-                        tryUpdateUnlockGateViewLayoutOnMain(
-                            view = view,
-                            layoutParams = createSecureLockMaskLayoutParams(
-                                title = SECURE_LOCK_MASK_WINDOW_TITLE,
-                                touchable = true,
-                            ),
-                            logPrefix = "showPatternGrid",
-                        )
-                    }
-                }
-            unlockGateShowPatternRunnable = runnable
-            mainHandler.postDelayed(runnable, SECURE_LOCK_MASK_GESTURE_DISPATCH_DELAY_MS + SECURE_LOCK_MASK_GESTURE_DURATION_MS)
-        }
-    }
-
     private fun hideUnlockGatePrimaryContent(view: View) {
         view.findViewById<View>(R.id.unlockGateStatusBar).visibility = View.GONE
         view.findViewById<TextView>(R.id.unlockGateClock).visibility = View.GONE
@@ -2004,35 +1942,6 @@ class ActionService : AccessibilityService() {
             view.findViewById<View>(R.id.unlockGateMediaControls).visibility = View.VISIBLE
         }
     }
-
-    private fun setUnlockGatePatternGridVisible(
-        view: View,
-        visible: Boolean,
-    ) {
-        val patternGrid = view.findViewById<View>(R.id.unlockGatePatternGrid)
-        patternGrid.visibility =
-            if (visible) {
-                View.VISIBLE
-            } else {
-                (patternGrid as? PatternLockView)?.resetPattern()
-                View.GONE
-            }
-    }
-
-    private fun createUnlockGatePatternTouchListener(patternView: PatternLockView): View.OnTouchListener =
-        View.OnTouchListener { _, event ->
-            if (patternView.visibility != View.VISIBLE) {
-                return@OnTouchListener false
-            }
-
-            val location = IntArray(2)
-            patternView.getLocationOnScreen(location)
-            val patternEvent = MotionEvent.obtain(event)
-            patternEvent.setLocation(event.rawX - location[0], event.rawY - location[1])
-            val handled = patternView.dispatchTouchEvent(patternEvent)
-            patternEvent.recycle()
-            handled
-        }
 
     private fun removeUnlockGateViewOnMain() {
         val view = unlockGateView ?: return
@@ -2578,13 +2487,6 @@ class ActionService : AccessibilityService() {
             clockView.typeface = ResourcesCompat.getFont(this, R.font.publicsans_thin)
             clockView.setTextSize(TypedValue.COMPLEX_UNIT_SP, UNLOCK_GATE_CLOCK_TEXT_SIZE_SP)
         }
-        if (phase == UnlockGatePhase.AwaitingCredential) {
-            clockView.visibility = View.GONE
-            dateView.visibility = View.GONE
-            mediaControlsView.visibility = View.GONE
-            return
-        }
-
         if (clockView.visibility == View.GONE) {
             clockView.visibility = View.VISIBLE
         }
@@ -2662,7 +2564,6 @@ class ActionService : AccessibilityService() {
     private fun applyIncomingCallUnlockGateMode(view: View) {
         if (!isPhoneRinging()) return
         val phase = unlockGateStateMachine.state.phase
-        if (phase == UnlockGatePhase.AwaitingCredential) return
         view.findViewById<View>(R.id.unlockGateMediaControls).visibility = View.GONE
         view.findViewById<TextView>(R.id.unlockGateDate).apply {
             visibility = View.GONE
@@ -2759,64 +2660,6 @@ class ActionService : AccessibilityService() {
             .Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, SECURE_LOCK_MASK_GESTURE_DURATION_MS))
             .build()
-    }
-
-    private fun dispatchPatternGesture(screenCoords: List<PointF>) {
-        if (screenCoords.isEmpty()) return
-
-        setUnlockGateMaskTouchable(touchable = false)
-        val patternView = unlockGateView?.findViewById<PatternLockView>(R.id.unlockGatePatternGrid)
-        val gestureYOffset = resources.getDimension(R.dimen.unlock_gate_pattern_vertical_offset)
-        val gestureCoords = screenCoords.map { PointF(it.x, it.y + gestureYOffset) }
-
-        val path =
-            Path().apply {
-                moveTo(gestureCoords.first().x, gestureCoords.first().y)
-                for (i in 1 until gestureCoords.size) {
-                    lineTo(gestureCoords[i].x, gestureCoords[i].y)
-                }
-            }
-
-        val gestureDuration = (screenCoords.size * PATTERN_GESTURE_DURATION_PER_DOT_MS).toLong()
-        val gestureDescription =
-            GestureDescription
-                .Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0, gestureDuration))
-                .build()
-
-        mainHandler.postDelayed(
-            {
-                if (unlockGateStateMachine.state.phase != UnlockGatePhase.AwaitingCredential) {
-                    patternView?.resetPattern()
-                    return@postDelayed
-                }
-
-                val dispatched =
-                    dispatchGesture(
-                        gestureDescription,
-                        object : GestureResultCallback() {
-                            override fun onCompleted(gestureDescription: GestureDescription) {
-                                Log.d(TAG, "dispatchPatternGesture: pattern gesture completed")
-                                patternView?.resetPattern()
-                                dispatchUnlockGateEventOnMain(UnlockGateEvent.PatternGestureCompleted)
-                            }
-
-                            override fun onCancelled(gestureDescription: GestureDescription) {
-                                Log.w(TAG, "dispatchPatternGesture: pattern gesture cancelled")
-                                patternView?.resetPattern()
-                                dispatchUnlockGateEventOnMain(UnlockGateEvent.PatternGestureFailed)
-                            }
-                        },
-                        null,
-                    )
-                if (!dispatched) {
-                    Log.w(TAG, "dispatchPatternGesture: pattern gesture dispatch failed")
-                    patternView?.resetPattern()
-                    dispatchUnlockGateEventOnMain(UnlockGateEvent.PatternGestureFailed)
-                }
-            },
-            PATTERN_GESTURE_DISPATCH_DELAY_MS,
-        )
     }
 
     private fun setUnlockGateMaskTouchable(touchable: Boolean) {
@@ -2999,7 +2842,6 @@ class ActionService : AccessibilityService() {
 
     private fun shouldShowUnlockGateStatusBar(): Boolean =
         unlockGateStateMachine.snapshot.visible &&
-            unlockGateStateMachine.state.phase != UnlockGatePhase.AwaitingCredential &&
             !shouldShowUnlockGateVolumeIndicator() &&
             !unlockGateStateMachine.state.prefersHomeStatusBar &&
             prefs.isStatusBarVisibleOnLockscreen()
@@ -3511,8 +3353,6 @@ class ActionService : AccessibilityService() {
         private const val SECURE_LOCK_MASK_GESTURE_START_Y_RATIO = 0.95f
         private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.05f
         private const val SECURE_LOCK_MASK_GESTURE_MAX_RETRIES = 1
-        private const val PATTERN_GESTURE_DISPATCH_DELAY_MS = 50L
-        private const val PATTERN_GESTURE_DURATION_PER_DOT_MS = 50L
         private const val SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE = 317
         private const val SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE = 318
         private const val SCROLLWHEEL_BUTTON_KEY_CODE = 319

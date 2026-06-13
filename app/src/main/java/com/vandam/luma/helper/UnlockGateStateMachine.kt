@@ -4,7 +4,6 @@ enum class UnlockGatePhase {
     Idle,
     WakeCover,
     SecureMask,
-    AwaitingCredential,
     UnlockGateVisible,
     Dismissing,
 }
@@ -96,10 +95,6 @@ internal sealed interface UnlockGateEvent {
     data object SecureGestureCompleted : UnlockGateEvent
 
     data object SecureGestureFailed : UnlockGateEvent
-
-    data object PatternGestureCompleted : UnlockGateEvent
-
-    data object PatternGestureFailed : UnlockGateEvent
 
     data object SecureMaskTapped : UnlockGateEvent
 
@@ -258,34 +253,16 @@ internal class UnlockGateStateMachine(
                     ),
                 )
 
-            UnlockGateEvent.SecureGestureCompleted -> Reduction(currentState)
-
-            UnlockGateEvent.SecureGestureFailed -> {
-                if (currentState.phase != UnlockGatePhase.AwaitingCredential) {
+            UnlockGateEvent.SecureGestureCompleted -> {
+                if (currentState.phase != UnlockGatePhase.SecureMask) {
                     Reduction(currentState)
                 } else {
-                    Reduction(
-                        currentState.copy(
-                            phase = UnlockGatePhase.SecureMask,
-                            dismissDeadlineUptimeMs = null,
-                        ),
-                    )
+                    Reduction(currentState.enterIdle())
                 }
             }
 
-            UnlockGateEvent.PatternGestureCompleted -> Reduction(currentState)
-
-            UnlockGateEvent.PatternGestureFailed -> {
-                if (currentState.phase != UnlockGatePhase.AwaitingCredential) {
-                    Reduction(currentState)
-                } else {
-                    Reduction(
-                        currentState.copy(
-                            phase = UnlockGatePhase.SecureMask,
-                            dismissDeadlineUptimeMs = null,
-                        ),
-                    )
-                }
+            UnlockGateEvent.SecureGestureFailed -> {
+                Reduction(currentState)
             }
 
             UnlockGateEvent.SecureMaskTapped -> {
@@ -293,10 +270,7 @@ internal class UnlockGateStateMachine(
                     Reduction(currentState)
                 } else {
                     Reduction(
-                        currentState.copy(
-                            phase = UnlockGatePhase.AwaitingCredential,
-                            dismissDeadlineUptimeMs = null,
-                        ),
+                        currentState.copy(dismissDeadlineUptimeMs = null),
                         effects = listOf(UnlockGateEffect.StartSecureDismissGesture),
                     )
                 }
@@ -308,8 +282,7 @@ internal class UnlockGateStateMachine(
                         (
                             currentState.wakeArmed ||
                                 currentState.phase == UnlockGatePhase.WakeCover ||
-                                currentState.phase == UnlockGatePhase.SecureMask ||
-                                currentState.phase == UnlockGatePhase.AwaitingCredential
+                                currentState.phase == UnlockGatePhase.SecureMask
                         )
                 if (!shouldShowUnlockGate) {
                     Reduction(currentState.copy(wakeArmed = false))

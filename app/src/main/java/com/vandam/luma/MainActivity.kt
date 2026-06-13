@@ -221,7 +221,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val phase = ActionService.unlockGateState.value.phase
-        if (phase == UnlockGatePhase.SecureMask || phase == UnlockGatePhase.AwaitingCredential) {
+        if (phase == UnlockGatePhase.SecureMask) {
             return super.dispatchKeyEvent(event)
         }
 
