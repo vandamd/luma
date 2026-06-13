@@ -62,15 +62,20 @@ import com.vandam.luma.ui.noRippleClickable
 
 private data class NotificationItem(
     val key: String,
+    val dismissedKey: String = key,
+    val notificationKey: String? = key,
+    val persistDismissal: Boolean = false,
     val packageName: String,
     val title: String,
     val text: String?,
     val contentIntent: PendingIntent?,
+    val deleteIntent: PendingIntent? = null,
     val canDismiss: Boolean = true,
     val launchRoute: String? = null,
 )
 
 private const val TELECOM_PACKAGE = "com.android.server.telecom"
+private const val TELECOM_MISSED_CALLS_CHANNEL = "TelecomMissedCalls"
 
 class NotificationListFragment : Fragment() {
     private val hasPermission = mutableStateOf(false)
@@ -129,7 +134,7 @@ class NotificationListFragment : Fragment() {
                 .filterNot { it.isGroupSummary() && it.groupKey in groupKeysWithChildren }
                 .map { sbn -> sbn.toNotificationItem(pm, packageLabelCache) }
                 .sortedBy { it.title.lowercase() }
-        return phoneNotifications + appNotifications
+        return (phoneNotifications + appNotifications).distinctBy { it.key }
     }
 
     private fun loadPhoneNotifications(): List<NotificationItem> =
@@ -137,13 +142,14 @@ class NotificationListFragment : Fragment() {
             .getNotificationSummaries(requireContext())
             .map { summary -> summary.toNotificationItem() }
 
-    private fun PhoneNotificationSummary.toNotificationItem(): NotificationItem =
-        NotificationItem(
+    private fun PhoneNotificationSummary.toNotificationItem(): NotificationItem {
+        val sourceNotification = findSourceNotification()
+        return NotificationItem(
             key =
-                when (kind) {
-                    PhoneNotificationSummary.Kind.UnreadMessages -> "__phone_unread_messages__"
-                    PhoneNotificationSummary.Kind.MissedCalls -> "__phone_missed_calls__"
-                },
+                sourceNotification?.key ?: syntheticNotificationKey,
+            dismissedKey = dismissedNotificationKey,
+            notificationKey = sourceNotification?.key,
+            persistDismissal = true,
             packageName = Tool.Phone.packageName,
             title =
                 when (kind) {
@@ -155,9 +161,27 @@ class NotificationListFragment : Fragment() {
                 },
             text = detail,
             contentIntent = null,
-            canDismiss = false,
+            deleteIntent = sourceNotification?.notification?.deleteIntent,
+            canDismiss = true,
             launchRoute = Tool.Phone.lightOsRoute,
         )
+    }
+
+    private fun PhoneNotificationSummary.findSourceNotification(): StatusBarNotification? {
+        val notifications = LumaNotificationListener.getActiveNotifications()
+        return when (kind) {
+            PhoneNotificationSummary.Kind.MissedCalls ->
+                notifications.firstOrNull {
+                    it.packageName == TELECOM_PACKAGE &&
+                        it.notification.channelId == TELECOM_MISSED_CALLS_CHANNEL
+                }
+
+            PhoneNotificationSummary.Kind.UnreadMessages ->
+                notifications.firstOrNull {
+                    it.notification.category == Notification.CATEGORY_MESSAGE
+                }
+        }
+    }
 
     private fun StatusBarNotification.isGroupSummary(): Boolean = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
 
@@ -186,13 +210,25 @@ class NotificationListFragment : Fragment() {
     @Composable
     private fun NotificationListScreen() {
         val context = LocalContext.current
+        val prefs = remember(context) { Prefs.getInstance(context.applicationContext) }
         val version by LumaNotificationListener.changeVersion.collectAsState()
         val refreshVersion = contentVersion.value
         val dismissedKeys = remember { mutableSetOf<String>() }
         val notifications = remember { mutableStateListOf<NotificationItem>() }
         val packageLabelCache = remember { mutableMapOf<String, String>() }
         LaunchedEffect(version, refreshVersion) {
-            val fresh = loadNotifications(packageLabelCache).filter { it.key !in dismissedKeys }
+            val loaded = loadNotifications(packageLabelCache)
+            val activePersistentDismissedKeys =
+                loaded
+                    .filter { it.persistDismissal }
+                    .map { it.dismissedKey }
+                    .toSet()
+            val persistedDismissedKeys = prefs.dismissedPhoneNotificationKeys intersect activePersistentDismissedKeys
+            if (persistedDismissedKeys != prefs.dismissedPhoneNotificationKeys) {
+                prefs.dismissedPhoneNotificationKeys = persistedDismissedKeys
+            }
+            val hiddenKeys = dismissedKeys + persistedDismissedKeys
+            val fresh = loaded.filter { it.dismissedKey !in hiddenKeys }
             notifications.clear()
             notifications.addAll(fresh)
         }
@@ -284,15 +320,27 @@ class NotificationListFragment : Fragment() {
                             }
                         },
                         onDismiss = {
-                            if (item.key.isNotEmpty()) {
-                                LumaNotificationListener.dismissNotification(item.key)
+                            dismissNotification(item)
+                            dismissedKeys.add(item.dismissedKey)
+                            if (item.persistDismissal) {
+                                prefs.dismissedPhoneNotificationKeys = prefs.dismissedPhoneNotificationKeys + item.dismissedKey
                             }
-                            dismissedKeys.add(item.key)
                             notifications.remove(item)
                         },
                     )
                 }
             }
+        }
+    }
+
+    private fun dismissNotification(item: NotificationItem) {
+        item.deleteIntent?.let { deleteIntent ->
+            runCatching {
+                deleteIntent.send()
+            }
+        }
+        item.notificationKey?.let { notificationKey ->
+            LumaNotificationListener.dismissNotification(notificationKey)
         }
     }
 

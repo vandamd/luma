@@ -27,6 +27,8 @@ class LumaNotificationListener : NotificationListenerService() {
         private var instance: WeakReference<LumaNotificationListener> = WeakReference(null)
         @Volatile
         private var notificationSnapshot = NotificationSnapshot()
+        @Volatile
+        private var listenerConnected = false
 
         private val _changeVersion = MutableStateFlow(0L)
         val changeVersion: StateFlow<Long> = _changeVersion.asStateFlow()
@@ -101,34 +103,31 @@ class LumaNotificationListener : NotificationListenerService() {
 
         private fun rebuildNotificationSnapshot() {
             val svc = instance.get()
+            if (svc == null || !listenerConnected) return
             val previousSnapshot = notificationSnapshot
+            val activeNotifications =
+                runCatching {
+                    svc.activeNotifications.toList()
+                }.getOrNull() ?: return
+            val filteredNotifications =
+                activeNotifications.filterNot { it.shouldFilter(svc) }
             val nextSnapshot =
-                if (svc == null) {
-                    NotificationSnapshot()
-                } else {
-                    val activeNotifications =
-                        runCatching {
-                            svc.activeNotifications.toList()
-                        }.getOrDefault(emptyList())
-                    val filteredNotifications =
-                        activeNotifications.filterNot { it.shouldFilter(svc) }
-                    NotificationSnapshot(
-                        notifications = filteredNotifications,
-                        packages =
-                            filteredNotifications
-                                .asSequence()
-                                .filterNot { it.isOngoing }
-                                .map { it.packageName }
-                                .filterNot(PHONE_NOTIFICATION_PACKAGES::contains)
-                                .toSet(),
-                        mediaKeys =
-                            activeNotifications
-                                .asSequence()
-                                .filter { it.isMediaNotification() }
-                                .map { it.key }
-                                .toSet(),
-                    )
-                }
+                NotificationSnapshot(
+                    notifications = filteredNotifications,
+                    packages =
+                        filteredNotifications
+                            .asSequence()
+                            .filterNot { it.isOngoing }
+                            .map { it.packageName }
+                            .filterNot(PHONE_NOTIFICATION_PACKAGES::contains)
+                            .toSet(),
+                    mediaKeys =
+                        activeNotifications
+                            .asSequence()
+                            .filter { it.isMediaNotification() }
+                            .map { it.key }
+                            .toSet(),
+                )
             notificationSnapshot = nextSnapshot
             if (previousSnapshot.notifications.notificationKeys() != nextSnapshot.notifications.notificationKeys()) {
                 _changeVersion.update { it + 1 }
@@ -147,17 +146,21 @@ class LumaNotificationListener : NotificationListenerService() {
     override fun onCreate() {
         super.onCreate()
         instance = WeakReference(this)
-        rebuildNotificationSnapshot()
     }
 
     override fun onListenerConnected() {
+        listenerConnected = true
         rebuildNotificationSnapshot()
+    }
+
+    override fun onListenerDisconnected() {
+        listenerConnected = false
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        listenerConnected = false
         instance = WeakReference(null)
-        rebuildNotificationSnapshot()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {

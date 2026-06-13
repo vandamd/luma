@@ -628,7 +628,7 @@ class HomeFragment :
         val hasPhoneSignal =
             prefs.showNotificationIndicator &&
                 pageApps.any { resolveTool(it) == Tool.Phone } &&
-                PhoneSignalHelper.getCachedUnreadPhoneSignal(requireContext())
+                PhoneSignalHelper.hasVisibleNotificationSignal(requireContext())
 
         for (i in pageApps.indices) {
             val view = binding.homeAppsLayout.getChildAt(i)

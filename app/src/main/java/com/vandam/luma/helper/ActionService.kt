@@ -40,6 +40,7 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
+import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.KeyEvent
@@ -55,6 +56,7 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.biometric.BiometricManager
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.vandam.luma.MainActivity
 import com.vandam.luma.R
 import com.vandam.luma.data.AppEntryType
@@ -109,6 +111,7 @@ class ActionService : AccessibilityService() {
     private var unlockGateReceiver: BroadcastReceiver? = null
     private var unlockGateBatteryReceiver: BroadcastReceiver? = null
     private var unlockGateBluetoothReceiver: BroadcastReceiver? = null
+    private var unlockGateSoundModeReceiver: BroadcastReceiver? = null
     private var unlockGateWifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var unlockGateTelephonyCallback: TelephonyCallback? = null
     private var incomingCallCallback: IncomingCallCallback? = null
@@ -217,6 +220,7 @@ class ActionService : AccessibilityService() {
                     val view = unlockGateView ?: return@collect
                     if (!view.isAttachedToWindow) return@collect
                     updateUnlockGateText(view)
+                    applyIncomingCallUnlockGateMode(view)
                 }
             }
     }
@@ -1165,12 +1169,14 @@ class ActionService : AccessibilityService() {
                 ) {
                     if (cameraId == resolveTorchCameraId()) {
                         torchEnabled = enabled
+                        refreshUnlockGateConnectivityStatus()
                     }
                 }
 
                 override fun onTorchModeUnavailable(cameraId: String) {
                     if (cameraId == resolveTorchCameraId()) {
                         torchEnabled = false
+                        refreshUnlockGateConnectivityStatus()
                     }
                 }
             }
@@ -1312,7 +1318,8 @@ class ActionService : AccessibilityService() {
     private fun isPhoneRinging(): Boolean =
         try {
             @Suppress("DEPRECATION")
-            getSystemService(TelephonyManager::class.java)?.callState == TelephonyManager.CALL_STATE_RINGING
+            getSystemService(TelephonyManager::class.java)?.callState == TelephonyManager.CALL_STATE_RINGING ||
+                (getSystemService(TelecomManager::class.java)?.isInCall == true && audioManager.mode == AudioManager.MODE_RINGTONE)
         } catch (_: SecurityException) {
             false
         }
@@ -1700,6 +1707,7 @@ class ActionService : AccessibilityService() {
             UnlockGatePhase.UnlockGateVisible, UnlockGatePhase.Dismissing -> updateUnlockGateVisibleMode(view, isDark)
             UnlockGatePhase.Idle -> Unit
         }
+        applyIncomingCallUnlockGateMode(view)
 
         val layoutParams =
             when (state.phase) {
@@ -2554,13 +2562,22 @@ class ActionService : AccessibilityService() {
         val clockView = view.findViewById<TextView>(R.id.unlockGateClock)
         val dateView = view.findViewById<TextView>(R.id.unlockGateDate)
         val mediaControlsView = view.findViewById<LinearLayout>(R.id.unlockGateMediaControls)
+        val isRinging = isPhoneRinging()
 
-        clockView.text =
-            formatClockText(
-                prefs = prefs,
-                appendNotificationIndicator = prefs.lockscreenClockNotificationIndicator,
-                hasNotificationIndicator = hasClockNotificationIndicator(this),
-            )
+        if (isRinging) {
+            clockView.text = incomingCallMessage(phase)
+            clockView.typeface = ResourcesCompat.getFont(this, R.font.publicsans_regular)
+            clockView.setTextSize(TypedValue.COMPLEX_UNIT_SP, INCOMING_CALL_MESSAGE_TEXT_SIZE_SP)
+        } else {
+            clockView.text =
+                formatClockText(
+                    prefs = prefs,
+                    appendNotificationIndicator = prefs.lockscreenClockNotificationIndicator,
+                    hasNotificationIndicator = hasClockNotificationIndicator(this),
+                )
+            clockView.typeface = ResourcesCompat.getFont(this, R.font.publicsans_thin)
+            clockView.setTextSize(TypedValue.COMPLEX_UNIT_SP, UNLOCK_GATE_CLOCK_TEXT_SIZE_SP)
+        }
         if (phase == UnlockGatePhase.AwaitingCredential) {
             clockView.visibility = View.GONE
             dateView.visibility = View.GONE
@@ -2578,7 +2595,11 @@ class ActionService : AccessibilityService() {
         }
 
         dateView.apply {
-            if (prefs.lockscreenDateFormat != Prefs.LockscreenDateFormat.None) {
+            if (isRinging) {
+                visibility = View.GONE
+                isClickable = false
+                isFocusable = false
+            } else if (prefs.lockscreenDateFormat != Prefs.LockscreenDateFormat.None) {
                 text = formatLockscreenDateText(prefs.lockscreenDateFormat)
                 visibility = View.VISIBLE
                 isClickable = isInteractive && prefs.getLockscreenDateTapAction() != Action.Disabled
@@ -2588,6 +2609,10 @@ class ActionService : AccessibilityService() {
                 isClickable = false
                 isFocusable = false
             }
+        }
+        if (isRinging) {
+            mediaControlsView.visibility = View.GONE
+            return
         }
         val mediaInfo = MediaSessionHelper.mediaInfo.value
         if (mediaInfo != null) {
@@ -2619,8 +2644,71 @@ class ActionService : AccessibilityService() {
     private fun resetUnlockGateViewState(view: View) {
         view.translationY = 0f
         view.alpha = 1f
+        val isRinging = isPhoneRinging()
+        view.findViewById<TextView>(R.id.unlockGateClock).apply {
+            typeface =
+                ResourcesCompat.getFont(
+                    this@ActionService,
+                    if (isRinging) R.font.publicsans_regular else R.font.publicsans_thin,
+                )
+            setTextSize(
+                TypedValue.COMPLEX_UNIT_SP,
+                if (isRinging) INCOMING_CALL_MESSAGE_TEXT_SIZE_SP else UNLOCK_GATE_CLOCK_TEXT_SIZE_SP,
+            )
+        }
         clearUnlockGateGestureTouchListeners(view)
     }
+
+    private fun applyIncomingCallUnlockGateMode(view: View) {
+        if (!isPhoneRinging()) return
+        val phase = unlockGateStateMachine.state.phase
+        if (phase == UnlockGatePhase.AwaitingCredential) return
+        view.findViewById<View>(R.id.unlockGateMediaControls).visibility = View.GONE
+        view.findViewById<TextView>(R.id.unlockGateDate).apply {
+            visibility = View.GONE
+            isClickable = false
+            isFocusable = false
+        }
+        view.findViewById<TextView>(R.id.unlockGateClock).apply {
+            visibility = View.VISIBLE
+            isClickable = false
+            isFocusable = false
+        }
+        view.findViewById<ImageView>(R.id.unlockGateHomeButton).apply {
+            if (phase == UnlockGatePhase.SecureMask) {
+                visibility = View.GONE
+                isClickable = false
+                isFocusable = false
+                setOnClickListener(null)
+            } else {
+                visibility = View.VISIBLE
+                setImageResource(R.drawable.ic_shortcut_phone)
+                @Suppress("DEPRECATION")
+                setColorFilter(unlockGateTextColor(view), PorterDuff.Mode.SRC_IN)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    performAppTapHapticFeedback(this@ActionService)
+                    launchLightOsRoute(this@ActionService, "call")
+                    dispatchUnlockGateEventOnMain(
+                        UnlockGateEvent.DismissRequested(
+                            nowUptimeMs = SystemClock.uptimeMillis(),
+                            minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun incomingCallMessage(phase: UnlockGatePhase): String =
+        when (phase) {
+            UnlockGatePhase.SecureMask -> getString(R.string.unlock_gate_incoming_call_locked)
+            UnlockGatePhase.UnlockGateVisible,
+            UnlockGatePhase.Dismissing,
+            -> getString(R.string.unlock_gate_incoming_call_unlocked)
+            else -> getString(R.string.unlock_gate_incoming_call)
+        }
 
     private fun clearUnlockGateGestureTouchListeners(view: View) {
         view.setOnTouchListener(null)
@@ -2820,6 +2908,8 @@ class ActionService : AccessibilityService() {
         val signalIcon = view.findViewById<ImageView>(R.id.statusSignal)
         val wifiIcon = view.findViewById<ImageView>(R.id.statusWifi)
         val bluetoothIcon = view.findViewById<ImageView>(R.id.statusBluetooth)
+        val soundModeIcon = view.findViewById<ImageView>(R.id.statusSoundMode)
+        val flashlightIcon = view.findViewById<ImageView>(R.id.statusFlashlight)
 
         val airplaneMode =
             runCatching {
@@ -2883,12 +2973,27 @@ class ActionService : AccessibilityService() {
             BluetoothStatusHelper.IndicatorState.Off, null -> bluetoothIcon.visibility = View.GONE
         }
 
+        val soundModeDrawable = LumaStatusBarUi.soundModeDrawableForRingerMode(audioManager.ringerMode)
+        if (soundModeDrawable != null) {
+            LumaStatusBarUi.showTinted(soundModeIcon, soundModeDrawable, textColor)
+        } else {
+            soundModeIcon.visibility = View.GONE
+        }
+
+        if (torchEnabled) {
+            LumaStatusBarUi.showTinted(flashlightIcon, R.drawable.ic_shortcut_flashlight, textColor)
+        } else {
+            flashlightIcon.visibility = View.GONE
+        }
+
         val anyVisible =
             airplaneIcon.visibility == View.VISIBLE ||
                 networkType.visibility == View.VISIBLE ||
                 signalIcon.visibility == View.VISIBLE ||
                 wifiIcon.visibility == View.VISIBLE ||
-                bluetoothIcon.visibility == View.VISIBLE
+                bluetoothIcon.visibility == View.VISIBLE ||
+                soundModeIcon.visibility == View.VISIBLE ||
+                flashlightIcon.visibility == View.VISIBLE
         connectivityLayout.visibility = if (anyVisible) View.VISIBLE else View.INVISIBLE
     }
 
@@ -2965,6 +3070,7 @@ class ActionService : AccessibilityService() {
         startUnlockGateCellularMonitor()
         startUnlockGateWifiMonitor()
         startUnlockGateBluetoothMonitor()
+        startUnlockGateSoundModeMonitor()
     }
 
     private fun stopUnlockGateStatusBarMonitors() {
@@ -2972,6 +3078,7 @@ class ActionService : AccessibilityService() {
         stopUnlockGateCellularMonitor()
         stopUnlockGateWifiMonitor()
         stopUnlockGateBluetoothMonitor()
+        stopUnlockGateSoundModeMonitor()
     }
 
     private fun startUnlockGateBatteryMonitor() {
@@ -3133,6 +3240,9 @@ class ActionService : AccessibilityService() {
                 onRinging = {
                     handleIncomingRinging()
                 },
+                onStateChanged = {
+                    handleIncomingCallStateChanged()
+                },
             )
         try {
             telephonyManager.registerTelephonyCallback(mainExecutor, callback)
@@ -3156,6 +3266,10 @@ class ActionService : AccessibilityService() {
 
     private fun handleIncomingRinging() {
         val phase = unlockGateStateMachine.state.phase
+        unlockGateView?.takeIf { it.isAttachedToWindow }?.let {
+            updateUnlockGateText(it)
+            applyIncomingCallUnlockGateMode(it)
+        }
         if (phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing) {
             dispatchUnlockGateEventOnMain(
                 UnlockGateEvent.DismissRequested(
@@ -3165,6 +3279,12 @@ class ActionService : AccessibilityService() {
             )
         }
         launchLightOsRoute(this, "call")
+    }
+
+    private fun handleIncomingCallStateChanged() {
+        val view = unlockGateView ?: return
+        if (!view.isAttachedToWindow) return
+        renderUnlockGateStateOnMain()
     }
 
     private fun startUnlockGateWifiMonitor() {
@@ -3258,6 +3378,45 @@ class ActionService : AccessibilityService() {
         }
     }
 
+    private fun startUnlockGateSoundModeMonitor() {
+        if (unlockGateSoundModeReceiver != null) return
+
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+                    runOnMainThread {
+                        refreshUnlockGateConnectivityStatus()
+                    }
+                }
+            }
+        val filter =
+            IntentFilter().apply {
+                addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
+            }
+
+        try {
+            registerReceiver(receiver, filter)
+            unlockGateSoundModeReceiver = receiver
+            refreshUnlockGateConnectivityStatus()
+        } catch (exception: Exception) {
+            Log.e(TAG, "startUnlockGateSoundModeMonitor: registerReceiver failed", exception)
+        }
+    }
+
+    private fun stopUnlockGateSoundModeMonitor() {
+        val receiver = unlockGateSoundModeReceiver ?: return
+        try {
+            unregisterReceiver(receiver)
+        } catch (exception: Exception) {
+            Log.e(TAG, "stopUnlockGateSoundModeMonitor: unregisterReceiver failed", exception)
+        } finally {
+            unlockGateSoundModeReceiver = null
+        }
+    }
+
     private fun scheduleNextUnlockGateClockTick(view: View) {
         unlockGateClockRunnable?.let(mainHandler::removeCallbacks)
         unlockGateClockRunnable =
@@ -3267,6 +3426,7 @@ class ActionService : AccessibilityService() {
                     return@Runnable
                 }
                 updateUnlockGateText(view)
+                applyIncomingCallUnlockGateMode(view)
                 scheduleNextUnlockGateClockTick(view)
             }.also { runnable ->
                 val now = System.currentTimeMillis()
@@ -3340,6 +3500,8 @@ class ActionService : AccessibilityService() {
         private const val UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS = 150L
         private const val VOLUME_INDICATOR_HIDE_DELAY_MS = 1500L
         private const val ICON_SCALE = 1.0f
+        private const val UNLOCK_GATE_CLOCK_TEXT_SIZE_SP = 80f
+        private const val INCOMING_CALL_MESSAGE_TEXT_SIZE_SP = 20f
         private const val UNLOCK_GATE_WINDOW_TITLE = "Luma Unlock Gate"
         private const val SECURE_LOCK_MASK_WINDOW_TITLE = "Luma Secure Lock Mask"
         private const val VOLUME_ONLY_OVERLAY_WINDOW_TITLE = "Luma Volume Overlay"
@@ -3376,6 +3538,7 @@ class ActionService : AccessibilityService() {
 
     private class IncomingCallCallback(
         private val onRinging: () -> Unit,
+        private val onStateChanged: () -> Unit,
     ) : TelephonyCallback(),
         TelephonyCallback.CallStateListener {
         private var wasRinging = false
@@ -3387,6 +3550,7 @@ class ActionService : AccessibilityService() {
             } else if (state != TelephonyManager.CALL_STATE_RINGING) {
                 wasRinging = false
             }
+            onStateChanged()
         }
     }
 }

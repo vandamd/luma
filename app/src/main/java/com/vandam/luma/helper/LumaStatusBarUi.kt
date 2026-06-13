@@ -1,6 +1,7 @@
 package com.vandam.luma.helper
 
 import android.content.Intent
+import android.media.AudioManager
 import android.os.BatteryManager
 import android.telephony.TelephonyManager
 import android.view.View
@@ -49,6 +50,13 @@ object LumaStatusBarUi {
         when (state) {
             BluetoothStatusHelper.IndicatorState.Connected -> R.drawable.bluetooth_connected
             else -> R.drawable.bluetooth
+        }
+
+    fun soundModeDrawableForRingerMode(ringerMode: Int): Int? =
+        when (ringerMode) {
+            AudioManager.RINGER_MODE_SILENT -> R.drawable.volume_off
+            AudioManager.RINGER_MODE_VIBRATE -> R.drawable.mobile_vibrate
+            else -> null
         }
 
     fun networkLabelForType(type: Int?): String =

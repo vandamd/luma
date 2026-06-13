@@ -7,10 +7,15 @@ import android.util.Log
 import com.vandam.luma.helper.HomeCleanupHelper
 import com.vandam.luma.helper.ManagedAppManager
 import dev.convex.android.ConvexClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class LumaApplication : Application() {
     @Volatile
     private var convexClientInstance: ConvexClient? = null
+    private val convexCloseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val convexClient: ConvexClient?
         get() = getOrCreateConvexClient()
@@ -42,6 +47,12 @@ class LumaApplication : Application() {
     fun closeConvexClient() {
         val client = convexClientInstance ?: return
         convexClientInstance = null
+        convexCloseScope.launch {
+            closeConvexClient(client)
+        }
+    }
+
+    private fun closeConvexClient(client: ConvexClient) {
         runCatching {
             val ffiClient =
                 client

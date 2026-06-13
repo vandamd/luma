@@ -31,6 +31,10 @@ fun executeSecondaryAction(
             initActionService(context)?.toggleFlashlight() ?: false
         }
 
+        Action.ToggleColourFilter -> {
+            DaltonizerManager.toggleDaltonizer(context)
+        }
+
         Action.LockScreen -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 ActionService.instance()?.lockScreen()

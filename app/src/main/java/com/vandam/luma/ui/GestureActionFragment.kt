@@ -191,13 +191,13 @@ class GestureActionFragment : Fragment() {
                 KeymapType.ScrollwheelPress,
                 KeymapType.ScrollwheelLongPress,
                 -> {
-                    arrayOf(Action.ToggleFlashlight, Action.GoBack)
+                    arrayOf(Action.ToggleFlashlight, Action.ToggleColourFilter, Action.GoBack)
                 }
 
                 KeymapType.CameraPress,
                 KeymapType.CameraLongPress,
                 -> {
-                    arrayOf(Action.GoBack)
+                    arrayOf(Action.ToggleColourFilter, Action.GoBack)
                 }
             }
         }
