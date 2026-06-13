@@ -2577,7 +2577,7 @@ class ActionService : AccessibilityService() {
         }
         view.findViewById<ImageView>(R.id.unlockGateHomeButton).apply {
             if (phase == UnlockGatePhase.SecureMask) {
-                visibility = View.GONE
+                visibility = View.VISIBLE
                 isClickable = false
                 isFocusable = false
                 setOnClickListener(null)
