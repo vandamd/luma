@@ -2251,30 +2251,18 @@ class ActionService : AccessibilityService() {
             volumeOnlyOverlayHideRunnable = null
             val view = volumeOnlyOverlayView ?: return@runOnMainThread
             if (!view.isAttachedToWindow) {
-                if (volumeOnlyOverlayView === view) {
-                    volumeOnlyOverlayView = null
-                }
+                volumeOnlyOverlayView = null
                 return@runOnMainThread
             }
+
             try {
-                windowManager.removeView(view)
+                windowManager.removeViewImmediate(view)
             } catch (exception: Exception) {
-                Log.e(TAG, "hideVolumeOnlyOverlay: removeView failed", exception)
-                if (view.isAttachedToWindow) {
-                    try {
-                        windowManager.removeViewImmediate(view)
-                    } catch (immediateException: Exception) {
-                        Log.e(
-                            TAG,
-                            "hideVolumeOnlyOverlay: removeViewImmediate failed",
-                            immediateException,
-                        )
-                    }
-                }
-            } finally {
-                if (volumeOnlyOverlayView === view) {
-                    volumeOnlyOverlayView = null
-                }
+                Log.e(TAG, "hideVolumeOnlyOverlay: removeViewImmediate failed", exception)
+            }
+
+            if (!view.isAttachedToWindow && volumeOnlyOverlayView === view) {
+                volumeOnlyOverlayView = null
             }
         }
     }
