@@ -226,7 +226,19 @@ fun initActionService(context: Context): ActionService? {
 fun isAccessibilityEnabled(context: Context): Boolean {
     val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
     val enabledServices = am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-    return enabledServices.any { it.resolveInfo.serviceInfo.name == ActionService::class.java.name }
+    if (enabledServices.any { it.resolveInfo.serviceInfo.name == ActionService::class.java.name }) return true
+
+    val serviceComponent = ComponentName(context, ActionService::class.java)
+    val enabledServiceNames =
+        Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ) ?: return false
+
+    return enabledServiceNames
+        .split(":")
+        .mapNotNull(ComponentName::unflattenFromString)
+        .any { it == serviceComponent }
 }
 
 fun openAccessibilitySettings(context: Context) {

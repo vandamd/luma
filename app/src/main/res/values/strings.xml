@@ -33,6 +33,9 @@
     <string name="settings_account">Account</string>
     <string name="settings_update_luma">Update Luma</string>
     <string name="settings_update_luma_message">A new Luma update is available, %1$s.</string>
+    <string name="settings_restart_luma">Restart Luma</string>
+    <string name="settings_restart_luma_confirm_title">Restart Luma</string>
+    <string name="settings_restart_luma_confirm_message">Luma will close and reopen.</string>
     <string name="keymaps_camera_press">Camera Press</string>
     <string name="keymaps_camera_long_press">Camera Long Press</string>
     <string name="keymaps_scrollwheel_press">Scrollwheel Press</string>

@@ -43,6 +43,11 @@
         <item name="postSplashScreenTheme">@style/AppTheme</item>
     </style>
 
+    <style name="Theme.Luma.Transparent" parent="android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
     <style name="AppSearchText" parent="Widget.AppCompat.SearchView">
         <item name="android:maxLength">20</item>
         <item name="android:textSize">@dimen/text_large</item>

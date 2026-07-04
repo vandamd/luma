@@ -144,6 +144,7 @@ class ActionService : AccessibilityService() {
     private var scrollwheelLongPressFired = false
     private var homeKeyDownTime = 0L
     private var homeLongPressFired = false
+    private var homeRestartFired = false
     private var unlockGatePreparedForHomeKey = false
     private var mediaInfoObserverJob: Job? = null
 
@@ -165,6 +166,7 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        mainHandler.removeCallbacksAndMessages(HOME_RESTART_HOLD_TOKEN)
         cameraKeyPassThroughActive = false
         cameraKeyPassThroughInterrupted = false
         scrollwheelButtonPassThroughActive = false
@@ -188,6 +190,7 @@ class ActionService : AccessibilityService() {
         mainHandler.removeCallbacksAndMessages(CAMERA_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(SCROLLWHEEL_BUTTON_KEY_CODE)
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        mainHandler.removeCallbacksAndMessages(HOME_RESTART_HOLD_TOKEN)
         cameraKeyPassThroughActive = false
         cameraKeyPassThroughInterrupted = false
         scrollwheelButtonPassThroughActive = false
@@ -524,13 +527,15 @@ class ActionService : AccessibilityService() {
     private fun startHomeKeyPress() {
         consumedMappedKeyUps.remove(KeyEvent.KEYCODE_HOME)
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        mainHandler.removeCallbacksAndMessages(HOME_RESTART_HOLD_TOKEN)
         homeKeyDownTime = SystemClock.uptimeMillis()
         homeLongPressFired = false
+        homeRestartFired = false
     }
 
     private fun scheduleHomeLongPress(dismissUnlockGateAfterLongPress: Boolean) {
         val downTime = homeKeyDownTime
-        val runnable =
+        val longPressRunnable =
             Runnable {
                 if (homeKeyDownTime == downTime) {
                     executeHomeLongPress()
@@ -546,16 +551,36 @@ class ActionService : AccessibilityService() {
                     homeLongPressFired = true
                 }
             }
-        mainHandler.postDelayed(runnable, HOME_LONG_PRESS_TOKEN, KEYMAP_LONG_PRESS_MS)
+        val restartRunnable =
+            Runnable {
+                if (homeKeyDownTime == downTime) {
+                    homeRestartFired = true
+                    restartLuma()
+                }
+            }
+        mainHandler.postDelayed(longPressRunnable, HOME_LONG_PRESS_TOKEN, KEYMAP_LONG_PRESS_MS)
+        mainHandler.postDelayed(restartRunnable, HOME_RESTART_HOLD_TOKEN, HOME_RESTART_HOLD_MS)
     }
 
     private fun finishHomeKeyPress(): Boolean {
         mainHandler.removeCallbacksAndMessages(HOME_LONG_PRESS_TOKEN)
+        mainHandler.removeCallbacksAndMessages(HOME_RESTART_HOLD_TOKEN)
         homeKeyDownTime = 0L
-        if (homeLongPressFired) {
+        if (homeLongPressFired || homeRestartFired) {
             return true
         }
         return false
+    }
+
+    private fun restartLuma() {
+        try {
+            if (prefs.hapticsKeymapsEnabled) {
+                performHapticFeedback(this)
+            }
+            startActivity(RestartActivity.createIntent(this))
+        } catch (exception: Exception) {
+            Log.e(TAG, "restartLuma: startActivity failed", exception)
+        }
     }
 
     private fun executeHomeLongPress() {
@@ -3433,7 +3458,9 @@ class ActionService : AccessibilityService() {
         private const val SCROLLWHEEL_BUTTON_KEY_CODE = 319
         private const val CAMERA_KEY_CODE = 27
         private const val KEYMAP_LONG_PRESS_MS = 450L
+        private const val HOME_RESTART_HOLD_MS = 10_000L
         private val HOME_LONG_PRESS_TOKEN = Object()
+        private val HOME_RESTART_HOLD_TOKEN = Object()
         private const val MIN_BRIGHTNESS = 1
         private const val MAX_BRIGHTNESS = 255
         private const val DEFAULT_BRIGHTNESS = 128
