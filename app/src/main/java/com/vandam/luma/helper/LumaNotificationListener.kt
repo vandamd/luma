@@ -76,10 +76,12 @@ class LumaNotificationListener : NotificationListenerService() {
         }
 
         fun getActiveNotificationPackages(): Set<String> {
+            rebuildNotificationSnapshot()
             return notificationSnapshot.packages
         }
 
         fun getActiveNotifications(): List<StatusBarNotification> {
+            rebuildNotificationSnapshot()
             return notificationSnapshot.notifications
         }
 
