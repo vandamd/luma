@@ -491,10 +491,7 @@ class Prefs(
 
     fun getLockscreenShortcutAction(): Constants.Action {
         val action = loadAction(LOCKSCREEN_SHORTCUT_ACTION, Constants.Action.OpenApp)
-        return if (
-            action == Constants.Action.LockScreen ||
-            action == Constants.Action.Disabled
-        ) {
+        return if (action == Constants.Action.LockScreen) {
             Constants.Action.OpenApp
         } else {
             action
@@ -504,7 +501,6 @@ class Prefs(
     fun setLockscreenShortcutAction(action: Constants.Action) {
         val resolvedAction =
             when (action) {
-                Constants.Action.Disabled,
                 Constants.Action.LockScreen,
                 -> Constants.Action.OpenApp
 

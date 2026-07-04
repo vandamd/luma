@@ -1888,23 +1888,33 @@ class ActionService : AccessibilityService() {
             }
         }
         view.findViewById<ImageView>(R.id.unlockGateHomeButton).apply {
-            updateUnlockGateHomeButtonAppearance(
-                imageView = this,
-                isDark = isDark,
-                locked = false,
-            )
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                if (dispatchLockscreenShortcut()) {
-                    dispatchUnlockGateEventOnMain(
-                        UnlockGateEvent.DismissRequested(
-                            nowUptimeMs = SystemClock.uptimeMillis(),
-                            minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
-                        ),
-                    )
-                }
+            val enabled = prefs.getLockscreenShortcutAction() != Action.Disabled
+            visibility = if (enabled) View.VISIBLE else View.GONE
+            if (enabled) {
+                updateUnlockGateHomeButtonAppearance(
+                    imageView = this,
+                    isDark = isDark,
+                    locked = false,
+                )
             }
+            isClickable = enabled
+            isFocusable = enabled
+            setOnClickListener(
+                if (enabled) {
+                    View.OnClickListener {
+                        if (dispatchLockscreenShortcut()) {
+                            dispatchUnlockGateEventOnMain(
+                                UnlockGateEvent.DismissRequested(
+                                    nowUptimeMs = SystemClock.uptimeMillis(),
+                                    minDelayMs = UNLOCK_GATE_SHORTCUT_HIDE_DELAY_MS,
+                                ),
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
+            )
         }
         setupMediaButtonHandlers(view)
         bindUnlockGateGestureListeners(view)
@@ -2318,14 +2328,16 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun dispatchLockscreenShortcut(): Boolean =
-        try {
+    private fun dispatchLockscreenShortcut(): Boolean {
+        if (prefs.getLockscreenShortcutAction() == Action.Disabled) return false
+        return try {
             startActivity(MainActivity.createLockscreenShortcutIntent(this))
             true
         } catch (exception: Exception) {
             Log.e(TAG, "dispatchLockscreenShortcut: startActivity failed", exception)
             false
         }
+    }
 
     private fun dispatchLockscreenClockTap(): Boolean {
         if (prefs.getLockscreenClockTapAction() == Action.Disabled) return false
@@ -2454,7 +2466,11 @@ class ActionService : AccessibilityService() {
         bindUnlockGateGestureTarget(
             view.findViewById(R.id.unlockGateHomeButton),
             preserveSingleTap = true,
-            onPress = { performAppTapHapticFeedback(this) },
+            onPress = {
+                if (prefs.getLockscreenShortcutAction() != Action.Disabled) {
+                    performAppTapHapticFeedback(this)
+                }
+            },
         )
         bindUnlockGateGestureTarget(view.findViewById(R.id.unlockGateStatusBar))
         bindUnlockGateGestureTarget(

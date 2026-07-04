@@ -128,7 +128,6 @@ data class KeymapSelectionTarget(
 
 data object LockscreenShortcutSelectionTarget : AppSelectionTarget {
     override val titleRes: Int = R.string.lockscreen_shortcut
-    override val allowsDisabledAction: Boolean = false
     override val disallowedActions: Set<Action> = setOf(Action.LockScreen)
 
     override fun getAction(prefs: Prefs): Action = prefs.getLockscreenShortcutAction()
