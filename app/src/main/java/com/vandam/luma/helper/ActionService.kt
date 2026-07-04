@@ -2893,7 +2893,7 @@ class ActionService : AccessibilityService() {
                 networkType.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
                 networkType.text = label
             } else {
-                LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_nodata, textColor)
+                LumaStatusBarUi.showTinted(signalIcon, R.drawable.signal_0, textColor)
                 networkType.visibility = View.GONE
             }
 
