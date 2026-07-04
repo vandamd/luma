@@ -100,6 +100,7 @@ class ActionService : AccessibilityService() {
     private var toolLaunchMaskView: View? = null
     private var shownAtUptimeMs: Long = 0L
     private var sawLightOsForegroundEvent = false
+    private var hideMaskOnNextLightOsEvent = false
     private var hardTimeoutRunnable: Runnable? = null
     private var deferredHideRunnable: Runnable? = null
     private var unlockGateView: View? = null
@@ -145,6 +146,7 @@ class ActionService : AccessibilityService() {
     private var homeKeyDownTime = 0L
     private var homeLongPressFired = false
     private var homeRestartFired = false
+    private var lastCallUiHandoffUptimeMs = 0L
     private var unlockGatePreparedForHomeKey = false
     private var mediaInfoObserverJob: Job? = null
 
@@ -363,6 +365,10 @@ class ActionService : AccessibilityService() {
                 if (packageName != this.packageName) {
                     clearPendingCameraOwner()
                 }
+            }
+
+            if (packageName == LIGHT_OS_PACKAGE && isCallUiActive() && !keyguardManager.isDeviceLocked) {
+                clearCallUiInputOverlaysOnMain()
             }
 
             if (toolLaunchMaskView != null && packageName == LIGHT_OS_PACKAGE) {
@@ -585,7 +591,7 @@ class ActionService : AccessibilityService() {
 
     private fun executeHomeLongPress() {
         if (isInCall()) {
-            launchLightOsRoute(this, "call")
+            launchCallUiOnMain()
             return
         }
 
@@ -1355,6 +1361,8 @@ class ActionService : AccessibilityService() {
             false
         }
 
+    private fun isCallUiActive(): Boolean = isInCall() || isPhoneRinging()
+
     private fun isKeyTargetForeground(
         action: Action,
         getApp: () -> com.vandam.luma.data.AppModel,
@@ -1417,6 +1425,7 @@ class ActionService : AccessibilityService() {
         cancelPendingCallbacks()
         shownAtUptimeMs = 0L
         sawLightOsForegroundEvent = false
+        hideMaskOnNextLightOsEvent = false
 
         val view = toolLaunchMaskView ?: return
         if (!view.isAttachedToWindow) {
@@ -1444,6 +1453,36 @@ class ActionService : AccessibilityService() {
         stopUnlockGateStatusBarMonitors()
         removeUnlockGateViewOnMain()
         publishUnlockGateState()
+    }
+
+    private fun clearCallUiInputOverlaysOnMain() {
+        cancelUnlockGateOnMain()
+        hideVolumeOnlyOverlay()
+    }
+
+    private fun launchCallUiOnMain() {
+        if (isLightOsForeground()) {
+            cancelToolLaunchMaskOnMain()
+            if (launchLightOsRoute(this, "call", showMask = false)) {
+                lastCallUiHandoffUptimeMs = SystemClock.uptimeMillis()
+                clearCallUiInputOverlaysOnMain()
+            }
+            return
+        }
+
+        val now = SystemClock.uptimeMillis()
+        if (now - lastCallUiHandoffUptimeMs < CALL_UI_HANDOFF_COOLDOWN_MS) {
+            clearCallUiInputOverlaysOnMain()
+            return
+        }
+
+        hideMaskOnNextLightOsEvent = true
+        if (launchLightOsRoute(this, "call")) {
+            lastCallUiHandoffUptimeMs = now
+            clearCallUiInputOverlaysOnMain()
+        } else {
+            hideMaskOnNextLightOsEvent = false
+        }
     }
 
     private fun prepareUnlockGateViewOnMain() {
@@ -1561,6 +1600,12 @@ class ActionService : AccessibilityService() {
     }
 
     private fun handleForegroundEvent() {
+        if (hideMaskOnNextLightOsEvent) {
+            hideMaskOnNextLightOsEvent = false
+            hideMaskWhenReady()
+            return
+        }
+
         if (!sawLightOsForegroundEvent) {
             // The first LightOS event is usually just the existing singleTask activity resurfacing.
             sawLightOsForegroundEvent = true
@@ -1571,6 +1616,12 @@ class ActionService : AccessibilityService() {
     }
 
     private fun handleContentEvent() {
+        if (hideMaskOnNextLightOsEvent) {
+            hideMaskOnNextLightOsEvent = false
+            hideMaskWhenReady()
+            return
+        }
+
         if (!sawLightOsForegroundEvent) return
         hideMaskWhenReady()
     }
@@ -1635,11 +1686,16 @@ class ActionService : AccessibilityService() {
 
                         Intent.ACTION_SCREEN_ON -> {
                             runOnMainThread {
+                                val deviceLocked = keyguardManager.isDeviceLocked
+                                if (isCallUiActive() && !deviceLocked) {
+                                    launchCallUiOnMain()
+                                    return@runOnMainThread
+                                }
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.ScreenOn(
                                         nowUptimeMs = SystemClock.uptimeMillis(),
                                         gateEnabled = true,
-                                        deviceLocked = keyguardManager.isDeviceLocked,
+                                        deviceLocked = deviceLocked,
                                         ringingCall = isPhoneRinging(),
                                     ),
                                 )
@@ -1648,6 +1704,10 @@ class ActionService : AccessibilityService() {
 
                         Intent.ACTION_USER_PRESENT -> {
                             runOnMainThread {
+                                if (isCallUiActive()) {
+                                    launchCallUiOnMain()
+                                    return@runOnMainThread
+                                }
                                 dispatchUnlockGateEventOnMain(
                                     UnlockGateEvent.UserPresent(
                                         nowUptimeMs = SystemClock.uptimeMillis(),
@@ -2689,7 +2749,7 @@ class ActionService : AccessibilityService() {
                 isFocusable = true
                 setOnClickListener {
                     performAppTapHapticFeedback(this@ActionService)
-                    launchLightOsRoute(this@ActionService, "call")
+                    launchCallUiOnMain()
                     dispatchUnlockGateEventOnMain(
                         UnlockGateEvent.DismissRequested(
                             nowUptimeMs = SystemClock.uptimeMillis(),
@@ -3209,24 +3269,30 @@ class ActionService : AccessibilityService() {
         }
     }
 
-    private fun handleIncomingRinging() {
-        val phase = unlockGateStateMachine.state.phase
+    private fun refreshLockedCallOverlay() {
         unlockGateView?.takeIf { it.isAttachedToWindow }?.let {
             updateUnlockGateText(it)
             applyIncomingCallUnlockGateMode(it)
         }
-        if (phase == UnlockGatePhase.UnlockGateVisible || phase == UnlockGatePhase.Dismissing) {
-            dispatchUnlockGateEventOnMain(
-                UnlockGateEvent.DismissRequested(
-                    nowUptimeMs = SystemClock.uptimeMillis(),
-                    minDelayMs = 150L,
-                ),
-            )
+    }
+
+    private fun handleIncomingRinging() {
+        if (keyguardManager.isDeviceLocked) {
+            refreshLockedCallOverlay()
+            return
         }
-        launchLightOsRoute(this, "call")
+        launchCallUiOnMain()
     }
 
     private fun handleIncomingCallStateChanged() {
+        if (isCallUiActive()) {
+            if (keyguardManager.isDeviceLocked) {
+                refreshLockedCallOverlay()
+                return
+            }
+            clearCallUiInputOverlaysOnMain()
+            return
+        }
         val view = unlockGateView ?: return
         if (!view.isAttachedToWindow) return
         renderUnlockGateStateOnMain()
@@ -3457,6 +3523,7 @@ class ActionService : AccessibilityService() {
         private const val SECURE_LOCK_MASK_GESTURE_START_Y_RATIO = 0.95f
         private const val SECURE_LOCK_MASK_GESTURE_END_Y_RATIO = 0.05f
         private const val SECURE_LOCK_MASK_GESTURE_MAX_RETRIES = 1
+        private const val CALL_UI_HANDOFF_COOLDOWN_MS = 2000L
         private const val SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE = 317
         private const val SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE = 318
         private const val SCROLLWHEEL_BUTTON_KEY_CODE = 319

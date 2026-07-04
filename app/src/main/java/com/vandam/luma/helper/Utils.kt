@@ -95,6 +95,7 @@ fun showToast(
 fun launchLightOsRoute(
     context: Context,
     route: String,
+    showMask: Boolean = true,
 ): Boolean {
     val appContext = context.applicationContext
     val actionService = ActionService.instance()
@@ -110,10 +111,14 @@ fun launchLightOsRoute(
         }
 
     try {
-        actionService?.showToolLaunchMask(Prefs.getInstance(appContext).isDarkTheme())
+        if (showMask) {
+            actionService?.showToolLaunchMask(Prefs.getInstance(appContext).isDarkTheme())
+        }
         context.startActivity(intent)
     } catch (_: Exception) {
-        actionService?.cancelToolLaunchMask()
+        if (showMask) {
+            actionService?.cancelToolLaunchMask()
+        }
         showToast(appContext, appContext.getString(R.string.toast_unable_to_launch_app))
         return false
     }
