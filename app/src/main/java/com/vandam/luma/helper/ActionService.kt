@@ -115,6 +115,7 @@ class ActionService : AccessibilityService() {
     private var unlockGateTelephonyCallback: TelephonyCallback? = null
     private var incomingCallCallback: IncomingCallCallback? = null
     private var unlockGateCellularSnapshot = UnlockGateCellularSnapshot()
+    private var currentCallState = TelephonyManager.CALL_STATE_IDLE
     private var unlockGateVolumeIndicatorVisible = false
     private var unlockGateVolumeIndicatorLabelRes = R.string.volume_indicator_ringer
     private var unlockGateVolumeIndicatorProgress = 0f
@@ -2915,6 +2916,7 @@ class ActionService : AccessibilityService() {
         val wifiIcon = view.findViewById<ImageView>(R.id.statusWifi)
         val bluetoothIcon = view.findViewById<ImageView>(R.id.statusBluetooth)
         val soundModeIcon = view.findViewById<ImageView>(R.id.statusSoundMode)
+        val callIcon = view.findViewById<ImageView>(R.id.statusCall)
         val flashlightIcon = view.findViewById<ImageView>(R.id.statusFlashlight)
 
         val airplaneMode =
@@ -2986,6 +2988,12 @@ class ActionService : AccessibilityService() {
             soundModeIcon.visibility = View.GONE
         }
 
+        if (currentCallState == TelephonyManager.CALL_STATE_OFFHOOK) {
+            LumaStatusBarUi.showTinted(callIcon, R.drawable.ic_status_call, textColor)
+        } else {
+            callIcon.visibility = View.GONE
+        }
+
         if (torchEnabled) {
             LumaStatusBarUi.showTinted(flashlightIcon, R.drawable.ic_shortcut_flashlight, textColor)
         } else {
@@ -2999,6 +3007,7 @@ class ActionService : AccessibilityService() {
                 wifiIcon.visibility == View.VISIBLE ||
                 bluetoothIcon.visibility == View.VISIBLE ||
                 soundModeIcon.visibility == View.VISIBLE ||
+                callIcon.visibility == View.VISIBLE ||
                 flashlightIcon.visibility == View.VISIBLE
         connectivityLayout.visibility = if (anyVisible) View.VISIBLE else View.INVISIBLE
     }
@@ -3240,13 +3249,14 @@ class ActionService : AccessibilityService() {
     private fun startIncomingCallMonitor() {
         if (incomingCallCallback != null) return
         val telephonyManager = getSystemService(TelephonyManager::class.java) ?: return
+        currentCallState = telephonyCallState(telephonyManager)
         val callback =
             IncomingCallCallback(
                 onRinging = {
                     handleIncomingRinging()
                 },
-                onStateChanged = {
-                    handleIncomingCallStateChanged()
+                onStateChanged = { state ->
+                    handleIncomingCallStateChanged(state)
                 },
             )
         try {
@@ -3266,6 +3276,7 @@ class ActionService : AccessibilityService() {
             Log.e(TAG, "stopIncomingCallMonitor: unregisterTelephonyCallback failed", exception)
         } finally {
             incomingCallCallback = null
+            currentCallState = TelephonyManager.CALL_STATE_IDLE
         }
     }
 
@@ -3284,7 +3295,12 @@ class ActionService : AccessibilityService() {
         launchCallUiOnMain()
     }
 
-    private fun handleIncomingCallStateChanged() {
+    private fun handleIncomingCallStateChanged(state: Int) {
+        if (currentCallState != state) {
+            currentCallState = state
+            refreshUnlockGateConnectivityStatus()
+        }
+
         if (isCallUiActive()) {
             if (keyguardManager.isDeviceLocked) {
                 refreshLockedCallOverlay()
@@ -3297,6 +3313,14 @@ class ActionService : AccessibilityService() {
         if (!view.isAttachedToWindow) return
         renderUnlockGateStateOnMain()
     }
+
+    @Suppress("DEPRECATION")
+    private fun telephonyCallState(telephonyManager: TelephonyManager): Int =
+        try {
+            telephonyManager.callState
+        } catch (_: SecurityException) {
+            TelephonyManager.CALL_STATE_IDLE
+        }
 
     private fun startUnlockGateWifiMonitor() {
         if (unlockGateWifiNetworkCallback != null) return
@@ -3551,7 +3575,7 @@ class ActionService : AccessibilityService() {
 
     private class IncomingCallCallback(
         private val onRinging: () -> Unit,
-        private val onStateChanged: () -> Unit,
+        private val onStateChanged: (Int) -> Unit,
     ) : TelephonyCallback(),
         TelephonyCallback.CallStateListener {
         private var wasRinging = false
@@ -3563,7 +3587,7 @@ class ActionService : AccessibilityService() {
             } else if (state != TelephonyManager.CALL_STATE_RINGING) {
                 wasRinging = false
             }
-            onStateChanged()
+            onStateChanged(state)
         }
     }
 }
