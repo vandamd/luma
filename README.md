@@ -7,6 +7,7 @@
 
 > [!NOTE]
 > Luma is in active development and intended for users who have enabled `adb` on their device.
+> 
 > If you face any bugs, please submit an [issue](https://github.com/vandamd/luma/issues) or let me know via [Discord](https://discord.gg/CcnP8kREu6) in the `modding-and-hacking` channel.
 > Luma can be restarted by long pressing the home button for ~10 seconds. You'll feel a haptic!
 
