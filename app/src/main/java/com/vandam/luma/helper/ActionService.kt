@@ -63,6 +63,8 @@ import com.vandam.luma.data.AppModel
 import com.vandam.luma.data.Constants.Action
 import com.vandam.luma.data.GestureScope
 import com.vandam.luma.data.GestureType
+import com.vandam.luma.data.LockscreenMessage
+import com.vandam.luma.data.LockscreenMessageManager
 import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
 import com.vandam.luma.data.Tool
@@ -149,6 +151,9 @@ class ActionService : AccessibilityService() {
     private var lastCallUiHandoffUptimeMs = 0L
     private var unlockGatePreparedForHomeKey = false
     private var mediaInfoObserverJob: Job? = null
+    private var lockscreenMessageObserverJob: Job? = null
+    private var lockscreenMessage: LockscreenMessage? = null
+    private var lockscreenMessageExpiryRunnable: Runnable? = null
 
     override fun onServiceConnected() {
         configureServiceInfo()
@@ -157,6 +162,7 @@ class ActionService : AccessibilityService() {
         registerTorchCallback()
         MediaSessionHelper.init(this)
         startMediaInfoObserver()
+        startLockscreenMessageObserver()
         instance = WeakReference(this)
         publishUnlockGateState()
         startIncomingCallMonitor()
@@ -181,6 +187,7 @@ class ActionService : AccessibilityService() {
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         stopMediaInfoObserver()
+        stopLockscreenMessageObserver()
         stopIncomingCallMonitor()
         DaltonizerManager.restoreIfNeeded(this)
         instance = WeakReference(null)
@@ -205,6 +212,7 @@ class ActionService : AccessibilityService() {
         unregisterTorchCallback()
         unregisterUnlockGateReceiver()
         stopMediaInfoObserver()
+        stopLockscreenMessageObserver()
         stopIncomingCallMonitor()
         DaltonizerManager.restoreIfNeeded(this)
         instance = WeakReference(null)
@@ -231,6 +239,70 @@ class ActionService : AccessibilityService() {
     private fun stopMediaInfoObserver() {
         mediaInfoObserverJob?.cancel()
         mediaInfoObserverJob = null
+    }
+
+    fun refreshLockscreenMessageSubscription() {
+        runOnMainThread {
+            startLockscreenMessageObserver()
+        }
+    }
+
+    private fun startLockscreenMessageObserver() {
+        stopLockscreenMessageObserver()
+        lockscreenMessage = null
+        renderCurrentLockscreenMessage()
+        val accountNumber = prefs.accountNumber
+        if (accountNumber.isBlank()) return
+
+        lockscreenMessageObserverJob =
+            CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
+                LockscreenMessageManager.observe(this@ActionService, accountNumber).collect { update ->
+                    val message = update?.takeIf { it.expiresAt > System.currentTimeMillis() }
+                    lockscreenMessage = message
+                    scheduleLockscreenMessageExpiry(message)
+                    renderCurrentLockscreenMessage()
+                }
+            }
+    }
+
+    private fun stopLockscreenMessageObserver() {
+        lockscreenMessageObserverJob?.cancel()
+        lockscreenMessageObserverJob = null
+        lockscreenMessageExpiryRunnable?.let(mainHandler::removeCallbacks)
+        lockscreenMessageExpiryRunnable = null
+    }
+
+    private fun scheduleLockscreenMessageExpiry(message: LockscreenMessage?) {
+        lockscreenMessageExpiryRunnable?.let(mainHandler::removeCallbacks)
+        lockscreenMessageExpiryRunnable = null
+        message ?: return
+
+        val runnable =
+            Runnable {
+                if (lockscreenMessage?.messageId != message.messageId) return@Runnable
+                lockscreenMessage = null
+                lockscreenMessageExpiryRunnable = null
+                renderCurrentLockscreenMessage()
+            }
+        lockscreenMessageExpiryRunnable = runnable
+        mainHandler.postDelayed(
+            runnable,
+            (message.expiresAt.toLong() - System.currentTimeMillis()).coerceAtLeast(0L),
+        )
+    }
+
+    private fun renderCurrentLockscreenMessage() {
+        val view = unlockGateView ?: return
+        if (!view.isAttachedToWindow) return
+        updateUnlockGateText(view)
+        applyIncomingCallUnlockGateMode(view)
+    }
+
+    private fun currentLockscreenMessage(): LockscreenMessage? {
+        val message = lockscreenMessage ?: return null
+        if (message.expiresAt > System.currentTimeMillis()) return message
+        lockscreenMessage = null
+        return null
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -2098,7 +2170,10 @@ class ActionService : AccessibilityService() {
     private fun restoreUnlockGatePrimaryContent(view: View) {
         view.findViewById<TextView>(R.id.unlockGateClock).visibility = View.VISIBLE
         view.findViewById<TextView>(R.id.unlockGateDate).visibility =
-            if (prefs.lockscreenDateFormat != Prefs.LockscreenDateFormat.None) {
+            if (
+                currentLockscreenMessage() != null ||
+                prefs.lockscreenDateFormat != Prefs.LockscreenDateFormat.None
+            ) {
                 View.VISIBLE
             } else {
                 View.GONE
@@ -2636,6 +2711,7 @@ class ActionService : AccessibilityService() {
         val dateView = view.findViewById<TextView>(R.id.unlockGateDate)
         val mediaControlsView = view.findViewById<LinearLayout>(R.id.unlockGateMediaControls)
         val isRinging = isPhoneRinging()
+        val currentMessage = currentLockscreenMessage()
 
         if (isRinging) {
             clockView.text = incomingCallMessage(phase)
@@ -2665,6 +2741,11 @@ class ActionService : AccessibilityService() {
                 visibility = View.GONE
                 isClickable = false
                 isFocusable = false
+            } else if (currentMessage != null) {
+                text = currentMessage.text
+                visibility = View.VISIBLE
+                isClickable = isInteractive && prefs.getLockscreenDateTapAction() != Action.Disabled
+                isFocusable = isClickable
             } else if (prefs.lockscreenDateFormat != Prefs.LockscreenDateFormat.None) {
                 text = formatLockscreenDateText(prefs.lockscreenDateFormat)
                 visibility = View.VISIBLE
