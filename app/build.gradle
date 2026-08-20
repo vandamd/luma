@@ -43,7 +43,7 @@ android {
         minSdk 31
         targetSdk 35
         versionCode 59
-        versionName "2.0.17"
+        versionName "2.0.18"
         buildConfigField "String", "CONVEX_URL", "\"${escapedConvexUrl}\""
     }
 
