@@ -30,6 +30,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.telecom.TelecomManager
@@ -56,6 +57,7 @@ import androidx.annotation.RequiresApi
 import androidx.biometric.BiometricManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import com.vandam.luma.LumaApplication
 import com.vandam.luma.MainActivity
 import com.vandam.luma.R
 import com.vandam.luma.data.AppEntryType
@@ -69,6 +71,7 @@ import com.vandam.luma.data.Prefs
 import com.vandam.luma.data.StatusBarSectionType
 import com.vandam.luma.data.Tool
 import com.vandam.luma.listener.SwipeTouchListener
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -91,6 +94,7 @@ class ActionService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private val keyguardManager by lazy { getSystemService(KEYGUARD_SERVICE) as KeyguardManager }
+    private val powerManager by lazy { getSystemService(POWER_SERVICE) as PowerManager }
     private val cameraManager by lazy { getSystemService(CAMERA_SERVICE) as CameraManager }
     private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
     private val notificationManager by lazy { getSystemService(NOTIFICATION_SERVICE) as NotificationManager }
@@ -162,9 +166,9 @@ class ActionService : AccessibilityService() {
         registerTorchCallback()
         MediaSessionHelper.init(this)
         startMediaInfoObserver()
-        startLockscreenMessageObserver()
         instance = WeakReference(this)
         publishUnlockGateState()
+        syncLockscreenMessageObserver()
         startIncomingCallMonitor()
         DaltonizerManager.recoverFromProcessDeath(this)
     }
@@ -243,24 +247,44 @@ class ActionService : AccessibilityService() {
 
     fun refreshLockscreenMessageSubscription() {
         runOnMainThread {
+            stopLockscreenMessageObserver()
+            syncLockscreenMessageObserver()
+        }
+    }
+
+    private fun syncLockscreenMessageObserver() {
+        if (!powerManager.isInteractive || !unlockGateStateMachine.snapshot.visible) {
+            stopLockscreenMessageObserver()
+            return
+        }
+        if (lockscreenMessageObserverJob?.isActive != true) {
             startLockscreenMessageObserver()
         }
     }
 
     private fun startLockscreenMessageObserver() {
-        stopLockscreenMessageObserver()
         lockscreenMessage = null
         renderCurrentLockscreenMessage()
         val accountNumber = prefs.accountNumber
         if (accountNumber.isBlank()) return
+        val application = applicationContext as? LumaApplication ?: return
+        val client = application.createConvexClient() ?: return
 
         lockscreenMessageObserverJob =
             CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
-                LockscreenMessageManager.observe(this@ActionService, accountNumber).collect { update ->
-                    val message = update?.takeIf { it.expiresAt > System.currentTimeMillis() }
-                    lockscreenMessage = message
-                    scheduleLockscreenMessageExpiry(message)
-                    renderCurrentLockscreenMessage()
+                try {
+                    LockscreenMessageManager.observe(client, accountNumber).collect { update ->
+                        val message = update?.takeIf { it.expiresAt > System.currentTimeMillis() }
+                        lockscreenMessage = message
+                        scheduleLockscreenMessageExpiry(message)
+                        renderCurrentLockscreenMessage()
+                    }
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    Log.w(TAG, "Lock-screen message subscription failed", exception)
+                } finally {
+                    application.closeConvexClient(client)
                 }
             }
     }
@@ -1833,6 +1857,7 @@ class ActionService : AccessibilityService() {
         val effects = unlockGateStateMachine.dispatch(event)
         val rendered = renderUnlockGateStateOnMain()
         publishUnlockGateState()
+        syncLockscreenMessageObserver()
         if (!rendered) return
         effects.forEach(::handleUnlockGateEffectOnMain)
     }

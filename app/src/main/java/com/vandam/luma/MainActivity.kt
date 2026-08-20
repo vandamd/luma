@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        stopToolSyncSubscription()
+        stopToolSyncSubscription(closeConvexClient = true)
         setLumaForeground(false)
         ActionService.instance()?.setRepeatedHomeGateEligible(false)
         volumeController.destroy()
@@ -173,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         if (finishAfterStop) {
             finish()
         }
-        stopToolSyncSubscription()
+        stopToolSyncSubscription(closeConvexClient = true)
         super.onStop()
     }
 
@@ -330,7 +330,7 @@ class MainActivity : AppCompatActivity() {
         lastSyncedManagedAppIds = initialManagedAppIds
         lastSyncedAndroidApps = initialAndroidApps
         lastRequestedAppUpdateVersions = initialRequestedAppUpdateVersions
-        stopToolSyncSubscription()
+        stopToolSyncSubscription(closeConvexClient = true)
         startToolSyncSubscription()
         ActionService.instance()?.refreshLockscreenMessageSubscription()
     }
@@ -344,7 +344,7 @@ class MainActivity : AppCompatActivity() {
         lastSyncedManagedAppIds = null
         lastSyncedAndroidApps = null
         lastRequestedAppUpdateVersions = null
-        stopToolSyncSubscription()
+        stopToolSyncSubscription(closeConvexClient = true)
         ActionService.instance()?.refreshLockscreenMessageSubscription()
 
         ManagedAppManager.clearSessionWork()
@@ -360,7 +360,7 @@ class MainActivity : AppCompatActivity() {
             if (BuildConfig.DEBUG) {
                 Log.d(LOG_TAG, "Skipping tool sync subscription because account is blank")
             }
-            stopToolSyncSubscription()
+            stopToolSyncSubscription(closeConvexClient = true)
             return
         }
 
@@ -372,7 +372,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        stopToolSyncSubscription()
+        stopToolSyncSubscription(closeConvexClient = false)
         subscribedAccountNumber = accountNumber
         if (!ManagedAppManager.syncPendingInstalledAppsToDashboardForStoredAccount(this)) {
             ManagedAppManager.syncInstalledAppsToDashboard(this, accountNumber)
@@ -437,7 +437,7 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
-    private fun stopToolSyncSubscription() {
+    private fun stopToolSyncSubscription(closeConvexClient: Boolean) {
         toolSyncJob?.cancel()
         toolSyncWebSocketJob?.cancel()
         toolSyncReconnectWatchdogJob?.cancel()
@@ -445,6 +445,9 @@ class MainActivity : AppCompatActivity() {
         toolSyncWebSocketJob = null
         toolSyncReconnectWatchdogJob = null
         subscribedAccountNumber = null
+        if (closeConvexClient) {
+            (applicationContext as? LumaApplication)?.closeConvexClient()
+        }
     }
 
     private fun handleConvexReconnectTimeout(

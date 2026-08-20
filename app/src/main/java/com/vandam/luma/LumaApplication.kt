@@ -24,6 +24,12 @@ class LumaApplication : Application() {
     fun getOrCreateConvexClient(): ConvexClient? {
         convexClientInstance?.let { return it }
 
+        return createConvexClient()?.also {
+            convexClientInstance = it
+        }
+    }
+
+    internal fun createConvexClient(): ConvexClient? {
         val deploymentUrl = BuildConfig.CONVEX_URL.trim().removeSuffix("/")
         if (deploymentUrl.isBlank()) {
             return null
@@ -32,9 +38,7 @@ class LumaApplication : Application() {
             return null
         }
 
-        return ConvexClient(deploymentUrl).also {
-            convexClientInstance = it
-        }
+        return ConvexClient(deploymentUrl)
     }
 
     @Synchronized
@@ -47,12 +51,16 @@ class LumaApplication : Application() {
     fun closeConvexClient() {
         val client = convexClientInstance ?: return
         convexClientInstance = null
+        closeConvexClient(client)
+    }
+
+    internal fun closeConvexClient(client: ConvexClient) {
         convexCloseScope.launch {
-            closeConvexClient(client)
+            closeConvexClientNow(client)
         }
     }
 
-    private fun closeConvexClient(client: ConvexClient) {
+    private fun closeConvexClientNow(client: ConvexClient) {
         runCatching {
             val ffiClient =
                 client

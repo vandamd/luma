@@ -1,8 +1,7 @@
 package com.vandam.luma.data
 
-import android.content.Context
 import android.util.Log
-import com.vandam.luma.LumaApplication
+import dev.convex.android.ConvexClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
@@ -21,16 +20,12 @@ object LockscreenMessageManager {
     private const val QUERY_PATH = "lockscreenMessages:getCurrentForDevice"
 
     fun observe(
-        context: Context,
+        client: ConvexClient,
         accountNumber: String,
     ): Flow<LockscreenMessage?> {
         if (!accountNumber.matches(Regex("^\\d{16}$"))) {
             return flowOf(null)
         }
-
-        val client =
-            (context.applicationContext as? LumaApplication)?.convexClient
-                ?: return emptyFlow()
 
         return runCatching {
             client
