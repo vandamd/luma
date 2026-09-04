@@ -25,8 +25,10 @@ import android.view.WindowManager
 import android.widget.Toast
 import app.luma.BuildConfig
 import app.luma.R
+import app.luma.data.AppDrawerItem
 import app.luma.data.AppModel
 import app.luma.data.Constants
+import app.luma.data.FolderModel
 import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
 import app.luma.data.ShortcutEntry
@@ -90,7 +92,10 @@ fun showToast(
         }.show()
 }
 
-suspend fun getAppsList(context: Context): MutableList<AppModel> =
+suspend fun getAppsList(
+    context: Context,
+    grouped: Boolean = true,
+): MutableList<AppDrawerItem> =
     withContext(Dispatchers.IO) {
         val appList: MutableList<AppModel> = mutableListOf()
 
@@ -164,35 +169,88 @@ suspend fun getAppsList(context: Context): MutableList<AppModel> =
 
             pinnedModels.sortBy { it.first }
             unpinnedModels.sortBy {
-                if (it.appAlias.isEmpty()) {
-                    it.appLabel.lowercase()
-                } else {
-                    it.appAlias.lowercase()
-                }
+                val label = it.appAlias.ifEmpty { it.appLabel }
+                label.lowercase()
             }
-
-            appList.clear()
-            appList.addAll(pinnedModels.map { it.second })
-            appList.addAll(unpinnedModels)
 
             val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()
-            appList.forEach { appModel ->
-                appModel.hasNotification = packagesWithNotifications.contains(appModel.appPackage)
+            val allApps = (pinnedModels.map { it.second } + unpinnedModels).onEach {
+                it.hasNotification = packagesWithNotifications.contains(it.appPackage)
             }
-        } catch (e: java.lang.Exception) {
+
+            if (prefs.foldersEnabled && grouped) {
+                val visibleFolders = prefs.folders.filter { !prefs.isFolderHidden(it.id) }
+                val items = mutableListOf<AppDrawerItem>()
+                val appsInFolders = mutableSetOf<PinnedAppEntry>()
+
+                prefs.folders.forEach { folder ->
+                    folder.apps.forEach { appsInFolders.add(it) }
+                }
+
+                // Add folders
+                visibleFolders.forEach { folder ->
+                    items.add(AppDrawerItem.Folder(folder))
+                }
+
+                // Add apps not in folders
+                allApps.forEach { app ->
+                    val serial = userManager.getSerialNumberForUser(app.user)
+                    val entry = PinnedAppEntry(app.appPackage, app.appActivityName, serial)
+                    if (!appsInFolders.contains(entry)) {
+                        items.add(AppDrawerItem.App(app))
+                    }
+                }
+
+                // Sort items: folders first (alphabetical), then apps (pinned first, then alphabetical)
+                // Wait, Luma usually sorts pinned apps first. Let's stick to that but maybe folders are also special.
+                // For now, let's keep folders at the top, sorted by name.
+                val sortedItems = items.sortedWith(compareBy({
+                    it is AppDrawerItem.App
+                }, {
+                    if (it is AppDrawerItem.Folder) it.folderModel.name.lowercase() else ""
+                }))
+
+                // Actually, let's just return them as they are for now, or refine sorting.
+                // The current sorting in Luma is: pinned apps, then alphabetical unpinned apps.
+                // With folders: Pinned Apps (not in folders), then Folders (alphabetical), then Unpinned Apps (not in folders).
+
+                val finalItems = mutableListOf<AppDrawerItem>()
+                // Pinned apps not in folders
+                allApps.filter { app ->
+                    val serial = userManager.getSerialNumberForUser(app.user)
+                    val entry = PinnedAppEntry(app.appPackage, app.appActivityName, serial)
+                    prefs.isPinned(entry) && !appsInFolders.contains(entry)
+                }.forEach { finalItems.add(AppDrawerItem.App(it)) }
+
+                // Folders
+                visibleFolders.forEach { finalItems.add(AppDrawerItem.Folder(it)) }
+
+                // Unpinned apps not in folders
+                allApps.filter { app ->
+                    val serial = userManager.getSerialNumberForUser(app.user)
+                    val entry = PinnedAppEntry(app.appPackage, app.appActivityName, serial)
+                    !prefs.isPinned(entry) && !appsInFolders.contains(entry)
+                }.forEach { finalItems.add(AppDrawerItem.App(it)) }
+
+                return@withContext finalItems.toMutableList()
+            } else {
+                return@withContext allApps.map { AppDrawerItem.App(it) }.toMutableList()
+            }
+        } catch (e: Exception) {
             if (BuildConfig.DEBUG) {
-                Log.d("backup", "$e")
+                Log.d("AppList", "$e")
             }
+            mutableListOf()
         }
-        appList
     }
 
-suspend fun getHiddenAppsList(context: Context): MutableList<AppModel> =
+suspend fun getHiddenItemsList(context: Context): MutableList<AppDrawerItem> =
     withContext(Dispatchers.IO) {
         val prefs = Prefs.getInstance(context)
         val hiddenAppsSet = prefs.hiddenApps
+        val hiddenFoldersSet = prefs.hiddenFolders
         val hiddenShortcutIds = prefs.hiddenShortcutIds
-        val appList: MutableList<AppModel> = mutableListOf()
+        val itemList: MutableList<AppDrawerItem> = mutableListOf()
 
         val collator = Collator.getInstance()
         val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
@@ -200,6 +258,16 @@ suspend fun getHiddenAppsList(context: Context): MutableList<AppModel> =
         val myHandle = android.os.Process.myUserHandle()
         val mySerial = userManager.getSerialNumberForUser(myHandle)
 
+        // Hidden folders
+        val folders = prefs.folders
+        for (folderId in hiddenFoldersSet) {
+            folders.find { it.id == folderId }?.let {
+                itemList.add(AppDrawerItem.Folder(it))
+            }
+        }
+
+        // Hidden apps
+        val hiddenAppsList = mutableListOf<AppModel>()
         for (entry in hiddenAppsSet) {
             val parts = entry.split("|")
             val packageName = parts[0]
@@ -210,7 +278,7 @@ suspend fun getHiddenAppsList(context: Context): MutableList<AppModel> =
             val app = activities[0]
             val appName = app.label.toString()
             val appKey = collator.getCollationKey(appName)
-            appList.add(AppModel(appName, appKey, packageName, "", userHandle, prefs.getAppAlias(appName), false))
+            hiddenAppsList.add(AppModel(appName, appKey, packageName, "", userHandle, prefs.getAppAlias(appName), false))
         }
 
         for (entry in prefs.pinnedShortcuts) {
@@ -228,11 +296,12 @@ suspend fun getHiddenAppsList(context: Context): MutableList<AppModel> =
                     appAlias = "",
                     hasNotification = false,
                 )
-            appList.add(shortcutModel)
+            hiddenAppsList.add(shortcutModel)
         }
 
-        appList.sort()
-        appList
+        hiddenAppsList.sort()
+        itemList.addAll(hiddenAppsList.map { AppDrawerItem.App(it) })
+        itemList
     }
 
 fun getDefaultLauncherPackage(context: Context): String {

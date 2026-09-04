@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import app.luma.R
+import app.luma.data.AppDrawerItem
 import app.luma.data.AppModel
 import app.luma.data.Constants
 import app.luma.data.Constants.AppDrawerFlag
@@ -16,7 +17,7 @@ import app.luma.data.GestureType
 import app.luma.data.Prefs
 import app.luma.data.StatusBarSectionType
 import app.luma.helper.getAppsList
-import app.luma.helper.getHiddenAppsList
+import app.luma.helper.getHiddenItemsList
 import app.luma.helper.showToast
 import kotlinx.coroutines.launch
 
@@ -26,8 +27,23 @@ class MainViewModel(
     private val appContext by lazy { application.applicationContext }
     private val prefs = Prefs.getInstance(appContext)
 
-    val appList = MutableLiveData<List<AppModel>?>()
-    val hiddenApps = MutableLiveData<List<AppModel>?>()
+    val appList = MutableLiveData<List<AppDrawerItem>?>()
+    val hiddenItems = MutableLiveData<List<AppDrawerItem>?>()
+
+    fun selectedItem(
+        item: AppDrawerItem,
+        flag: AppDrawerFlag,
+        n: Int = 0,
+    ) {
+        if (flag == AppDrawerFlag.SetHomeApp) {
+            prefs.setHomeItem(n, item)
+            return
+        }
+
+        if (item is AppDrawerItem.App) {
+            selectedApp(item.appModel, flag, n)
+        }
+    }
 
     fun selectedApp(
         appModel: AppModel,
@@ -151,13 +167,13 @@ class MainViewModel(
 
     fun getAppList() {
         viewModelScope.launch {
-            appList.value = getAppsList(appContext)
+            appList.value = getAppsList(appContext, grouped = true)
         }
     }
 
-    fun getHiddenApps() {
+    fun getHiddenItems() {
         viewModelScope.launch {
-            hiddenApps.value = getHiddenAppsList(appContext)
+            hiddenItems.value = getHiddenItemsList(appContext)
         }
     }
 }

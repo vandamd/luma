@@ -128,6 +128,19 @@
     <string name="app_actions_confirm_title">Remove Shortcut</string>
     <string name="app_actions_uninstall_title">Uninstall App</string>
     <string name="app_actions_confirm_message">Are you sure you want to remove %1$s?</string>
+    <string name="app_actions_add_to_folder">Add to Folder</string>
+    <string name="app_actions_remove_from_folder">Remove from Folder</string>
+    <string name="app_actions_remove">Remove</string>
+
+    <!-- Folders -->
+    <string name="settings_folders">Folders</string>
+    <string name="folder_name_hint">Folder Name</string>
+    <string name="folder_create">Create Folder</string>
+    <string name="folder_rename">Rename Folder</string>
+    <string name="folder_delete">Delete Folder</string>
+    <string name="folder_delete_confirm">Are you sure you want to delete this folder? The apps will be moved back to the main list.</string>
+    <string name="folder_select_title">Select Folder</string>
+    <string name="folder_new">New Folder…</string>
 
     <!-- Home screen tips -->
     <string name="tip_swipe_left">Swipe left for all apps</string>

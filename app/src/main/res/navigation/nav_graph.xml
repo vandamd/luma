@@ -253,4 +253,58 @@
             android:name="action"
             app:argType="string" />
     </fragment>
+    <fragment
+        android:id="@+id/folderFragment"
+        android:name="app.luma.ui.FolderFragment"
+        android:label="FolderFragment">
+        <argument
+            android:name="folderId"
+            app:argType="string" />
+        <argument
+            android:name="folderName"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/folderNameFragment"
+        android:name="app.luma.ui.FolderNameFragment"
+        android:label="FolderNameFragment">
+        <argument
+            android:name="folderId"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="folderName"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="appPackage"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="appActivityName"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userSerial"
+            app:argType="long"
+            android:defaultValue="-1L" />
+    </fragment>
+    <fragment
+        android:id="@+id/selectFolderFragment"
+        android:name="app.luma.ui.SelectFolderFragment"
+        android:label="SelectFolderFragment">
+        <argument
+            android:name="appPackage"
+            app:argType="string" />
+        <argument
+            android:name="appActivityName"
+            app:argType="string" />
+        <argument
+            android:name="userSerial"
+            app:argType="long"
+            android:defaultValue="-1L" />
+    </fragment>
 </navigation>

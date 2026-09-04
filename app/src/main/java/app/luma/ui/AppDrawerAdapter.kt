@@ -9,7 +9,9 @@ import android.widget.Filterable
 import android.widget.FrameLayout
 import androidx.recyclerview.widget.RecyclerView
 import app.luma.R
+import app.luma.data.AppDrawerItem
 import app.luma.data.AppModel
+import app.luma.data.FolderModel
 import app.luma.data.PinnedAppEntry
 import app.luma.data.Prefs
 import app.luma.databinding.AdapterAppDrawerBinding
@@ -19,8 +21,8 @@ import java.text.Normalizer
 
 data class AppDrawerConfig(
     val gravity: Int,
-    val clickListener: (AppModel) -> Unit,
-    val appLongPressListener: ((AppModel) -> Unit)? = null,
+    val clickListener: (AppDrawerItem) -> Unit,
+    val appLongPressListener: ((AppDrawerItem) -> Unit)? = null,
     val showPinnedIcon: Boolean = false,
 )
 
@@ -41,8 +43,8 @@ class AppDrawerAdapter(
     }
 
     private var appFilter = createAppFilter()
-    private var appsList: MutableList<AppModel> = mutableListOf()
-    private var appFilteredList: MutableList<AppModel> = mutableListOf()
+    private var itemsList: MutableList<AppDrawerItem> = mutableListOf()
+    private var itemsFilteredList: MutableList<AppDrawerItem> = mutableListOf()
     private val normalizedNameCache = mutableMapOf<String, String>()
     private val prefs = Prefs.getInstance(context)
     private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
@@ -60,19 +62,19 @@ class AppDrawerAdapter(
         holder: ViewHolder,
         position: Int,
     ) {
-        if (appFilteredList.isEmpty()) return
-        val appModel = appFilteredList[holder.absoluteAdapterPosition]
+        if (itemsFilteredList.isEmpty()) return
+        val item = itemsFilteredList[holder.absoluteAdapterPosition]
         holder.bind(
             config.gravity,
-            appModel,
+            item,
             config.clickListener,
             config.appLongPressListener,
             config.showPinnedIcon,
-            config.showPinnedIcon && isPinned(appModel),
+            item is AppDrawerItem.App && isPinned(item.appModel),
         )
     }
 
-    override fun getItemCount(): Int = appFilteredList.size
+    override fun getItemCount(): Int = itemsFilteredList.size
 
     override fun getFilter(): Filter = this.appFilter
 
@@ -80,18 +82,18 @@ class AppDrawerAdapter(
         return object : Filter() {
             override fun performFiltering(constraint: CharSequence?): FilterResults {
                 val searchChars = constraint.toString()
-                val appFilteredList =
+                val itemsFilteredList =
                     if (searchChars.isEmpty()) {
-                        appsList
+                        itemsList
                     } else {
-                        appsList.filter { app ->
-                            val displayName = app.appAlias.ifEmpty { app.appLabel }
+                        itemsList.filter { item ->
+                            val displayName = item.label
                             appLabelMatches(displayName, searchChars)
                         }
                     }
 
                 val filterResults = FilterResults()
-                filterResults.values = appFilteredList
+                filterResults.values = itemsFilteredList
                 return filterResults
             }
 
@@ -100,7 +102,7 @@ class AppDrawerAdapter(
                 constraint: CharSequence?,
                 results: FilterResults?,
             ) {
-                appFilteredList = (results?.values as? List<AppModel>)?.toMutableList() ?: mutableListOf()
+                itemsFilteredList = (results?.values as? List<AppDrawerItem>)?.toMutableList() ?: mutableListOf()
                 notifyDataSetChanged()
             }
         }
@@ -116,22 +118,25 @@ class AppDrawerAdapter(
     }
 
     fun updateNotifications(packages: Set<String>) {
-        appFilteredList.forEachIndexed { i, app ->
-            val had = app.hasNotification
-            app.hasNotification = packages.contains(app.appPackage)
-            if (had != app.hasNotification) notifyItemChanged(i)
-        }
-        appsList.forEach { app ->
-            if (appFilteredList.none { it === app }) {
+        itemsFilteredList.forEachIndexed { i, item ->
+            if (item is AppDrawerItem.App) {
+                val app = item.appModel
+                val had = app.hasNotification
                 app.hasNotification = packages.contains(app.appPackage)
+                if (had != app.hasNotification) notifyItemChanged(i)
+            }
+        }
+        itemsList.forEach { item ->
+            if (item is AppDrawerItem.App && itemsFilteredList.none { it === item }) {
+                item.appModel.hasNotification = packages.contains(item.appModel.appPackage)
             }
         }
     }
 
-    fun setAppList(appsList: MutableList<AppModel>) {
+    fun setItemList(itemsList: MutableList<AppDrawerItem>) {
         normalizedNameCache.clear()
-        this.appsList = appsList
-        this.appFilteredList = this.appsList
+        this.itemsList = itemsList
+        this.itemsFilteredList = this.itemsList
         pinnedSet = prefs.pinnedApps.toSet()
         notifyDataSetChanged()
     }
@@ -146,27 +151,28 @@ class AppDrawerAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(
             appLabelGravity: Int,
-            appModel: AppModel,
-            listener: (AppModel) -> Unit,
-            appLongPressListener: ((AppModel) -> Unit)? = null,
+            item: AppDrawerItem,
+            listener: (AppDrawerItem) -> Unit,
+            appLongPressListener: ((AppDrawerItem) -> Unit)? = null,
             showPinnedIcon: Boolean = false,
             isPinned: Boolean = false,
         ) {
             val context = itemView.context
-            configureAppTitle(context, appModel, appLabelGravity, showPinnedIcon, isPinned)
-            setupClickListeners(context, appModel, listener, appLongPressListener)
+            configureTitle(context, item, appLabelGravity, showPinnedIcon, isPinned)
+            setupClickListeners(context, item, listener, appLongPressListener)
         }
 
-        private fun configureAppTitle(
+        private fun configureTitle(
             context: Context,
-            appModel: AppModel,
+            item: AppDrawerItem,
             gravity: Int,
             showPinnedIcon: Boolean,
             isPinned: Boolean,
         ) {
-            val appName = appModel.appAlias.ifEmpty { appModel.appLabel }
-            val showIndicator = Prefs.getInstance(context).showNotificationIndicator && appModel.hasNotification
-            val displayName = if (showIndicator) "$appName*" else appName
+            val name = item.label
+            val hasNotification = item is AppDrawerItem.App && item.appModel.hasNotification
+            val showIndicator = Prefs.getInstance(context).showNotificationIndicator && hasNotification
+            val displayName = if (showIndicator) "$name*" else name
 
             binding.appTitle.text = displayName
 
@@ -174,25 +180,29 @@ class AppDrawerAdapter(
             params.gravity = gravity
             binding.appTitle.layoutParams = params
 
-            val iconRes = if (showPinnedIcon && isPinned) R.drawable.pin_24px else 0
+            val iconRes = when {
+                item is AppDrawerItem.Folder -> R.drawable.folder_24px
+                showPinnedIcon && isPinned -> R.drawable.pin_24px
+                else -> 0
+            }
             binding.appTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(iconRes, 0, 0, 0)
         }
 
         private fun setupClickListeners(
             context: Context,
-            appModel: AppModel,
-            listener: (AppModel) -> Unit,
-            appLongPressListener: ((AppModel) -> Unit)? = null,
+            item: AppDrawerItem,
+            listener: (AppDrawerItem) -> Unit,
+            appLongPressListener: ((AppDrawerItem) -> Unit)? = null,
         ) {
             binding.appTitleFrame.isHapticFeedbackEnabled = false
             binding.appTitleFrame.setOnClickListener {
                 performAppTapHapticFeedback(context)
-                listener(appModel)
+                listener(item)
             }
             if (appLongPressListener != null) {
                 binding.appTitleFrame.setOnLongClickListener {
                     performLongPressHapticFeedback(context)
-                    appLongPressListener(appModel)
+                    appLongPressListener(item)
                     true
                 }
             } else {

@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import app.luma.MainViewModel
 import app.luma.R
+import app.luma.data.AppDrawerItem
 import app.luma.data.AppModel
 import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.Prefs
@@ -115,25 +116,34 @@ class AppDrawerFragment : Fragment() {
         viewModel: MainViewModel,
         appAdapter: AppDrawerAdapter,
     ) {
-        viewModel.hiddenApps.observe(viewLifecycleOwner) {
+        viewModel.hiddenItems.observe(viewLifecycleOwner) {
             if (flag != AppDrawerFlag.HiddenApps) return@observe
-            it?.let { appList ->
-                binding.listEmptyHint.visibility = if (appList.isEmpty()) View.VISIBLE else View.GONE
-                populateAppList(appList, appAdapter)
+            it?.let { items ->
+                binding.listEmptyHint.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+                populateAppList(items, appAdapter)
             }
         }
 
         viewModel.appList.observe(viewLifecycleOwner) {
             if (flag == AppDrawerFlag.HiddenApps) return@observe
-            it?.let { appList ->
+            it?.let { items ->
                 val filteredList =
                     if (flag == AppDrawerFlag.SetHomeApp) {
-                        appList
+                        items
                     } else {
                         val prefs = Prefs.getInstance(requireContext())
                         val um = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
-                        appList.filter { app ->
-                            !prefs.isAppHidden(app.appPackage, um.getSerialNumberForUser(app.user))
+                        items.filter { item ->
+                            when (item) {
+                                is AppDrawerItem.App -> {
+                                    val app = item.appModel
+                                    !prefs.isAppHidden(app.appPackage, um.getSerialNumberForUser(app.user))
+                                }
+
+                                is AppDrawerItem.Folder -> {
+                                    !prefs.isFolderHidden(item.folderModel.id)
+                                }
+                            }
                         }
                     }
 
@@ -144,10 +154,10 @@ class AppDrawerFragment : Fragment() {
     }
 
     private fun populateAppList(
-        apps: List<AppModel>,
+        items: List<AppDrawerItem>,
         appAdapter: AppDrawerAdapter,
     ) {
-        appAdapter.setAppList(apps.toMutableList())
+        appAdapter.setItemList(items.toMutableList())
         appAdapter.updateNotifications(LumaNotificationListener.getActiveNotificationPackages())
     }
 
@@ -155,30 +165,62 @@ class AppDrawerFragment : Fragment() {
         viewModel: MainViewModel,
         flag: AppDrawerFlag,
         n: Int = 0,
-    ): (appModel: AppModel) -> Unit =
-        { appModel ->
-            viewModel.selectedApp(appModel, flag, n)
-            if (flag == AppDrawerFlag.LaunchApp || flag == AppDrawerFlag.SetHomeApp) {
+    ): (item: AppDrawerItem) -> Unit =
+        { item ->
+            if (flag == AppDrawerFlag.SetHomeApp) {
+                viewModel.selectedItem(item, flag, n)
                 findNavController().popBackStack(R.id.mainFragment, false)
             } else {
-                findNavController().popBackStack()
+                when (item) {
+                    is AppDrawerItem.App -> {
+                        viewModel.selectedApp(item.appModel, flag, n)
+                        if (flag == AppDrawerFlag.LaunchApp) {
+                            findNavController().popBackStack(R.id.mainFragment, false)
+                        } else {
+                            findNavController().popBackStack()
+                        }
+                    }
+
+                    is AppDrawerItem.Folder -> {
+                        findNavController().navigate(
+                            R.id.folderFragment,
+                            bundleOf(
+                                "folderId" to item.folderModel.id,
+                                "folderName" to item.folderModel.name,
+                            ),
+                        )
+                    }
+                }
             }
         }
 
-    private fun appLongPressListener(): (AppModel) -> Unit =
-        { appModel ->
-            val userManager = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
-            findNavController().navigate(
-                R.id.appActionsFragment,
-                bundleOf(
-                    "appPackage" to appModel.appPackage,
-                    "appLabel" to appModel.appLabel,
-                    "appAlias" to appModel.appAlias,
-                    "appActivityName" to appModel.appActivityName,
-                    "isHidden" to (flag == AppDrawerFlag.HiddenApps),
-                    "userSerial" to userManager.getSerialNumberForUser(appModel.user),
-                ),
-            )
+    private fun appLongPressListener(): (AppDrawerItem) -> Unit =
+        { item ->
+            if (item is AppDrawerItem.App) {
+                val appModel = item.appModel
+                val userManager = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
+                findNavController().navigate(
+                    R.id.appActionsFragment,
+                    bundleOf(
+                        "appPackage" to appModel.appPackage,
+                        "appLabel" to appModel.appLabel,
+                        "appAlias" to appModel.appAlias,
+                        "appActivityName" to appModel.appActivityName,
+                        "isHidden" to (flag == AppDrawerFlag.HiddenApps),
+                        "userSerial" to userManager.getSerialNumberForUser(appModel.user),
+                    ),
+                )
+            } else if (item is AppDrawerItem.Folder) {
+                // Folder actions (rename/delete)
+                findNavController().navigate(
+                    R.id.folderNameFragment,
+                    bundleOf(
+                        "folderId" to item.folderModel.id,
+                        "folderName" to item.folderModel.name,
+                        "isHidden" to (flag == AppDrawerFlag.HiddenApps),
+                    ),
+                )
+            }
         }
 
     private fun swipeBackTouchListener(): RecyclerView.OnItemTouchListener {

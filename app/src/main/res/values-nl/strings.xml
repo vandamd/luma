@@ -16,6 +16,7 @@
     <string name="settings_auto_rotate">Automatisch draaien</string>
     <string name="settings_pages">Pagina\'s</string>
     <string name="settings_gestures">Gebaren</string>
+    <string name="settings_haptics">Haptiek</string>
     <string name="settings_notifications">Meldingen</string>
     <string name="settings_status_bar">Statusbalk</string>
     <string name="settings_hidden_apps">Verborgen apps</string>
@@ -42,6 +43,13 @@
     <string name="gesture_swipe_down">Omlaag slepen</string>
     <string name="gesture_swipe_up">Omhoog slepen</string>
     <string name="gesture_double_tap">Dubbeltikken</string>
+
+    <!-- Haptics screen -->
+    <string name="haptics_enabled">Ingeschakeld</string>
+    <string name="haptics_app_tap">App tik</string>
+    <string name="haptics_long_press">Lang indrukken</string>
+    <string name="haptics_gesture_actions">Gebarenacties</string>
+    <string name="haptics_status_bar_press">Statusbalk indrukken</string>
 
     <!-- Pages screen -->
     <string name="pages_page_indicator_position">Pagina-indicator positie</string>
@@ -112,6 +120,19 @@
     <string name="app_actions_confirm_title">Snelkoppeling verwijderen</string>
     <string name="app_actions_uninstall_title">App verwijderen</string>
     <string name="app_actions_confirm_message">Weet u zeker dat u %1$s wilt verwijderen?</string>
+    <string name="app_actions_add_to_folder">Aan map toevoegen</string>
+    <string name="app_actions_remove_from_folder">Uit map verwijderen</string>
+    <string name="app_actions_remove">Verwijderen</string>
+
+    <!-- Folders -->
+    <string name="settings_folders">Mappen</string>
+    <string name="folder_name_hint">Mapnaam</string>
+    <string name="folder_create">Map maken</string>
+    <string name="folder_rename">Map hernoemen</string>
+    <string name="folder_delete">Map verwijderen</string>
+    <string name="folder_delete_confirm">Weet u zeker dat u deze map wilt verwijderen? De apps worden teruggezet in de hoofdlijst.</string>
+    <string name="folder_select_title">Map selecteren</string>
+    <string name="folder_new">Nieuwe map…</string>
 
     <!-- Home screen tips -->
     <string name="tip_swipe_left">Sleep links voor alle apps</string>

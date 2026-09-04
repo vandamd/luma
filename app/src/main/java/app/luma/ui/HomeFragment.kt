@@ -37,6 +37,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import app.luma.MainViewModel
 import app.luma.R
+import app.luma.data.AppDrawerItem
 import app.luma.data.AppModel
 import app.luma.data.Constants.Action
 import app.luma.data.Constants.AppDrawerFlag
@@ -136,9 +137,28 @@ class HomeFragment :
 
     override fun onClick(view: View) {
         try {
-            val appLocation = view.id
+            val location = view.id
             performAppTapHaptic()
-            homeAppClicked(appLocation)
+            val item = prefs.getHomeItem(location)
+            when (item) {
+                is AppDrawerItem.App -> {
+                    if (item.appModel.appLabel.isEmpty()) {
+                        showLongPressToast()
+                    } else {
+                        launchApp(item.appModel)
+                    }
+                }
+
+                is AppDrawerItem.Folder -> {
+                    findNavController().navigate(
+                        R.id.folderFragment,
+                        bundleOf(
+                            "folderId" to item.folderModel.id,
+                            "folderName" to item.folderModel.name,
+                        ),
+                    )
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling app click", e)
         }
@@ -147,23 +167,40 @@ class HomeFragment :
     override fun onLongClick(view: View): Boolean {
         performLongPressHaptic()
         val position = view.id
-        val appModel = prefs.getHomeAppModel(position)
+        val item = prefs.getHomeItem(position)
 
-        if (appModel.appLabel.isEmpty()) {
-            showAppList(AppDrawerFlag.SetHomeApp, position)
-        } else {
-            val userManager = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
-            findNavController().navigate(
-                R.id.appActionsFragment,
-                bundleOf(
-                    "appPackage" to appModel.appPackage,
-                    "appLabel" to appModel.appLabel,
-                    "appAlias" to appModel.appAlias,
-                    "appActivityName" to appModel.appActivityName,
-                    "homePosition" to position,
-                    "userSerial" to userManager.getSerialNumberForUser(appModel.user),
-                ),
-            )
+        when (item) {
+            is AppDrawerItem.App -> {
+                val appModel = item.appModel
+                if (appModel.appLabel.isEmpty()) {
+                    showAppList(AppDrawerFlag.SetHomeApp, position)
+                } else {
+                    val userManager =
+                        requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
+                    findNavController().navigate(
+                        R.id.appActionsFragment,
+                        bundleOf(
+                            "appPackage" to appModel.appPackage,
+                            "appLabel" to appModel.appLabel,
+                            "appAlias" to appModel.appAlias,
+                            "appActivityName" to appModel.appActivityName,
+                            "homePosition" to position,
+                            "userSerial" to userManager.getSerialNumberForUser(appModel.user),
+                        ),
+                    )
+                }
+            }
+
+            is AppDrawerItem.Folder -> {
+                findNavController().navigate(
+                    R.id.appActionsFragment,
+                    bundleOf(
+                        "folderId" to item.folderModel.id,
+                        "appLabel" to item.folderModel.name,
+                        "homePosition" to position,
+                    ),
+                )
+            }
         }
         return true
     }
@@ -816,14 +853,6 @@ class HomeFragment :
         binding.statusBluetooth.visibility = View.GONE
     }
 
-    private fun homeAppClicked(location: Int) {
-        val appModel = prefs.getHomeAppModel(location)
-        if (appModel.appLabel.isEmpty()) {
-            showLongPressToast()
-        } else {
-            launchApp(appModel)
-        }
-    }
 
     private fun launchApp(appModel: AppModel) {
         viewModel.selectedApp(appModel, AppDrawerFlag.LaunchApp)
@@ -981,6 +1010,13 @@ class HomeFragment :
         return if (hasNotification) "$appName*" else appName
     }
 
+    private fun getHomeItemDisplayName(item: AppDrawerItem): String {
+        return when (item) {
+            is AppDrawerItem.App -> getAppDisplayName(item.appModel)
+            is AppDrawerItem.Folder -> item.folderModel.name
+        }
+    }
+
     private fun refreshAppNames() {
         val appsPerPage = prefs.getAppsPerPage(currentPage + 1)
         val startIndex = currentPage * HomeLayout.APPS_PER_PAGE
@@ -991,8 +1027,8 @@ class HomeFragment :
             val appIndex = startIndex + i
             val view = binding.homeAppsLayout.getChildAt(i)
             if (view is TextView) {
-                val appModel = prefs.getHomeAppModel(appIndex)
-                view.text = getAppDisplayName(appModel)
+                val item = prefs.getHomeItem(appIndex)
+                view.text = getHomeItemDisplayName(item)
                 view.id = appIndex
             }
         }

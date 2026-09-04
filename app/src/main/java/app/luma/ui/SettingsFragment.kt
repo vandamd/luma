@@ -61,6 +61,14 @@ class SettingsFragment : Fragment() {
                             requireActivity().recreate()
                         },
                     )
+                    PrefsToggleTextButton(
+                        title = stringResource(R.string.settings_folders),
+                        initialValue = prefs.foldersEnabled,
+                        onValueChange = {
+                            prefs.foldersEnabled = it
+                            viewModel.getAppList()
+                        },
+                    )
                     SelectorButton(
                         label = stringResource(R.string.settings_invert_colours),
                         value =
@@ -104,7 +112,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun showHiddenApps() {
-        viewModel.getHiddenApps()
+        viewModel.getHiddenItems()
         findNavController().navigate(
             R.id.appListFragment,
             bundleOf("flag" to AppDrawerFlag.HiddenApps.toString()),

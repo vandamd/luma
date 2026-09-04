@@ -35,6 +35,7 @@ class AppActionsFragment : Fragment() {
     private val appLabel: String by lazy { arguments?.getString("appLabel") ?: "" }
     private val appAlias: String by lazy { arguments?.getString("appAlias") ?: "" }
     private val appActivityName: String by lazy { arguments?.getString("appActivityName") ?: "" }
+    private val folderId: String? by lazy { arguments?.getString("folderId") }
     private val homePosition: Int by lazy { arguments?.getInt("homePosition", -1) ?: -1 }
     private val isAppHidden: Boolean by lazy { arguments?.getBoolean("isHidden", false) ?: false }
     private val userSerial: Long by lazy { arguments?.getLong("userSerial", -1L) ?: -1L }
@@ -65,6 +66,9 @@ class AppActionsFragment : Fragment() {
     private val isHomeApp: Boolean
         get() = homePosition >= 0
 
+    private val isFolder: Boolean
+        get() = folderId != null
+
     private val canMoveUp: Boolean by lazy {
         if (!isHomeApp) return@lazy false
         val pageStartIndex = (homePosition / HomeLayout.APPS_PER_PAGE) * HomeLayout.APPS_PER_PAGE
@@ -77,6 +81,85 @@ class AppActionsFragment : Fragment() {
         val pageStartIndex = page * HomeLayout.APPS_PER_PAGE
         val appsOnPage = prefs.getAppsPerPage(page + 1)
         homePosition < pageStartIndex + appsOnPage - 1
+    }
+
+    @Composable
+    private fun FolderActionsScreen() {
+        Column {
+            SettingsHeader(
+                title = appLabel,
+                onBack = ::goBack,
+            )
+            ContentContainer {
+                CustomScrollView(verticalArrangement = Arrangement.spacedBy(33.5.dp)) {
+                    val isFolderHidden = folderId?.let { prefs.isFolderHidden(it) } ?: false
+                    SimpleTextButton(stringResource(R.string.app_actions_rename)) {
+                        findNavController().navigate(
+                            R.id.folderNameFragment,
+                            bundleOf(
+                                "folderId" to folderId,
+                                "folderName" to appLabel,
+                                "isHidden" to isFolderHidden,
+                            ),
+                        )
+                    }
+
+                    SimpleTextButton(stringResource(R.string.app_actions_replace)) {
+                        findNavController().navigate(
+                            R.id.appListFragment,
+                            bundleOf(
+                                "flag" to AppDrawerFlag.SetHomeApp.toString(),
+                                "n" to homePosition,
+                            ),
+                        )
+                    }
+
+                    if (canMoveUp) {
+                        SimpleTextButton(stringResource(R.string.app_actions_move_up)) {
+                            val above = prefs.getHomeItem(homePosition - 1)
+                            val current = prefs.getHomeItem(homePosition)
+                            prefs.setHomeItem(homePosition - 1, current)
+                            prefs.setHomeItem(homePosition, above)
+                            findNavController().popBackStack(R.id.mainFragment, false)
+                        }
+                    }
+                    if (canMoveDown) {
+                        SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
+                            val below = prefs.getHomeItem(homePosition + 1)
+                            val current = prefs.getHomeItem(homePosition)
+                            prefs.setHomeItem(homePosition + 1, current)
+                            prefs.setHomeItem(homePosition, below)
+                            findNavController().popBackStack(R.id.mainFragment, false)
+                        }
+                    }
+
+                    SimpleTextButton(stringResource(if (isFolderHidden) R.string.app_actions_show else R.string.app_actions_hide)) {
+                        folderId?.let {
+                            if (isFolderHidden) prefs.unhideFolder(it) else prefs.hideFolder(it)
+                        }
+                        findNavController().popBackStack(R.id.mainFragment, false)
+                    }
+
+                    SimpleTextButton(stringResource(R.string.app_actions_remove)) {
+                        // "Remove" from home screen
+                        prefs.setHomeItem(
+                            homePosition,
+                            app.luma.data.AppDrawerItem.App(
+                                AppModel(
+                                    appLabel = "",
+                                    appPackage = "",
+                                    appAlias = "",
+                                    appActivityName = "",
+                                    user = android.os.Process.myUserHandle(),
+                                    key = null,
+                                ),
+                            ),
+                        )
+                        findNavController().popBackStack(R.id.mainFragment, false)
+                    }
+                }
+            }
+        }
     }
 
     override fun onCreateView(
@@ -140,6 +223,10 @@ class AppActionsFragment : Fragment() {
 
     @Composable
     private fun AppActionsScreen() {
+        if (isFolder) {
+            FolderActionsScreen()
+            return
+        }
         val pinnedApps = prefs.pinnedApps
         val pinnedIndex = pinnedApps.indexOf(pinnedEntry)
         val isPinned = pinnedIndex >= 0
@@ -202,6 +289,43 @@ class AppActionsFragment : Fragment() {
                         }
                     }
                     if (!isHomeApp) {
+                        val folder = prefs.getFolderForApp(pinnedEntry)
+                        if (folder != null) {
+                            SimpleTextButton(stringResource(R.string.app_actions_remove_from_folder)) {
+                                prefs.removeAppFromFolder(pinnedEntry)
+                                ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                                findNavController().popBackStack(R.id.mainFragment, false)
+                            }
+                            val apps = folder.apps
+                            val index = apps.indexOf(pinnedEntry)
+                            if (index > 0) {
+                                SimpleTextButton(stringResource(R.string.app_actions_move_up)) {
+                                    prefs.moveAppInFolderUp(folder.id, pinnedEntry)
+                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                                    findNavController().popBackStack()
+                                }
+                            }
+                            if (index >= 0 && index < apps.size - 1) {
+                                SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
+                                    prefs.moveAppInFolderDown(folder.id, pinnedEntry)
+                                    ViewModelProvider(requireActivity())[MainViewModel::class.java].getAppList()
+                                    findNavController().popBackStack()
+                                }
+                            }
+                        } else {
+                            SimpleTextButton(stringResource(R.string.app_actions_add_to_folder)) {
+                                findNavController().navigate(
+                                    R.id.selectFolderFragment,
+                                    bundleOf(
+                                        "appPackage" to appPackage,
+                                        "appActivityName" to appActivityName,
+                                        "userSerial" to userSerial,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                    if (!isHomeApp) {
                         val buttonText = if (isAppHidden) R.string.app_actions_show else R.string.app_actions_hide
                         SimpleTextButton(stringResource(buttonText)) {
                             val prefs = Prefs.getInstance(requireContext())
@@ -238,19 +362,19 @@ class AppActionsFragment : Fragment() {
                         }
                         if (canMoveUp) {
                             SimpleTextButton(stringResource(R.string.app_actions_move_up)) {
-                                val above = prefs.getHomeAppModel(homePosition - 1)
-                                val current = prefs.getHomeAppModel(homePosition)
-                                prefs.setHomeAppModel(homePosition - 1, current)
-                                prefs.setHomeAppModel(homePosition, above)
+                                val above = prefs.getHomeItem(homePosition - 1)
+                                val current = prefs.getHomeItem(homePosition)
+                                prefs.setHomeItem(homePosition - 1, current)
+                                prefs.setHomeItem(homePosition, above)
                                 findNavController().popBackStack(R.id.mainFragment, false)
                             }
                         }
                         if (canMoveDown) {
                             SimpleTextButton(stringResource(R.string.app_actions_move_down)) {
-                                val below = prefs.getHomeAppModel(homePosition + 1)
-                                val current = prefs.getHomeAppModel(homePosition)
-                                prefs.setHomeAppModel(homePosition + 1, current)
-                                prefs.setHomeAppModel(homePosition, below)
+                                val below = prefs.getHomeItem(homePosition + 1)
+                                val current = prefs.getHomeItem(homePosition)
+                                prefs.setHomeItem(homePosition + 1, current)
+                                prefs.setHomeItem(homePosition, below)
                                 findNavController().popBackStack(R.id.mainFragment, false)
                             }
                         }

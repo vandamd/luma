@@ -19,6 +19,9 @@ private const val INVERT_COLOURS = "INVERT_COLOURS"
 private const val THEME_MODE = "theme_mode"
 private const val PINNED_SHORTCUTS = "PINNED_SHORTCUTS"
 private const val PINNED_APPS = "PINNED_APPS"
+private const val FOLDERS_ENABLED = "folders_enabled"
+private const val FOLDERS = "folders"
+private const val HIDDEN_FOLDERS = "HIDDEN_FOLDERS"
 
 data class ShortcutEntry(
     val packageName: String,
@@ -52,6 +55,7 @@ private const val APP_PACKAGE = "APP_PACKAGE"
 private const val APP_ALIAS = "APP_ALIAS"
 private const val APP_ACTIVITY = "APP_ACTIVITY"
 private const val APP_USER_SERIAL = "APP_USER_SERIAL"
+private const val HOME_ITEM_TYPE = "HOME_ITEM_TYPE"
 
 enum class GestureType(
     val actionKey: String,
@@ -218,6 +222,64 @@ class Prefs(
     var hiddenApps: MutableSet<String>
         get() = prefs.getStringSet(HIDDEN_APPS, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         set(value) = prefs.edit().putStringSet(HIDDEN_APPS, value).apply()
+
+    var hiddenFolders: MutableSet<String>
+        get() = prefs.getStringSet(HIDDEN_FOLDERS, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        set(value) = prefs.edit().putStringSet(HIDDEN_FOLDERS, value).apply()
+
+    fun isFolderHidden(folderId: String): Boolean = hiddenFolders.contains(folderId)
+
+    fun hideFolder(folderId: String) {
+        val hidden = hiddenFolders
+        hidden.add(folderId)
+        hiddenFolders = hidden
+    }
+
+    fun unhideFolder(folderId: String) {
+        val hidden = hiddenFolders
+        hidden.remove(folderId)
+        hiddenFolders = hidden
+    }
+
+    fun getHomeItem(i: Int): AppDrawerItem {
+        val type = prefs.getString("${HOME_ITEM_TYPE}_$i", "app")
+        return if (type == "folder") {
+            val folderId = prefs.getString("${APP_PACKAGE}_$i", "") ?: ""
+            val folder = folders.find { it.id == folderId }
+            if (folder != null) {
+                AppDrawerItem.Folder(folder)
+            } else {
+                AppDrawerItem.App(loadApp("$i"))
+            }
+        } else {
+            AppDrawerItem.App(loadApp("$i"))
+        }
+    }
+
+    fun setHomeItem(
+        i: Int,
+        item: AppDrawerItem,
+    ) {
+        when (item) {
+            is AppDrawerItem.App -> {
+                prefs.edit().putString("${HOME_ITEM_TYPE}_$i", "app").apply()
+                storeApp("$i", item.appModel)
+            }
+
+            is AppDrawerItem.Folder -> {
+                prefs.edit().putString("${HOME_ITEM_TYPE}_$i", "folder").apply()
+                val folder = item.folderModel
+                prefs
+                    .edit()
+                    .putString("${APP_NAME}_$i", folder.name)
+                    .putString("${APP_PACKAGE}_$i", folder.id)
+                    .putString("${APP_ACTIVITY}_$i", "")
+                    .putString("${APP_ALIAS}_$i", "")
+                    .putLong("${APP_USER_SERIAL}_$i", -1L)
+                    .apply()
+            }
+        }
+    }
 
     fun getHomeAppModel(i: Int): AppModel = loadApp("$i")
 
@@ -542,6 +604,171 @@ class Prefs(
     var autoRotateEnabled: Boolean
         get() = prefs.getBoolean(AUTO_ROTATE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(AUTO_ROTATE_ENABLED, value).apply()
+
+    var foldersEnabled: Boolean
+        get() = prefs.getBoolean(FOLDERS_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(FOLDERS_ENABLED, value).apply()
+
+    var folders: List<FolderModel>
+        get() {
+            val raw = prefs.getString(FOLDERS, null) ?: return emptyList()
+            return try {
+                val array = JSONArray(raw)
+                val list = mutableListOf<FolderModel>()
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val id = obj.optString("id", "")
+                    val name = obj.optString("name", "")
+                    val appsArray = obj.optJSONArray("apps") ?: JSONArray()
+                    val apps = mutableListOf<PinnedAppEntry>()
+                    for (j in 0 until appsArray.length()) {
+                        val appObj = appsArray.optJSONObject(j) ?: continue
+                        val p = appObj.optString("p", "")
+                        val a = appObj.optString("a", "")
+                        val u = appObj.optLong("u", -1L)
+                        if (p.isNotEmpty()) {
+                            apps.add(PinnedAppEntry(p, a, if (u < 0) mySerial else u))
+                        }
+                    }
+                    if (id.isNotEmpty() && name.isNotEmpty()) {
+                        list.add(FolderModel(id, name, apps))
+                    }
+                }
+                list
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        set(value) {
+            val array = JSONArray()
+            value.forEach { folder ->
+                val obj = JSONObject()
+                obj.put("id", folder.id)
+                obj.put("name", folder.name)
+                val appsArray = JSONArray()
+                folder.apps.forEach { app ->
+                    val appObj = JSONObject()
+                    appObj.put("p", app.packageName)
+                    appObj.put("a", app.activityName)
+                    appObj.put("u", app.userSerial)
+                    appsArray.put(appObj)
+                }
+                obj.put("apps", appsArray)
+                array.put(obj)
+            }
+            prefs.edit().putString(FOLDERS, array.toString()).apply()
+        }
+
+    fun addAppToFolder(
+        folderId: String,
+        entry: PinnedAppEntry,
+    ) {
+        val normalized = normalizePinnedEntry(entry)
+        val current = folders.toMutableList()
+        val index = current.indexOfFirst { it.id == folderId }
+        if (index < 0) return
+
+        // Remove from other folders first
+        val updated =
+            current.map { folder ->
+                if (folder.id == folderId) {
+                    if (folder.apps.contains(normalized)) folder
+                    else folder.copy(apps = folder.apps + normalized)
+                } else {
+                    folder.copy(apps = folder.apps.filterNot { it == normalized })
+                }
+            }
+        folders = updated
+    }
+
+    fun removeAppFromFolder(entry: PinnedAppEntry) {
+        val normalized = normalizePinnedEntry(entry)
+        folders =
+            folders.map { folder ->
+                folder.copy(apps = folder.apps.filterNot { it == normalized })
+            }
+    }
+
+    fun deleteFolder(folderId: String) {
+        folders = folders.filterNot { it.id == folderId }
+    }
+
+    fun createFolder(name: String): FolderModel {
+        val newFolder = FolderModel(name = name)
+        folders = folders + newFolder
+        return newFolder
+    }
+
+    fun getFolderForApp(entry: PinnedAppEntry): FolderModel? {
+        val normalized = normalizePinnedEntry(entry)
+        return folders.find { it.apps.contains(normalized) }
+    }
+
+    fun renameFolder(
+        folderId: String,
+        newName: String,
+    ) {
+        folders =
+            folders.map {
+                if (it.id == folderId) it.copy(name = newName) else it
+            }
+    }
+
+    fun moveFolderUp(folderId: String) {
+        val current = folders.toMutableList()
+        val index = current.indexOfFirst { it.id == folderId }
+        if (index <= 0) return
+        val item = current.removeAt(index)
+        current.add(index - 1, item)
+        folders = current
+    }
+
+    fun moveFolderDown(folderId: String) {
+        val current = folders.toMutableList()
+        val index = current.indexOfFirst { it.id == folderId }
+        if (index < 0 || index >= current.size - 1) return
+        val item = current.removeAt(index)
+        current.add(index + 1, item)
+        folders = current
+    }
+
+    fun moveAppInFolderUp(
+        folderId: String,
+        entry: PinnedAppEntry,
+    ) {
+        val normalized = normalizePinnedEntry(entry)
+        folders =
+            folders.map { folder ->
+                if (folder.id == folderId) {
+                    val apps = folder.apps.toMutableList()
+                    val index = apps.indexOf(normalized)
+                    if (index > 0) {
+                        val app = apps.removeAt(index)
+                        apps.add(index - 1, app)
+                        folder.copy(apps = apps)
+                    } else folder
+                } else folder
+            }
+    }
+
+    fun moveAppInFolderDown(
+        folderId: String,
+        entry: PinnedAppEntry,
+    ) {
+        val normalized = normalizePinnedEntry(entry)
+        folders =
+            folders.map { folder ->
+                if (folder.id == folderId) {
+                    val apps = folder.apps.toMutableList()
+                    val index = apps.indexOf(normalized)
+                    if (index >= 0 && index < apps.size - 1) {
+                        val app = apps.removeAt(index)
+                        apps.add(index + 1, app)
+                        folder.copy(apps = apps)
+                    } else folder
+                } else folder
+            }
+    }
 
     fun getHiddenAppKey(
         packageName: String,

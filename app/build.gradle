@@ -38,8 +38,8 @@ android {
         applicationId "app.luma"
         minSdk 31
         targetSdk 35
-        versionCode 45
-        versionName "v1.4.6"
+        versionCode 46
+        versionName "v1.4.7"
     }
 
     buildFeatures {
