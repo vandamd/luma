@@ -20,6 +20,7 @@
     <string name="settings_notifications">Meldingen</string>
     <string name="settings_status_bar">Statusbalk</string>
     <string name="settings_hidden_apps">Verborgen apps</string>
+    <string name="settings_font_size">Lettergrootte</string>
     <string name="settings_default_launcher">Standaard launcher</string>
 
     <!-- Gesture actions -->
@@ -151,6 +152,11 @@
     <string name="toast_added_to_app_drawer">Toegevoegd aan app-lade</string>
 
     <!-- Misc -->
+    <string name="font_size_system">Systeem</string>
+    <string name="font_size_small">Klein</string>
+    <string name="font_size_medium">Gemiddeld</string>
+    <string name="font_size_large">Groot</string>
+    <string name="font_size_extra_large">Extra groot</string>
     <string name="app_placeholder">App</string>
     <string name="app_count_status_bar_hint">Je hebt de statusbalk ingeschakeld, ik raad aan maximaal 5 apps te gebruiken zodat het er goed uitziet :)</string>
 

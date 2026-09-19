@@ -19,6 +19,7 @@ import app.luma.MainViewModel
 import app.luma.R
 import app.luma.data.Constants.AppDrawerFlag
 import app.luma.data.Prefs
+import app.luma.style.FontSizeOption
 import app.luma.ui.compose.CustomScrollView
 import app.luma.ui.compose.SettingsComposable.ContentContainer
 import app.luma.ui.compose.SettingsComposable.PrefsToggleTextButton
@@ -78,6 +79,18 @@ class SettingsFragment : Fragment() {
                                 Prefs.ThemeMode.Automatic -> stringResource(R.string.settings_theme_automatic)
                             },
                         onClick = { findNavController().navigate(R.id.action_settingsFragment_to_themeModeFragment) },
+                    )
+                    SelectorButton(
+                        label = stringResource(R.string.settings_font_size),
+                        value =
+                            when (prefs.fontSizeOption) {
+                                FontSizeOption.System -> stringResource(R.string.font_size_system)
+                                FontSizeOption.Small -> stringResource(R.string.font_size_small)
+                                FontSizeOption.Medium -> stringResource(R.string.font_size_medium)
+                                FontSizeOption.Large -> stringResource(R.string.font_size_large)
+                                FontSizeOption.ExtraLarge -> stringResource(R.string.font_size_extra_large)
+                            },
+                        onClick = { findNavController().navigate(R.id.action_settingsFragment_to_fontSizeFragment) },
                     )
                     SimpleTextButton(
                         stringResource(R.string.settings_pages),

@@ -19,10 +19,9 @@ object DisplayDefaults {
     fun Context.withDisplayDefaults(): Context {
         val configuration = Configuration(resources.configuration)
         val prefs = Prefs.getInstance(this)
-        val option =
-            resolveOption(this).also {
-                if (prefs.fontSizeOption != it) prefs.fontSizeOption = it
-            }
+        val prefOption = prefs.fontSizeOption
+        val option = if (prefOption == FontSizeOption.System) resolveOption(this) else prefOption
+
         return if (configuration.applyDisplayDefaults(option)) {
             createConfigurationContext(configuration)
         } else {
@@ -33,10 +32,9 @@ object DisplayDefaults {
     fun Configuration?.withDisplayDefaults(context: Context): Configuration? {
         this ?: return null
         val prefs = Prefs.getInstance(context)
-        val option =
-            resolveOption(context).also {
-                if (prefs.fontSizeOption != it) prefs.fontSizeOption = it
-            }
+        val prefOption = prefs.fontSizeOption
+        val option = if (prefOption == FontSizeOption.System) resolveOption(context) else prefOption
+
         applyDisplayDefaults(option)
         return this
     }

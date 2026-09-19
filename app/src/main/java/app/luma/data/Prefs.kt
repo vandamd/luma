@@ -507,7 +507,7 @@ class Prefs(
 
     var fontSizeOption: FontSizeOption
         get() {
-            val key = prefs.getString(FONT_SIZE_OPTION, FontSizeOption.Medium.name)
+            val key = prefs.getString(FONT_SIZE_OPTION, FontSizeOption.System.name)
             return FontSizeOption.fromKey(key)
         }
         set(value) = prefs.edit().putString(FONT_SIZE_OPTION, value.name).apply()

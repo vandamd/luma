@@ -1,20 +1,16 @@
 package app.luma.style
 
 enum class FontSizeOption(
-    val title: String,
     val fontScale: Float,
 ) {
-    Small(
-        title = "Small",
-        fontScale = 0.72f,
-    ),
-    Medium(
-        title = "Medium (Default)",
-        fontScale = 0.86f,
-    ),
+    System(0.86f),
+    Small(0.72f),
+    Medium(0.86f),
+    Large(1.0f),
+    ExtraLarge(1.15f),
     ;
 
     companion object {
-        fun fromKey(key: String?): FontSizeOption = values().firstOrNull { it.name == key } ?: Medium
+        fun fromKey(key: String?): FontSizeOption = entries.firstOrNull { it.name == key } ?: System
     }
 }

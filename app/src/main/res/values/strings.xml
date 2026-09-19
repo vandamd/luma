@@ -17,6 +17,7 @@
     <string name="settings_haptics">Haptics</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_hidden_apps">Hidden Apps</string>
+    <string name="settings_font_size">Font size</string>
     <string name="settings_default_launcher">Default Launcher</string>
 
     <!-- Gesture actions -->
@@ -159,6 +160,11 @@
     <string name="toast_added_to_app_drawer">Added to app drawer</string>
 
     <!-- Misc -->
+    <string name="font_size_system">System</string>
+    <string name="font_size_small">Small</string>
+    <string name="font_size_medium">Medium</string>
+    <string name="font_size_large">Large</string>
+    <string name="font_size_extra_large">Extra Large</string>
     <string name="app_count_status_bar_hint">You have the status bar enabled, I recommend using a maximum of 5 apps for it to look good :)</string>
     <string name="app_placeholder">App</string>
 
