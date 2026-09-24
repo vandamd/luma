@@ -101,6 +101,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Rodyti</string>
     <string name="app_actions_hide">Slėpti</string>
+    <string name="app_actions_hide_indicator">Slėpti indikatorių (*)</string>
+    <string name="app_actions_show_indicator">Rodyti indikatorių (*)</string>
     <string name="app_actions_rename">Pervadinti</string>
     <string name="app_actions_pin">Prisegti</string>
     <string name="app_actions_unpin">Atsegti</string>

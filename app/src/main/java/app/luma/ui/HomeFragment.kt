@@ -978,7 +978,11 @@ class HomeFragment :
 
         val packagesWithNotifications = LumaNotificationListener.getActiveNotificationPackages()
         val hasNotification = packagesWithNotifications.contains(appModel.appPackage)
-        return if (hasNotification) "$appName*" else appName
+        if (!hasNotification) return appName
+
+        val userManager = requireContext().getSystemService(android.content.Context.USER_SERVICE) as UserManager
+        val userSerial = userManager.getSerialNumberForUser(appModel.user)
+        return if (prefs.isNotificationIndicatorEnabledFor(appModel.appPackage, userSerial)) "$appName*" else appName
     }
 
     private fun refreshAppNames() {

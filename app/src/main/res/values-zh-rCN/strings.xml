@@ -102,6 +102,8 @@
     <!-- App actions -->
     <string name="app_actions_show">显示</string>
     <string name="app_actions_hide">隐藏</string>
+    <string name="app_actions_hide_indicator">隐藏指示器 (*)</string>
+    <string name="app_actions_show_indicator">显示指示器 (*)</string>
     <string name="app_actions_rename">重命名</string>
     <string name="app_actions_pin">置顶</string>
     <string name="app_actions_unpin">取消置顶</string>

@@ -102,6 +102,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Показати</string>
     <string name="app_actions_hide">Приховати</string>
+    <string name="app_actions_hide_indicator">Приховати індикатор (*)</string>
+    <string name="app_actions_show_indicator">Показати індикатор (*)</string>
     <string name="app_actions_rename">Перейменувати</string>
     <string name="app_actions_pin">Закріпити</string>
     <string name="app_actions_unpin">Відкріпити</string>

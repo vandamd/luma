@@ -97,6 +97,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Anzeigen</string>
     <string name="app_actions_hide">Verstecken</string>
+    <string name="app_actions_hide_indicator">Indikator (*) verstecken</string>
+    <string name="app_actions_show_indicator">Indikator (*) anzeigen</string>
     <string name="app_actions_rename">Umbenennen</string>
     <string name="app_actions_pin">Anheften</string>
     <string name="app_actions_unpin">Loslösen</string>

@@ -69,8 +69,14 @@ class AppDrawerAdapter(
             config.appLongPressListener,
             config.showPinnedIcon,
             config.showPinnedIcon && isPinned(appModel),
+            showsNotificationIndicator(appModel),
         )
     }
+
+    private fun showsNotificationIndicator(appModel: AppModel): Boolean =
+        prefs.showNotificationIndicator &&
+            appModel.hasNotification &&
+            prefs.isNotificationIndicatorEnabledFor(appModel.appPackage, userManager.getSerialNumberForUser(appModel.user))
 
     override fun getItemCount(): Int = appFilteredList.size
 
@@ -151,9 +157,10 @@ class AppDrawerAdapter(
             appLongPressListener: ((AppModel) -> Unit)? = null,
             showPinnedIcon: Boolean = false,
             isPinned: Boolean = false,
+            showNotificationIndicator: Boolean = false,
         ) {
             val context = itemView.context
-            configureAppTitle(context, appModel, appLabelGravity, showPinnedIcon, isPinned)
+            configureAppTitle(context, appModel, appLabelGravity, showPinnedIcon, isPinned, showNotificationIndicator)
             setupClickListeners(context, appModel, listener, appLongPressListener)
         }
 
@@ -163,10 +170,10 @@ class AppDrawerAdapter(
             gravity: Int,
             showPinnedIcon: Boolean,
             isPinned: Boolean,
+            showNotificationIndicator: Boolean,
         ) {
             val appName = appModel.appAlias.ifEmpty { appModel.appLabel }
-            val showIndicator = Prefs.getInstance(context).showNotificationIndicator && appModel.hasNotification
-            val displayName = if (showIndicator) "$appName*" else appName
+            val displayName = if (showNotificationIndicator) "$appName*" else appName
 
             binding.appTitle.text = displayName
 

@@ -77,6 +77,7 @@ enum class StatusBarSectionType(
 
 private const val PAGE_INDICATOR_POSITION = "page_indicator_position"
 private const val SHOW_NOTIFICATION_INDICATOR = "show_notification_indicator"
+private const val NOTIFICATION_INDICATOR_DISABLED_APPS = "notification_indicator_disabled_apps"
 private const val SHOW_STATUS_BAR_NOTIFICATION_INDICATOR = "show_status_bar_notification_indicator"
 private const val NOTIFICATION_INDICATOR_SECTION = "notification_indicator_section"
 private const val NOTIFICATION_INDICATOR_ALIGNMENT = "notification_indicator_alignment"
@@ -457,6 +458,26 @@ class Prefs(
     var showNotificationIndicator: Boolean
         get() = prefs.getBoolean(SHOW_NOTIFICATION_INDICATOR, true)
         set(value) = prefs.edit().putBoolean(SHOW_NOTIFICATION_INDICATOR, value).apply()
+
+    var notificationIndicatorDisabledApps: Set<String>
+        get() = prefs.getStringSet(NOTIFICATION_INDICATOR_DISABLED_APPS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(NOTIFICATION_INDICATOR_DISABLED_APPS, value).apply()
+
+    // Uses the same "package[|userSerial]" key format as hiddenApps.
+    fun isNotificationIndicatorEnabledFor(
+        packageName: String,
+        userSerial: Long,
+    ): Boolean = !notificationIndicatorDisabledApps.contains(getHiddenAppKey(packageName, userSerial))
+
+    fun setNotificationIndicatorEnabledFor(
+        packageName: String,
+        userSerial: Long,
+        enabled: Boolean,
+    ) {
+        val key = getHiddenAppKey(packageName, userSerial)
+        notificationIndicatorDisabledApps =
+            if (enabled) notificationIndicatorDisabledApps - key else notificationIndicatorDisabledApps + key
+    }
 
     var showStatusBarNotificationIndicator: Boolean
         get() = prefs.getBoolean(SHOW_STATUS_BAR_NOTIFICATION_INDICATOR, true)

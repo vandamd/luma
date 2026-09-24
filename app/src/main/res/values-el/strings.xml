@@ -97,6 +97,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Εμφάνιση</string>
     <string name="app_actions_hide">Απόκρυψη</string>
+    <string name="app_actions_hide_indicator">Απόκρυψη δείκτη (*)</string>
+    <string name="app_actions_show_indicator">Εμφάνιση δείκτη (*)</string>
     <string name="app_actions_rename">Μετονομασία</string>
     <string name="app_actions_pin">Καρφίτσωμα</string>
     <string name="app_actions_unpin">Ξεκαρφίτσωμα</string>

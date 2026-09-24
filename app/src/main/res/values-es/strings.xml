@@ -93,6 +93,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Mostrar</string>
     <string name="app_actions_hide">Ocultar</string>
+    <string name="app_actions_hide_indicator">Ocultar indicador (*)</string>
+    <string name="app_actions_show_indicator">Mostrar indicador (*)</string>
     <string name="app_actions_rename">Renombrar</string>
     <string name="app_actions_pin">Fijar</string>
     <string name="app_actions_unpin">Desfijar</string>

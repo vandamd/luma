@@ -101,6 +101,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Tonen</string>
     <string name="app_actions_hide">Verbergen</string>
+    <string name="app_actions_hide_indicator">Indicator (*) verbergen</string>
+    <string name="app_actions_show_indicator">Indicator (*) tonen</string>
     <string name="app_actions_rename">Hernoemen</string>
     <string name="app_actions_pin">Vastzetten</string>
     <string name="app_actions_unpin">Losmaken</string>

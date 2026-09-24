@@ -98,6 +98,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Hiển thị</string>
     <string name="app_actions_hide">Ẩn</string>
+    <string name="app_actions_hide_indicator">Ẩn chỉ báo (*)</string>
+    <string name="app_actions_show_indicator">Hiển thị chỉ báo (*)</string>
     <string name="app_actions_rename">Đổi tên</string>
     <string name="app_actions_pin">Ghim</string>
     <string name="app_actions_unpin">Bỏ ghim</string>

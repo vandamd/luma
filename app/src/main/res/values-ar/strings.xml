@@ -97,6 +97,8 @@
     <!-- App actions -->
     <string name="app_actions_show">إظهار</string>
     <string name="app_actions_hide">إخفاء</string>
+    <string name="app_actions_hide_indicator">إخفاء المؤشر (*)</string>
+    <string name="app_actions_show_indicator">إظهار المؤشر (*)</string>
     <string name="app_actions_rename">إعادة تسمية</string>
     <string name="app_actions_pin">تثبيت</string>
     <string name="app_actions_unpin">إلغاء التثبيت</string>

@@ -97,6 +97,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Zobrazit</string>
     <string name="app_actions_hide">Skrýt</string>
+    <string name="app_actions_hide_indicator">Skrýt indikátor (*)</string>
+    <string name="app_actions_show_indicator">Zobrazit indikátor (*)</string>
     <string name="app_actions_rename">Přejmenovat</string>
     <string name="app_actions_pin">Připnout</string>
     <string name="app_actions_unpin">Odepnout</string>

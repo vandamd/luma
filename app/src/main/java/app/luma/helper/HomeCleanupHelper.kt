@@ -56,6 +56,11 @@ object HomeCleanupHelper {
             needsAppListRefresh = true
         }
 
+        val indicatorDisabledApps = prefs.notificationIndicatorDisabledApps
+        if (indicatorDisabledApps.contains(hiddenKey)) {
+            prefs.notificationIndicatorDisabledApps = indicatorDisabledApps - hiddenKey
+        }
+
         val pinnedShortcuts = prefs.pinnedShortcuts
         val filteredShortcuts =
             pinnedShortcuts

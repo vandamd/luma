@@ -65,6 +65,9 @@ class AppActionsFragment : Fragment() {
     private val isHomeApp: Boolean
         get() = homePosition >= 0
 
+    private val effectiveUserSerial: Long
+        get() = if (userSerial >= 0L) userSerial else prefs.mySerial
+
     private val canMoveUp: Boolean by lazy {
         if (!isHomeApp) return@lazy false
         val pageStartIndex = (homePosition / HomeLayout.APPS_PER_PAGE) * HomeLayout.APPS_PER_PAGE
@@ -224,6 +227,19 @@ class AppActionsFragment : Fragment() {
                                 prefs.hiddenApps = newSet
                             }
                             findNavController().popBackStack(R.id.mainFragment, false)
+                        }
+                    }
+                    if (!isPinnedShortcut && prefs.showNotificationIndicator) {
+                        val indicatorEnabled = prefs.isNotificationIndicatorEnabledFor(appPackage, effectiveUserSerial)
+                        val indicatorText =
+                            if (indicatorEnabled) R.string.app_actions_hide_indicator else R.string.app_actions_show_indicator
+                        SimpleTextButton(stringResource(indicatorText)) {
+                            prefs.setNotificationIndicatorEnabledFor(appPackage, effectiveUserSerial, !indicatorEnabled)
+                            if (isHomeApp) {
+                                findNavController().popBackStack(R.id.mainFragment, false)
+                            } else {
+                                findNavController().popBackStack(R.id.appListFragment, false)
+                            }
                         }
                     }
                     if (isHomeApp) {

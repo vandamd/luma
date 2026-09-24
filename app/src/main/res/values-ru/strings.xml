@@ -100,6 +100,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Показать</string>
     <string name="app_actions_hide">Скрыть</string>
+    <string name="app_actions_hide_indicator">Скрыть индикатор (*)</string>
+    <string name="app_actions_show_indicator">Показать индикатор (*)</string>
     <string name="app_actions_rename">Переименовать</string>
     <string name="app_actions_pin">Закрепить</string>
     <string name="app_actions_unpin">Открепить</string>

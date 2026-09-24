@@ -101,6 +101,8 @@
     <!-- App actions -->
     <string name="app_actions_show">表示</string>
     <string name="app_actions_hide">非表示</string>
+    <string name="app_actions_hide_indicator">インジケーター (*) を非表示</string>
+    <string name="app_actions_show_indicator">インジケーター (*) を表示</string>
     <string name="app_actions_rename">名前変更</string>
     <string name="app_actions_pin">ピン留め</string>
     <string name="app_actions_unpin">ピン留め解除</string>

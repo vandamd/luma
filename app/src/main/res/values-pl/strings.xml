@@ -100,6 +100,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Pokaż</string>
     <string name="app_actions_hide">Ukryj</string>
+    <string name="app_actions_hide_indicator">Ukryj wskaźnik (*)</string>
+    <string name="app_actions_show_indicator">Pokaż wskaźnik (*)</string>
     <string name="app_actions_rename">Zmień nazwę</string>
     <string name="app_actions_pin">Przypnij</string>
     <string name="app_actions_unpin">Odepnij</string>

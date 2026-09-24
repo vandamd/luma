@@ -101,6 +101,8 @@
     <!-- App actions -->
     <string name="app_actions_show">표시</string>
     <string name="app_actions_hide">숨기기</string>
+    <string name="app_actions_hide_indicator">인디케이터 (*) 숨기기</string>
+    <string name="app_actions_show_indicator">인디케이터 (*) 표시</string>
     <string name="app_actions_rename">이름 변경</string>
     <string name="app_actions_pin">고정</string>
     <string name="app_actions_unpin">고정 해제</string>

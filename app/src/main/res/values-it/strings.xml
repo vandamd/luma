@@ -101,6 +101,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Mostra</string>
     <string name="app_actions_hide">Nascondi</string>
+    <string name="app_actions_hide_indicator">Nascondi indicatore (*)</string>
+    <string name="app_actions_show_indicator">Mostra indicatore (*)</string>
     <string name="app_actions_rename">Rinomina</string>
     <string name="app_actions_pin">Aggiungi</string>
     <string name="app_actions_unpin">Rimuovi</string>

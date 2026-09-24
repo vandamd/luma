@@ -100,6 +100,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Visa</string>
     <string name="app_actions_hide">Dölj</string>
+    <string name="app_actions_hide_indicator">Dölj indikator (*)</string>
+    <string name="app_actions_show_indicator">Visa indikator (*)</string>
     <string name="app_actions_rename">Byt namn</string>
     <string name="app_actions_pin">Fäst</string>
     <string name="app_actions_unpin">Lossa</string>

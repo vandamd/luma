@@ -102,6 +102,8 @@
     <!-- App actions -->
     <string name="app_actions_show">Göster</string>
     <string name="app_actions_hide">Gizle</string>
+    <string name="app_actions_hide_indicator">Göstergeyi (*) gizle</string>
+    <string name="app_actions_show_indicator">Göstergeyi (*) göster</string>
     <string name="app_actions_rename">Yeniden adlandır</string>
     <string name="app_actions_pin">Sabitle</string>
     <string name="app_actions_unpin">Sabitlemeyi Kaldır</string>
