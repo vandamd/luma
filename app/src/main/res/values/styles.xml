@@ -5,10 +5,8 @@
 
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
 
-        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="o_mr1">shortEdges
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="r">always
         </item>
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowTranslucentNavigation">true</item>
 
         <item name="android:fitsSystemWindows">false</item>
         <item name="android:windowShowWallpaper">true</item>

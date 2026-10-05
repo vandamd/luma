@@ -1,6 +1,5 @@
 package app.luma
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -8,10 +7,10 @@ import android.content.pm.LauncherApps
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
@@ -19,6 +18,7 @@ import app.luma.data.Constants
 import app.luma.data.Prefs
 import app.luma.databinding.ActivityMainBinding
 import app.luma.helper.HomeCleanupHelper
+import app.luma.helper.applySafeWindowInsets
 import app.luma.helper.hideStatusBar
 import app.luma.helper.showStatusBar
 import app.luma.helper.showToast
@@ -51,6 +51,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         val view = binding.root
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        view.applySafeWindowInsets()
         setContentView(view)
 
         navController = Navigation.findNavController(this, R.id.nav_host_fragment)
@@ -74,8 +76,6 @@ class MainActivity : AppCompatActivity() {
         initObservers(viewModel)
         viewModel.getAppList()
         setupOrientation()
-
-        window.addFlags(FLAG_LAYOUT_NO_LIMITS)
 
         HomeCleanupHelper.setOnAppListCleanupCallback { viewModel.getAppList() }
 
@@ -112,17 +112,12 @@ class MainActivity : AppCompatActivity() {
     private fun initObservers(viewModel: MainViewModel) {
     }
 
-    @SuppressLint("SourceLockedOrientationActivity")
     private fun setupOrientation() {
-        if (prefs.autoRotateEnabled) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
-            return
-        }
-
-        // In Android 8.0, windowIsTranslucent cannot be used with screenOrientation=portrait
-        if (Build.VERSION.SDK_INT != Build.VERSION_CODES.O) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
+        // A foldable's natural orientation can change between its displays. NOSENSOR
+        // keeps auto-rotate off without forcing the landscape inner display into a
+        // portrait compatibility window (and preserves portrait on compact phones).
+        requestedOrientation =
+            if (prefs.autoRotateEnabled) ActivityInfo.SCREEN_ORIENTATION_USER else ActivityInfo.SCREEN_ORIENTATION_NOSENSOR
     }
 
     private fun backToHomeScreen() {

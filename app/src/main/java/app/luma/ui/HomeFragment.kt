@@ -23,6 +23,7 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -31,6 +32,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.os.bundleOf
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -70,9 +72,20 @@ class HomeFragment :
     private var wifiNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var clockJob: Job? = null
     private var notificationDotView: TextView? = null
+    private val homeGestureListeners = mutableListOf<SwipeTouchListener>()
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        currentPage = savedInstanceState?.getInt("currentPage") ?: 0
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("currentPage", currentPage)
+        super.onSaveInstanceState(outState)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -92,6 +105,8 @@ class HomeFragment :
     }
 
     override fun onDestroyView() {
+        homeGestureListeners.forEach { it.cancel() }
+        homeGestureListeners.clear()
         super.onDestroyView()
         notificationDotView = null
         _binding = null
@@ -109,6 +124,7 @@ class HomeFragment :
         initPageNavigation()
         initSwipeTouchListener()
         initStatusBarClickListeners()
+        binding.statusBar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateHomeViewport() }
         observeNotificationChanges()
     }
 
@@ -121,6 +137,7 @@ class HomeFragment :
         updatePageIndicator()
         refreshAppNames()
         binding.statusBar.visibility = if (prefs.statusBarMode == Prefs.StatusBarMode.Enabled) View.VISIBLE else View.GONE
+        updateHomeViewport()
         startBatteryMonitor()
         startConnectivityMonitors()
         startClock()
@@ -169,17 +186,60 @@ class HomeFragment :
     }
 
     private fun initSwipeTouchListener() {
-        binding.touchArea.setOnTouchListener(
+        val gestures =
             createGestureListener(
-                onLongClick = {
-                    try {
-                        performLongPressHaptic()
-                        findNavController().navigate(R.id.action_mainFragment_to_settingsFragment)
-                    } catch (_: Exception) {
-                    }
-                },
-            ),
-        )
+                onLongClick = ::openSettings,
+            )
+        binding.touchArea.setOnTouchListener(gestures)
+        val scrollingGestures =
+            object : SwipeTouchListener(requireContext()) {
+                override fun onSwipeLeft() = handleGesture(GestureType.SWIPE_LEFT)
+
+                override fun onSwipeRight() = handleGesture(GestureType.SWIPE_RIGHT)
+
+                override fun onLongClick() = openSettings()
+
+                override fun onDoubleClick() = handleGesture(GestureType.DOUBLE_TAP)
+            }.also { homeGestureListeners.add(it) }
+        var scrollingTouch = false
+        var touchDownTime = Long.MIN_VALUE
+        binding.homeAppsScroll.setOnTouchListener { view, event ->
+            // Intercepting a row drag can deliver MOVE as this listener's first
+            // event. Keep one route for the whole stream, even if labels resize.
+            if (event.downTime != touchDownTime) {
+                touchDownTime = event.downTime
+                scrollingTouch = homeAppsOverflow()
+            }
+            if (scrollingTouch) {
+                // Let ScrollView own vertical drags; keep horizontal drawer gestures.
+                scrollingGestures.onTouch(view, event)
+                false
+            } else {
+                gestures.onTouch(view, event)
+                true
+            }
+        }
+    }
+
+    private fun openSettings() {
+        try {
+            performLongPressHaptic()
+            findNavController().navigate(R.id.action_mainFragment_to_settingsFragment)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun homeAppsOverflow(): Boolean =
+        binding.homeAppsScroll.canScrollVertically(-1) || binding.homeAppsScroll.canScrollVertically(1)
+
+    private fun updateHomeViewport() {
+        val statusBar = binding.statusBar
+        val top = if (statusBar.visibility == View.VISIBLE) statusBar.height else 0
+        val params = binding.homeAppsScroll.layoutParams as FrameLayout.LayoutParams
+        if (params.topMargin != top) {
+            binding.homeAppsScroll.updateLayoutParams<FrameLayout.LayoutParams> { topMargin = top }
+            binding.touchArea.updateLayoutParams<FrameLayout.LayoutParams> { topMargin = top }
+        }
     }
 
     private fun initStatusBarClickListeners() {
@@ -278,9 +338,13 @@ class HomeFragment :
     }
 
     private fun switchToPage(page: Int) {
-        if (page >= 0 && page < totalPages) {
+        if (page >= 0 && page < totalPages && page != currentPage) {
             currentPage = page
             refreshAppNames()
+            binding.homeAppsScroll.scrollTo(0, 0)
+            // Replace any in-flight native fling with a zero-distance scroll so
+            // it cannot carry the previous page's velocity into the new page.
+            binding.homeAppsScroll.smoothScrollTo(0, 0)
             updatePageIndicator()
         }
     }
@@ -923,7 +987,7 @@ class HomeFragment :
         view: View? = null,
         onLongClick: () -> Unit = {},
         onClick: (View) -> Unit = {},
-    ): View.OnTouchListener =
+    ): SwipeTouchListener =
         object : SwipeTouchListener(requireContext(), view) {
             override fun onSwipeLeft() = handleGesture(GestureType.SWIPE_LEFT)
 
@@ -942,7 +1006,7 @@ class HomeFragment :
             }
 
             override fun onClick(view: View) = onClick(view)
-        }
+        }.also { homeGestureListeners.add(it) }
 
     private fun updateAppCountForPage(appsCount: Int) {
         val currentAppCount = binding.homeAppsLayout.childCount
@@ -952,12 +1016,19 @@ class HomeFragment :
                 val view = layoutInflater.inflate(R.layout.home_app_button, null) as TextView
                 view.apply {
                     textSize = 41f
-                    setOnTouchListener(
+                    val gestures =
                         createGestureListener(
                             view = this,
                             onClick = { v -> this@HomeFragment.onClick(v) },
-                        ),
-                    )
+                        )
+                    setOnTouchListener { touchedView, event ->
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                            // Preserve page-swipe gestures when all rows fit. When they
+                            // overflow, ScrollView can intercept and reveal hidden rows.
+                            touchedView.parent.requestDisallowInterceptTouchEvent(!homeAppsOverflow())
+                        }
+                        gestures.onTouch(touchedView, event)
+                    }
                     layoutParams =
                         ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.WRAP_CONTENT,

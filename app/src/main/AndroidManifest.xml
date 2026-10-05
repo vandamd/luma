@@ -23,8 +23,9 @@
             android:configChanges="uiMode"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
+            android:resizeableActivity="true"
             android:taskAffinity=""
-            android:windowSoftInputMode="stateHidden"
+            android:windowSoftInputMode="stateHidden|adjustResize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

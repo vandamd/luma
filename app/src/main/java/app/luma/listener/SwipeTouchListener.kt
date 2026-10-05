@@ -1,6 +1,7 @@
 package app.luma.listener
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import android.view.GestureDetector
 import android.view.GestureDetector.SimpleOnGestureListener
@@ -22,6 +23,14 @@ internal open class SwipeTouchListener(
     private val view: View? = null,
 ) : OnTouchListener {
     private val gestureDetector: GestureDetector
+
+    fun cancel() {
+        val now = SystemClock.uptimeMillis()
+        val event = MotionEvent.obtain(now, now, MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+        gestureDetector.onTouchEvent(event)
+        view?.isPressed = false
+        event.recycle()
+    }
 
     override fun onTouch(
         v: View,
