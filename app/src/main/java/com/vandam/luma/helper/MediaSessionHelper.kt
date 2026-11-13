@@ -8,6 +8,7 @@ import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -34,6 +35,7 @@ data class MediaInfo(
 
 object MediaSessionHelper {
     private const val LIGHT_OS_PACKAGE = "com.lightos"
+    private const val LIGHT_AUDIO_USAGE_EXTRA = "com.thelightphone.audio.USAGE"
     private const val PODCAST_SEEK_MS = 15_000L
     private const val TRACK_SWITCH_GRACE_MS = 1_500L
 
@@ -379,6 +381,10 @@ object MediaSessionHelper {
                 updateMediaInfo()
             }
 
+            override fun onExtrasChanged(extras: Bundle?) {
+                updateMediaInfo()
+            }
+
             override fun onSessionDestroyed() {
                 activeCallbacks.remove(controller)?.let { controller.unregisterCallback(it) }
                 updateMediaInfo()
@@ -407,9 +413,14 @@ object MediaSessionHelper {
         val showsStopButton = playbackStatus == PlaybackState.STATE_PAUSED && !showPlayingControlsDuringTrackSwitch
         val hasPodcastCustomSeekActions = hasPodcastSeekCustomActions(playbackState)
         val isPodcast =
-            hasPodcastMetadata(metadata?.description) ||
-                hasPodcastCustomSeekActions ||
-                playbackState.hasPodcastSeekActions()
+            when (active.extras?.getString(LIGHT_AUDIO_USAGE_EXTRA)) {
+                "speech" -> true
+                "music" -> false
+                else ->
+                    hasPodcastMetadata(metadata?.description) ||
+                        hasPodcastCustomSeekActions ||
+                        playbackState.hasPodcastSeekActions()
+            }
         val showsPreviousButton =
             if (isPodcast) {
                 hasPodcastCustomSeekActions || playbackState.hasPodcastBackAction()
