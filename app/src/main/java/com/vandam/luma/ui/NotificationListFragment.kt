@@ -75,6 +75,7 @@ private data class NotificationItem(
 )
 
 private const val TELECOM_PACKAGE = "com.android.server.telecom"
+private const val LIGHT_OS_PACKAGE = "com.lightos"
 private const val TELECOM_MISSED_CALLS_CHANNEL = "TelecomMissedCalls"
 
 class NotificationListFragment : Fragment() {
@@ -178,7 +179,8 @@ class NotificationListFragment : Fragment() {
 
             PhoneNotificationSummary.Kind.UnreadMessages ->
                 notifications.firstOrNull {
-                    it.notification.category == Notification.CATEGORY_MESSAGE
+                    it.packageName == LIGHT_OS_PACKAGE &&
+                        it.notification.category == Notification.CATEGORY_MESSAGE
                 }
         }
     }
@@ -200,6 +202,7 @@ class NotificationListFragment : Fragment() {
             }
         return NotificationItem(
             key = key,
+            dismissedKey = "$key|$postTime",
             packageName = packageName,
             title = notification.extras.getString(Notification.EXTRA_TITLE) ?: appLabel,
             text = notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
@@ -218,6 +221,7 @@ class NotificationListFragment : Fragment() {
         val packageLabelCache = remember { mutableMapOf<String, String>() }
         LaunchedEffect(version, refreshVersion) {
             val loaded = loadNotifications(packageLabelCache)
+            dismissedKeys.retainAll(loaded.map { it.dismissedKey }.toSet())
             val activePersistentDismissedKeys =
                 loaded
                     .filter { it.persistDismissal }

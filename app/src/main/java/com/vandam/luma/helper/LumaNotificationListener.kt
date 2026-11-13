@@ -103,7 +103,7 @@ class LumaNotificationListener : NotificationListenerService() {
             }
         }
 
-        private fun rebuildNotificationSnapshot() {
+        private fun rebuildNotificationSnapshot(notificationPosted: Boolean = false) {
             val svc = instance.get()
             if (svc == null || !listenerConnected) return
             val previousSnapshot = notificationSnapshot
@@ -131,7 +131,7 @@ class LumaNotificationListener : NotificationListenerService() {
                             .toSet(),
                 )
             notificationSnapshot = nextSnapshot
-            if (previousSnapshot.notifications.notificationKeys() != nextSnapshot.notifications.notificationKeys()) {
+            if (notificationPosted || previousSnapshot.notifications.notificationKeys() != nextSnapshot.notifications.notificationKeys()) {
                 _changeVersion.update { it + 1 }
             }
             if (previousSnapshot.packages != nextSnapshot.packages) {
@@ -166,7 +166,7 @@ class LumaNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        rebuildNotificationSnapshot()
+        rebuildNotificationSnapshot(notificationPosted = true)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {

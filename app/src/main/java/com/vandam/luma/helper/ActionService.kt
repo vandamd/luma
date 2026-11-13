@@ -83,6 +83,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
+import kotlin.math.exp
+import kotlin.math.roundToInt
 
 private data class UnlockGateCellularSnapshot(
     val serviceState: Int = ServiceState.STATE_OUT_OF_SERVICE,
@@ -911,17 +913,17 @@ class ActionService : AccessibilityService() {
     private fun handleScrollwheelBrightnessKeyEvent(event: KeyEvent): Boolean {
         if (!prefs.scrollwheelBrightnessEnabled) return false
 
-        val brightnessDelta =
+        val brightnessDirection =
             when (event.keyCode) {
-                SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE -> BRIGHTNESS_STEP
-                SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE -> -BRIGHTNESS_STEP
+                SCROLLWHEEL_BRIGHTNESS_UP_KEY_CODE -> 1
+                SCROLLWHEEL_BRIGHTNESS_DOWN_KEY_CODE -> -1
                 else -> return false
             }
 
         if (event.action != KeyEvent.ACTION_DOWN) return false
         if (event.repeatCount != 0) return true
 
-        val handled = adjustBrightness(brightnessDelta)
+        val handled = adjustBrightness(brightnessDirection)
         if (handled) {
             consumedMappedKeyUps.add(event.keyCode)
         }
@@ -1086,7 +1088,7 @@ class ActionService : AccessibilityService() {
         return true
     }
 
-    private fun adjustBrightness(delta: Int): Boolean {
+    private fun adjustBrightness(direction: Int): Boolean {
         if (!Settings.System.canWrite(this)) {
             promptForWriteSettingsPermission()
             return true
@@ -1096,7 +1098,12 @@ class ActionService : AccessibilityService() {
             runCatching {
                 Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS)
             }.getOrDefault(DEFAULT_BRIGHTNESS)
-        val targetBrightness = (currentBrightness + delta).coerceIn(MIN_BRIGHTNESS, MAX_BRIGHTNESS)
+        val targetBrightness =
+            if (direction > 0) {
+                BRIGHTNESS_LEVELS.firstOrNull { it > currentBrightness } ?: MAX_BRIGHTNESS
+            } else {
+                BRIGHTNESS_LEVELS.lastOrNull { it < currentBrightness } ?: MIN_BRIGHTNESS
+            }
 
         return try {
             Settings.System.putInt(
@@ -3636,7 +3643,20 @@ class ActionService : AccessibilityService() {
         private const val MIN_BRIGHTNESS = 1
         private const val MAX_BRIGHTNESS = 255
         private const val DEFAULT_BRIGHTNESS = 128
-        private const val BRIGHTNESS_STEP = 20
+        private const val BRIGHTNESS_PERCEPTUAL_STEPS = 13
+        private val BRIGHTNESS_LEVELS =
+            (0..BRIGHTNESS_PERCEPTUAL_STEPS)
+                .map { step ->
+                    val perceptualBrightness = step.toDouble() / BRIGHTNESS_PERCEPTUAL_STEPS
+                    val linearBrightness =
+                        if (perceptualBrightness <= 0.5) {
+                            perceptualBrightness * perceptualBrightness / 3.0
+                        } else {
+                            (exp((perceptualBrightness - 0.55991073) / 0.17883277) + 0.28466892) / 12.0
+                        }
+                    (MIN_BRIGHTNESS + linearBrightness * (MAX_BRIGHTNESS - MIN_BRIGHTNESS))
+                        .roundToInt()
+                }.distinct()
         private const val WRITE_SETTINGS_PROMPT_COOLDOWN_MS = 1500L
 
         private var instance: WeakReference<ActionService> = WeakReference(null)
